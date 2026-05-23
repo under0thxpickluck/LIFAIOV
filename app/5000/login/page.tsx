@@ -79,7 +79,7 @@ export default function Login5000Page() {
               className="text-2xl font-extrabold tracking-tight"
               style={{ color: "#6C63FF" }}
             >
-              LIFAI /5000
+              LIFAI
             </div>
             <div className="mt-2 text-sm text-white/50">
               発行されたIDとパスワードを入力してください
