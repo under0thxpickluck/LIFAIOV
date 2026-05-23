@@ -86,6 +86,7 @@ export default function LoginPage() {
           status: "approved",
           id: trimmedId,
           token: res.token ?? pw, // ✅ ここだけ修正：tokenが無い場合はpwを入れる（壊さない保険）
+          ...(res.group ? { group: res.group } : {}),
         });
 
         // ✅ 追加：パスワード(code)は sessionStorage にだけ保存（ブラウザを閉じると消える）

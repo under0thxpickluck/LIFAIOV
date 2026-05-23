@@ -37,7 +37,18 @@
       "Bash(npm run:*)",
       "Bash(claude --version)",
       "Bash(claude plugins:*)",
-      "Bash(grep -r \"import.*from.*components\" /c/Users/unitu/aisalon/app/music*.tsx /c/Users/unitu/aisalon/app/music/page.tsx)"
+      "Bash(grep -r \"import.*from.*components\" /c/Users/unitu/aisalon/app/music*.tsx /c/Users/unitu/aisalon/app/music/page.tsx)",
+      "Bash(awk '/ensureCols_/{p=1} p{print; if\\(++c==8\\){p=0;c=0}}')",
+      "Bash(netstat -ano)",
+      "WebFetch(domain:localhost)",
+      "Bash(cat)",
+      "Bash(bash /tmp/verify.sh)",
+      "Bash(npx kill-port *)",
+      "Bash(findstr /i \"aws\\\\|s3\\\\|ffmpeg\\\\|merge\")",
+      "Skill(superpowers:brainstorming)",
+      "PowerShell(cd C:\\\\Users\\\\unite\\\\aisalon; npx tsc --noEmit 2>&1 | Where-Object { $_ -notmatch \"jest\" })",
+      "PowerShell(robocopy \"C:\\\\Users\\\\unite\\\\aisalon\" \"C:\\\\Users\\\\unite\\\\LIFAIOV\" /E /COPYALL /NP /NFL /NDL 2>&1 | Select-Object -Last 10)",
+      "PowerShell(robocopy \"C:\\\\Users\\\\unite\\\\aisalon\" \"C:\\\\Users\\\\unite\\\\LIFAIOV\" /E /NP /NFL /NDL 2>&1 | Select-Object -Last 15)"
     ]
   }
 }
