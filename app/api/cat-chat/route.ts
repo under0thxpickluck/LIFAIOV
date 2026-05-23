@@ -3,8 +3,6 @@ import OpenAI from "openai";
 import { BP_COSTS } from "@/app/lib/bp-config";
 import { isDateTimeQuestion, buildDateTimeAnswer, getNowInJST } from "@/lib/cat/datetime";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 const BASE_SYSTEM_PROMPT = `あなたは「リファ猫」というAIサロン「LIFAI」のマスコットキャラクターです。
 フレンドリーで親しみやすいトーンで、何でも日本語で答えてください。
 AI・副業・プログラミング・日常の悩みなど、幅広い質問に対応します。
@@ -111,6 +109,7 @@ function saveUnknown(userMessage: string, pagePath: string, gasUrl: string, gasK
 }
 
 export async function POST(req: Request) {
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   try {
     const {
       message, history, images, id,
