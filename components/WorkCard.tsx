@@ -103,7 +103,7 @@ export default function WorkCard({ work, variant = "gallery" }: Props) {
             詳しく見る →
           </Link>
           <Link
-            href="/purchase"
+            href="/5000"
             className="flex-1 rounded-xl bg-neutral-900 px-3 py-2 text-center text-xs font-bold text-white transition hover:bg-neutral-800"
           >
             この作品を作る

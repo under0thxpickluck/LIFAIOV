@@ -17,7 +17,7 @@ function pickBaseUrl() {
   if (vercel) return vercel.replace(/\/+$/, "");
 
   // ✅ 最終フォールバック（既存踏襲）
-  return "https://lifai.vercel.app";
+  return "https://lifaiov.vercel.app";
 }
 
 function toNumberSafe(v: unknown): number {

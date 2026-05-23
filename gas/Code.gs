@@ -3367,7 +3367,7 @@ function handle_(key, body) {
         hitLoginId +
         "\n\n" +
         "ログイン画面はこちら：\n" +
-        "https://lifai.vercel.app/login\n\n" +
+        "https://lifaiov.vercel.app/5000/login\n\n" +
         "LIFAI公式";
       MailApp.sendEmail({ to: emailIn, subject: subject, body: mailBody, name: "LIFAI公式" });
     }
@@ -10103,7 +10103,7 @@ function musicBoostAutoRenew_() {
             "必要 EP: " + epCost + " EP\n" +
             "現在の EP 残高: " + userEp + " EP\n\n" +
             "EP をチャージして再度ご契約いただけます:\n" +
-            "https://lifai.vercel.app/music-boost"
+            "https://lifaiov.vercel.app/music-boost"
           );
         } catch (mailErr) {
           console.error("musicBoostAutoRenew_: mail failed userId=" + userId

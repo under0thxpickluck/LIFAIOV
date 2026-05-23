@@ -23,6 +23,11 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/5000", req.url));
   }
 
+  // OVは5000専用サイト：/login は /5000/login にリダイレクト
+  if (pathname === "/login") {
+    return NextResponse.redirect(new URL("/5000/login", req.url));
+  }
+
   // ✅ /admin, /api/admin をガード（/note-generator は BP 課金に移行）
   const isProtected =
     pathname.startsWith("/admin") ||
@@ -48,6 +53,7 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
+    "/login",
     "/purchase",
     "/purchase/:path*",
     "/admin/:path*",

@@ -374,7 +374,7 @@ export default function ReferralAppPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <p style={{ fontSize: 11, fontWeight: 700, color: "#64748b" }}>紹介リンク QR</p>
-            <QRCodeSVG value={refUrl || "https://lifai.vercel.app"} size={200} />
+            <QRCodeSVG value={refUrl || "https://lifaiov.vercel.app"} size={200} />
             <p style={{ fontSize: 9, color: "#94a3b8", wordBreak: "break-all", textAlign: "center", maxWidth: 200 }}>{refUrl}</p>
             <button onClick={() => setQrOpen(false)}
               style={{ fontSize: 11, color: "#94a3b8", background: "none", border: "none", cursor: "pointer" }}>
