@@ -225,69 +225,16 @@ function ReferralTree({ referrals }: { referrals: Referral[] }) {
   );
 }
 
-// ─── Password Gate ────────────────────────────────────────────────────────────
-
-const APP_PASSWORD = "boss";
-const SESSION_KEY = "referral_app_authed";
-
-function PasswordGate({ onAuth }: { onAuth: () => void }) {
-  const [pw, setPw] = useState("");
-  const [error, setError] = useState(false);
-
-  const submit = () => {
-    if (pw === APP_PASSWORD) {
-      sessionStorage.setItem(SESSION_KEY, "1");
-      onAuth();
-    } else {
-      setError(true);
-    }
-  };
-
-  return (
-    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 16px" }}>
-      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 24, padding: 32, width: "100%", maxWidth: 360, boxShadow: C.shadow }}>
-        <h2 style={{ fontSize: 16, fontWeight: 800, textAlign: "center", marginBottom: 6, color: C.text }}>🤝 リファラ</h2>
-        <p style={{ fontSize: 11, color: C.textMuted, textAlign: "center", marginBottom: 24 }}>紹介実績・報酬・コード共有</p>
-        <input
-          type="password"
-          value={pw}
-          onChange={(e) => { setPw(e.target.value); setError(false); }}
-          onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
-          placeholder="パスワードを入力"
-          style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid ${error ? "rgba(252,165,165,0.5)" : C.border}`,
-            borderRadius: 14, padding: "12px 16px", fontSize: 13, color: C.text, outline: "none",
-            marginBottom: 10, boxSizing: "border-box" }}
-        />
-        {error && <p style={{ fontSize: 12, color: "#FCA5A5", textAlign: "center", marginBottom: 10 }}>パスワードが違います</p>}
-        <button
-          onClick={submit}
-          style={{ width: "100%", padding: "13px", borderRadius: 14,
-            background: "linear-gradient(135deg, #10B981, #0D9488)", border: "none",
-            fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer",
-            boxShadow: "0 4px 20px rgba(16,185,129,0.3)" }}
-        >
-          入室する
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ReferralAppPage() {
   const router = useRouter();
-  const [authed, setAuthed] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [copied, setCopied] = useState<"code" | "url" | "">("");
   const [qrOpen, setQrOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
-
-  useEffect(() => {
-    if (sessionStorage.getItem(SESSION_KEY) === "1") setAuthed(true);
-  }, []);
 
   const fetchData = useCallback(async () => {
     const auth = getAuth();
@@ -320,10 +267,9 @@ export default function ReferralAppPage() {
   }, [router]);
 
   useEffect(() => {
-    if (!authed) return;
     const t = setTimeout(() => fetchData(), 50);
     return () => clearTimeout(t);
-  }, [authed, fetchData]);
+  }, [fetchData]);
 
   const copy = async (text: string, kind: "code" | "url") => {
     if (!text) return;
@@ -335,8 +281,6 @@ export default function ReferralAppPage() {
       setErr("クリップボードへのコピーに失敗しました");
     }
   };
-
-  if (!authed) return <PasswordGate onAuth={() => setAuthed(true)} />;
 
   const auth = getAuth();
   const purchasePath = "/5000";
