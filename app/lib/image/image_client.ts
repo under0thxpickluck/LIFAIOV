@@ -1,9 +1,9 @@
 import OpenAI, { toFile } from "openai";
 import { randomUUID } from "crypto";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function getClient() {
+  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+}
 
 function getR2Config() {
   return {
@@ -44,7 +44,7 @@ async function uploadGeneratedImage(b64Json: string): Promise<string> {
 }
 
 export async function generateImage(prompt: string): Promise<string> {
-  const res = await client.images.generate({
+  const res = await getClient().images.generate({
     model: "gpt-image-1",
     prompt,
     size: "1024x1024",
@@ -80,7 +80,7 @@ export async function editImage(_params: {
     type: contentType,
   });
 
-  const res = await client.images.edit({
+  const res = await getClient().images.edit({
     model: "gpt-image-1",
     image,
     prompt: _params.instruction,
