@@ -1,9 +1,3 @@
 {
-  "functions": {
-    "app/api/music/**": { "maxDuration": 300 },
-    "app/api/bgm/**": { "maxDuration": 120 },
-    "app/api/song/approve-structure/**": { "maxDuration": 300 },
-    "app/api/song/start/**": { "maxDuration": 60 },
-    "app/api/song/approve-lyrics/**": { "maxDuration": 60 }
-  }
+  "framework": "nextjs"
 }
