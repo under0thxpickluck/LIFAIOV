@@ -151,7 +151,7 @@ export default function WorkPage({ params }: { params: { slug: string } }) {
             <p className="text-lg font-bold text-neutral-900">この作品を自分でも作ってみる</p>
             <p className="mt-2 text-sm text-neutral-500">LIFAIに参加すると全機能が使えます</p>
             <Link
-              href="/purchase"
+              href="/5000"
               className="mt-6 inline-flex items-center rounded-xl bg-neutral-900 px-8 py-3 text-sm font-bold text-white transition hover:bg-neutral-800"
             >
               参加申請（権利購入）→

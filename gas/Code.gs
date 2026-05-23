@@ -3847,7 +3847,7 @@ function handle_(key, body) {
     }
     if (!loginOk) return json_({ ok: false, reason: "invalid" });
 
-    return json_({ ok: true, group: foundIn5000Sheet ? "5000" : "" });
+    return json_({ ok: true, group: (foundIn5000Sheet || group_login === "5000") ? "5000" : "" });
   }
 
   // =========================================================
@@ -5140,12 +5140,8 @@ function sendResetMail_(to, loginId, token, myRefCode, plan) {
   }
 
   const is5000 = plan === "5000";
-  const resetPath = is5000
-    ? "https://lifai.vercel.app/reset?plan=5000&token=" + encodeURIComponent(token)
-    : "https://lifai.vercel.app/reset?token=" + encodeURIComponent(token);
-  const loginUrl = is5000
-    ? "https://lifai.vercel.app/5000/login"
-    : "https://lifai.vercel.app/login";
+  const resetPath = "https://lifaiov.vercel.app/reset?plan=5000&token=" + encodeURIComponent(token);
+  const loginUrl = "https://lifaiov.vercel.app/5000/login";
   const url = resetPath;
   const subject = "【LIFAI】初回パスワード設定のご案内";
 
@@ -12000,3 +11996,80 @@ function createRumbleAutoEntryTrigger() {
     .create();
   Logger.log('[createRumbleAutoEntryTrigger] 毎日6時のトリガーを登録しました');
 }
+
+// ============================================================
+// 全シート一括初期化（新規GASセットアップ時に手動実行）
+// ============================================================
+function initAllSheets() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  function ensure(name, headers) {
+    let s = ss.getSheetByName(name);
+    if (!s) {
+      s = ss.insertSheet(name);
+      s.appendRow(headers);
+      Logger.log("作成: " + name);
+    } else {
+      Logger.log("既存: " + name);
+    }
+  }
+
+  // applies（複雑なので既存関数で）
+  getOrCreateSheet_();
+  Logger.log("applies: 初期化済み");
+
+  ensure("wallet_ledger", ["ts","kind","login_id","email","amount","memo"]);
+  ensure("ref_tree", ["L1","L1_direct_count","L2","L2_direct_count","L3","L3_status","L3_email","L3_created_at","L1_share_pct","L1_bonus_total","L2_share_pct","L2_bonus_total"]);
+  ensure("ref_events", ["ts","new_login_id","new_email","used_ref_code","ref1_login_id","ref2_login_id","ref3_login_id","note"]);
+  ensure("staking", ["stake_id","login_id","staked_bp","rate","started_at","expires_at","status","claimed_at","interest_bp","total_bp"]);
+  ensure("gacha_ticker", ["id","masked_id","prize_bp","created_at"]);
+  ensure("cat_chat_logs", ["log_id","user_id","session_id","page_path","widget_mode","user_message","assistant_message","source_type","confidence","resolved","created_at"]);
+  ensure("cat_feedback", ["feedback_id","log_id","rating","comment","created_at"]);
+  ensure("cat_unknown_questions", ["unknown_id","user_message","normalized_message","page_path","count","first_seen_at","last_seen_at","status","admin_answer"]);
+  ensure("cat_faq", ["faq_id","question_pattern","answer","active","created_at","updated_at"]);
+  ensure("market_items", ["item_id","seller_id","seller_name","title","desc","item_type","asset_count","currency","price","fee_rate","delivery_mode","delivery_ref","stock_total","stock_sold","stock_reserved","status","report_count","created_at","updated_at"]);
+  ensure("market_orders", ["order_id","item_id","buyer_id","seller_id","currency","price","fee_amount","seller_net","status","reserved_until","paid_at","delivered_at","confirmed_at","refunded_at","note","created_at","updated_at"]);
+  ensure("market_escrow", ["escrow_id","order_id","currency","hold_amount","state","created_at","updated_at"]);
+  ensure("market_reports", ["report_id","item_id","reporter_id","reason","message","created_at"]);
+  ensure("market_daily_limits", ["user_id","date_jst","listed_count","updated_at"]);
+  ensure("gift_transactions", ["id","from_user","to_user","amount","created_at","expiry_date","status","note","flagged_reason"]);
+  ensure("gift_usage_logs", ["id","user_id","feature_type","feature_ref","amount","used_at","source_expiry_date"]);
+  ensure("radio_songs", ["song_id","title","artist","service_links","thumbnail_url","active","created_at"]);
+  ensure("radio_missions", ["mission_id","login_id","song_id","started_at","submitted_at","status","ep_granted","screenshot_note"]);
+  ensure("system_settings", ["key","value"]);
+
+  Logger.log("=== 初期化完了 ===");
+}
+
+// ============================================================
+// appliesシートの全カラムを本家と同じに揃える（手動実行）
+// ============================================================
+function ensureAllAppliesColumns() {
+  const sheet = getOrCreateSheet_();
+  const lastCol = sheet.getLastColumn();
+  const header = lastCol > 0 ? sheet.getRange(1, 1, 1, lastCol).getValues()[0] : [];
+
+  const ALL_COLUMNS = [
+    "created_at","plan","email","name","name_kana","ref_name","ref_id","apply_id","region",
+    "status","code","code_expires_at","code_used_at","expected_paid","payment_status",
+    "paid_at","order_id","invoice_id","actually_paid","discord_id","age_band","prefecture",
+    "city","job","login_id","pw_hash","pw_updated_at","reset_token","reset_expires",
+    "reset_used_at","reset_sent_at","bp_balance","ep_balance","my_ref_code","ref_code",
+    "referrer_login_id","referrer_2_login_id","referrer_3_login_id","ref_path","bp","ep",
+    "pay_amount","pay_currency","price_amount","price_currency","auto_approved_at",
+    "auto_approve_reason","ref_share_pct","ref_bonus_granted_at","ref_bonus_amount",
+    "bp_granted_at","bp_grant_plan","bp_grant_amount","ep_grant_amount","mail_error",
+    "subscription_plan","subscription_status","subscription_started_at","subscription_period_end",
+    "bp_cap","bp_last_reset_at","job_priority_score","music_priority_level","last_login_at",
+    "login_streak","daily_bp_earned","daily_ep_earned","daily_reset_date","total_login_count",
+    "mission_login_date","mission_fortune_date","mission_music_date","mission_bonus_date",
+    "upgrade_shard","gacha_count","gacha_streak","gacha_fragments","daily_gacha_used",
+    "rumble_display_name","gift_ep_balance","gift_ep_expiry_map","referrer_4_login_id",
+    "referrer_5_login_id","affiliate_granted_at","music_boost_artist","music_boost_album",
+    "entry_source","music_boost_tracks_json","approved_at",
+  ];
+
+  ensureCols_(sheet, header, ALL_COLUMNS);
+  Logger.log("appliesカラム整備完了: " + sheet.getLastColumn() + "列");
+}
+

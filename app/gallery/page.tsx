@@ -35,7 +35,7 @@ export default function GalleryPage() {
                   ログイン
                 </Link>
                 <Link
-                  href="/purchase"
+                  href="/5000"
                   className="rounded-xl bg-neutral-900 px-4 py-2 text-xs font-bold text-white transition hover:bg-neutral-800"
                 >
                   参加申請
@@ -85,7 +85,7 @@ export default function GalleryPage() {
                     </li>
                   ))}
                 </ul>
-                <Link href="/purchase" className={CTA_OUTLINE}>使ってみる →</Link>
+                <Link href="/5000" className={CTA_OUTLINE}>使ってみる →</Link>
               </div>
               <div className="flex w-full shrink-0 items-center justify-center rounded-xl border border-neutral-100 bg-neutral-50 p-6 md:w-52">
                 <div className="relative h-28 w-28">
@@ -125,7 +125,7 @@ export default function GalleryPage() {
                     </li>
                   ))}
                 </ul>
-                <Link href="/purchase" className={CTA_OUTLINE}>使ってみる →</Link>
+                <Link href="/5000" className={CTA_OUTLINE}>使ってみる →</Link>
               </div>
               <div className="w-full shrink-0 rounded-xl border border-neutral-100 bg-neutral-50 p-5 md:w-52">
                 <p className="mb-3 text-xs font-semibold text-neutral-400 uppercase tracking-wider">BGMカテゴリ例</p>
@@ -170,7 +170,7 @@ export default function GalleryPage() {
                 </div>
               ))}
             </div>
-            <Link href="/purchase" className={CTA_OUTLINE}>使ってみる →</Link>
+            <Link href="/5000" className={CTA_OUTLINE}>使ってみる →</Link>
           </div>
         </div>
       </section>
@@ -200,7 +200,7 @@ export default function GalleryPage() {
                     </li>
                   ))}
                 </ul>
-                <Link href="/purchase" className={CTA_OUTLINE}>使ってみる →</Link>
+                <Link href="/5000" className={CTA_OUTLINE}>使ってみる →</Link>
               </div>
               <div className="w-full shrink-0 rounded-xl border border-neutral-100 bg-neutral-50 p-5 md:w-52">
                 <p className="mb-3 text-xs font-semibold text-neutral-400 uppercase tracking-wider">生成サンプル</p>
@@ -256,7 +256,7 @@ export default function GalleryPage() {
                 </div>
               </div>
             </div>
-            <Link href="/purchase" className={CTA_OUTLINE}>使ってみる →</Link>
+            <Link href="/5000" className={CTA_OUTLINE}>使ってみる →</Link>
           </div>
         </div>
       </section>
@@ -289,7 +289,7 @@ export default function GalleryPage() {
                     </li>
                   ))}
                 </ul>
-                <Link href="/purchase" className={CTA_OUTLINE}>使ってみる →</Link>
+                <Link href="/5000" className={CTA_OUTLINE}>使ってみる →</Link>
               </div>
               <div className="w-full shrink-0 rounded-xl border border-pink-100 bg-pink-50/50 p-5 md:w-52">
                 <p className="mb-3 text-xs font-semibold text-pink-500 uppercase tracking-wider">ブーストプラン例</p>
@@ -343,7 +343,7 @@ export default function GalleryPage() {
                 </div>
               </div>
             </div>
-            <Link href="/purchase" className={CTA_OUTLINE}>使ってみる →</Link>
+            <Link href="/5000" className={CTA_OUTLINE}>使ってみる →</Link>
           </div>
         </div>
       </section>
@@ -376,7 +376,7 @@ export default function GalleryPage() {
                 </div>
               ))}
             </div>
-            <Link href="/purchase" className={CTA_OUTLINE}>使ってみる →</Link>
+            <Link href="/5000" className={CTA_OUTLINE}>使ってみる →</Link>
           </div>
         </div>
       </section>
@@ -412,7 +412,7 @@ export default function GalleryPage() {
                 </div>
               ))}
             </div>
-            <Link href="/purchase" className={CTA_OUTLINE}>使ってみる →</Link>
+            <Link href="/5000" className={CTA_OUTLINE}>使ってみる →</Link>
           </div>
         </div>
       </section>
@@ -449,7 +449,7 @@ export default function GalleryPage() {
                 </div>
               ))}
             </div>
-            <Link href="/purchase" className={CTA_OUTLINE}>使ってみる →</Link>
+            <Link href="/5000" className={CTA_OUTLINE}>使ってみる →</Link>
           </div>
         </div>
       </section>
@@ -491,7 +491,7 @@ export default function GalleryPage() {
                 </div>
               </div>
             </div>
-            <Link href="/purchase" className={CTA_OUTLINE}>使ってみる →</Link>
+            <Link href="/5000" className={CTA_OUTLINE}>使ってみる →</Link>
           </div>
         </div>
       </section>
@@ -531,7 +531,7 @@ export default function GalleryPage() {
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Link
-                href="/purchase"
+                href="/5000"
                 className="inline-flex items-center justify-center rounded-xl bg-neutral-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-neutral-800"
               >
                 参加申請（権利購入）

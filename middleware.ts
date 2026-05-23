@@ -13,6 +13,16 @@ function unauthorized(realm: string) {
 export function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
 
+  // OVでは /purchase/jam と /purchase は存在しない（5000専用サイト）
+  if (
+    pathname === "/purchase/jam" ||
+    pathname.startsWith("/purchase/jam/") ||
+    pathname === "/purchase" ||
+    pathname.startsWith("/purchase/")
+  ) {
+    return NextResponse.redirect(new URL("/5000", req.url));
+  }
+
   // ✅ /admin, /api/admin をガード（/note-generator は BP 課金に移行）
   const isProtected =
     pathname.startsWith("/admin") ||
@@ -38,6 +48,8 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
+    "/purchase",
+    "/purchase/:path*",
     "/admin/:path*",
     "/api/admin/:path*",
     "/5000/admin/:path*",

@@ -252,7 +252,7 @@ export default function ReferralPage() {
 
             <div className="grid gap-2 md:min-w-[260px]">
               <Link
-                href="/purchase"
+                href="/5000"
                 className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-3 text-sm font-extrabold text-white hover:opacity-95"
               >
                 権利購入（参加申請） →
@@ -494,7 +494,7 @@ export default function ReferralPage() {
           {/* フッターリンク */}
           <div className="mt-8 grid gap-3 md:grid-cols-2">
             <Link
-              href="/purchase"
+              href="/5000"
               className="inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-5 py-4 text-sm font-extrabold text-white hover:bg-indigo-700"
             >
               権利購入（参加申請）へ →

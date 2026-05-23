@@ -157,6 +157,37 @@ function PurchaseStatusContent() {
           </p>
         )}
 
+        {/* 承認後：月額サブスク案内 */}
+        {status === "approved" && (
+          <div style={{
+            marginBottom: 24, padding: "20px 24px",
+            border: "1px solid rgba(108,99,255,0.3)",
+            borderRadius: 16, background: "rgba(108,99,255,0.08)",
+            textAlign: "left",
+          }}>
+            <p style={{ fontSize: 13, fontWeight: 800, color: "#fff", marginBottom: 6 }}>
+              🎉 次のステップ：月額プランに申し込む
+            </p>
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.7, marginBottom: 14 }}>
+              LIFAIへの参加には月額サブスクリプションへのご登録が必要です。下記より手続きをお願いします。
+            </p>
+            <a
+              href="https://square.link/u/JM500LiD"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "block", width: "100%", padding: "13px 0",
+                borderRadius: 12, textAlign: "center",
+                background: "linear-gradient(135deg, #6C63FF, #00D4FF)",
+                color: "#fff", fontSize: 14, fontWeight: 800,
+                textDecoration: "none",
+              }}
+            >
+              月額プランに申し込む（¥9,800/月）
+            </a>
+          </div>
+        )}
+
         {/* メール再送ボタン */}
         {showResend && (
           <button

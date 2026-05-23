@@ -9,16 +9,16 @@ const PAGE_RECS: Record<string, Recommendation[]> = {
     { icon: "🛒", label: "マーケットを見る",     href: "/market" },
     { icon: "⚔️", label: "Rumble Arenaに参加", href: "/mini-games/rumble" },
   ],
-  "/purchase": [
-    { icon: "📝", label: "申請フォームへ進む",   href: "/apply" },
+  "/5000": [
+    { icon: "📝", label: "申請フォームへ進む",   href: "/5000/apply" },
     { icon: "❓", label: "プランについて相談",   href: "/chat" },
   ],
-  "/apply": [
-    { icon: "✅", label: "入力内容を確認",       href: "/confirm" },
+  "/5000/apply": [
+    { icon: "✅", label: "入力内容を確認",       href: "/5000/confirm" },
     { icon: "❓", label: "項目について質問",     href: "/chat" },
   ],
-  "/confirm": [
-    { icon: "💳", label: "決済へ進む",           href: "/purchase" },
+  "/5000/confirm": [
+    { icon: "💳", label: "決済へ進む",           href: "/5000" },
     { icon: "❓", label: "次のステップを聞く",   href: "/chat" },
   ],
   "/music2": [

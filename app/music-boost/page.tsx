@@ -42,16 +42,16 @@ const BOOST_TUTORIAL_SLIDES = [
 ] as const;
 
 const PLANS = [
-  { id: "starter",  label: "Starter",  percent: 2,  price: 9,    slots: 10,  color: "from-gray-600 to-gray-500",     recommend: "推奨：8曲以上配信済みの方"   },
-  { id: "light",    label: "Light",    percent: 5,  price: 29,   slots: 25,  color: "from-blue-700 to-blue-500",     recommend: "推奨：16曲以上配信済みの方"  },
-  { id: "basic",    label: "Basic",    percent: 10, price: 59,   slots: 50,  color: "from-green-700 to-green-500",   recommend: "推奨：30曲以上配信済みの方"  },
-  { id: "growth",   label: "Growth",   percent: 15, price: 99,   slots: 75,  color: "from-teal-700 to-teal-500",     recommend: "推奨：50曲以上配信済みの方"  },
-  { id: "pro",      label: "Pro",      percent: 20, price: 149,  slots: 100, color: "from-purple-700 to-purple-500", recommend: "推奨：75曲以上配信済みの方"  },
-  { id: "advanced", label: "Advanced", percent: 25, price: 199,  slots: 125, color: "from-indigo-700 to-indigo-500", recommend: "推奨：100曲以上配信済みの方" },
-  { id: "premium",  label: "Premium",  percent: 30, price: 299,  slots: 150, color: "from-pink-700 to-pink-500",     recommend: "推奨：150曲以上配信済みの方" },
-  { id: "elite",    label: "Elite",    percent: 35, price: 499,  slots: 175, color: "from-orange-700 to-orange-500", recommend: "推奨：200曲以上配信済みの方" },
-  { id: "master",   label: "Master",   percent: 40, price: 699,  slots: 200, color: "from-red-700 to-red-500",       recommend: "推奨：300曲以上配信済みの方" },
-  { id: "legend",   label: "Legend",   percent: 45, price: 1000, slots: 225, color: "from-yellow-600 to-yellow-400", recommend: "推奨：500曲以上配信済みの方" },
+  { id: "starter",  label: "Starter",  percent: 2,  price: 9,    slots: 10,  color: "from-gray-600 to-gray-500",     recommend: "推奨：8曲以上配信済みの方",   squareUrl: "https://square.link/u/Z8JfMUyE" },
+  { id: "light",    label: "Light",    percent: 5,  price: 29,   slots: 25,  color: "from-blue-700 to-blue-500",     recommend: "推奨：16曲以上配信済みの方",  squareUrl: "https://square.link/u/a3n7mj8b" },
+  { id: "basic",    label: "Basic",    percent: 10, price: 59,   slots: 50,  color: "from-green-700 to-green-500",   recommend: "推奨：30曲以上配信済みの方",  squareUrl: "https://square.link/u/AknPSYzR" },
+  { id: "growth",   label: "Growth",   percent: 15, price: 99,   slots: 75,  color: "from-teal-700 to-teal-500",     recommend: "推奨：50曲以上配信済みの方",  squareUrl: "https://square.link/u/0Tl1BZwU" },
+  { id: "pro",      label: "Pro",      percent: 20, price: 149,  slots: 100, color: "from-purple-700 to-purple-500", recommend: "推奨：75曲以上配信済みの方",  squareUrl: "https://square.link/u/6EQ6FZPS" },
+  { id: "advanced", label: "Advanced", percent: 25, price: 199,  slots: 125, color: "from-indigo-700 to-indigo-500", recommend: "推奨：100曲以上配信済みの方", squareUrl: "https://square.link/u/yXfPqP2m" },
+  { id: "premium",  label: "Premium",  percent: 30, price: 299,  slots: 150, color: "from-pink-700 to-pink-500",     recommend: "推奨：150曲以上配信済みの方", squareUrl: "https://square.link/u/f19KQa9n" },
+  { id: "elite",    label: "Elite",    percent: 35, price: 499,  slots: 175, color: "from-orange-700 to-orange-500", recommend: "推奨：200曲以上配信済みの方", squareUrl: "https://square.link/u/n532LqZd" },
+  { id: "master",   label: "Master",   percent: 40, price: 699,  slots: 200, color: "from-red-700 to-red-500",       recommend: "推奨：300曲以上配信済みの方", squareUrl: "https://square.link/u/GRD64dbi" },
+  { id: "legend",   label: "Legend",   percent: 45, price: 1000, slots: 225, color: "from-yellow-600 to-yellow-400", recommend: "推奨：500曲以上配信済みの方", squareUrl: "https://square.link/u/PX68xQhf" },
 ];
 
 type BoostStatus = {
@@ -420,13 +420,15 @@ export default function MusicBoostPage() {
                       </button>
                     );
                   })()}
-                  {/* クレジットカードボタン（準備中） */}
-                  <button
-                    disabled
-                    className={`w-full py-2 rounded-lg text-sm font-bold ${th.creditBtn} cursor-not-allowed border flex items-center justify-center gap-2`}>
-                    <span>💳 クレジットカード</span>
-                    <span className={`text-[10px] ${th.badgeBg} px-2 py-0.5 rounded-full`}>準備中</span>
-                  </button>
+                  {/* クレジットカード（Square） */}
+                  <a
+                    href={plan.squareUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2 rounded-lg text-sm font-bold border border-white/20 bg-white/5 hover:bg-white/10 flex items-center justify-center gap-2 transition text-white/80"
+                  >
+                    💳 クレジットカードで申し込む
+                  </a>
                 </div>
               )}
               {isCurrent && (

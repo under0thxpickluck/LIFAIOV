@@ -85,7 +85,7 @@ export default function HomePage() {
         {/* ===== メインCTA ===== */}
         <div className="mt-10 grid gap-4 max-w-md mx-auto">
           <Link
-            href="/purchase"
+            href="/5000"
             className="inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-6 py-4 text-base font-bold text-white hover:bg-indigo-700 transition shadow-md"
           >
             権利購入（参加申請）

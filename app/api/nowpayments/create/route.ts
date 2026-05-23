@@ -76,9 +76,7 @@ export async function POST(req: Request) {
     String(applyId)
   )}${plan ? `&plan=${encodeURIComponent(String(plan))}` : ""}`;
 
-  // ✅ cancel_url は既存踏襲（壊さない）
-  //    JAMDAO専用に分けたいなら ↓ を /purchase/jam などに変更するだけ
-  const cancelUrl = `${baseUrl}/purchase`;
+  const cancelUrl = `${baseUrl}/5000`;
 
   const payload = {
     price_amount,

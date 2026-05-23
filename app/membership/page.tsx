@@ -26,11 +26,11 @@ const PLAN_BP_CAP: Record<string, number> = {
 };
 
 const BP_PACKS = [
-  { id: "s",   label: "S",   price: 7.5,  bp: 500,   tag: null,      color: "border-white/10" },
-  { id: "m",   label: "M",   price: 15,   bp: 1200,  tag: null,      color: "border-white/10" },
-  { id: "l",   label: "L",   price: 30,   bp: 2600,  tag: null,      color: "border-white/10" },
-  { id: "xl",  label: "XL",  price: 75,   bp: 7000,  tag: "おすすめ",  color: "border-purple-500" },
-  { id: "xxl", label: "XXL", price: 150,  bp: 16000, tag: "最大効率", color: "border-yellow-500" },
+  { id: "s",   label: "S",   price: 7.5,  bp: 500,   tag: null,      color: "border-white/10",    squareUrl: "https://square.link/u/psdQz6zG" },
+  { id: "m",   label: "M",   price: 15,   bp: 1200,  tag: null,      color: "border-white/10",    squareUrl: "https://square.link/u/Pqma4c0e" },
+  { id: "l",   label: "L",   price: 30,   bp: 2600,  tag: null,      color: "border-white/10",    squareUrl: "https://square.link/u/t9rI14uZ" },
+  { id: "xl",  label: "XL",  price: 75,   bp: 7000,  tag: "おすすめ",  color: "border-purple-500",  squareUrl: "https://square.link/u/V5rWWucX" },
+  { id: "xxl", label: "XXL", price: 150,  bp: 16000, tag: "最大効率", color: "border-yellow-500",  squareUrl: "https://square.link/u/xjZ3lkH4" },
 ];
 
 type MemberStatus = {
@@ -216,12 +216,13 @@ export default function MembershipPage() {
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-lg">${pack.price}</p>
-                  <button
-                    onClick={() => handlePurchase(pack)}
-                    disabled={busy}
-                    className="mt-2 px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 text-sm font-bold hover:scale-105 transition">
+                  <a
+                    href={pack.squareUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 inline-block px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 text-sm font-bold hover:scale-105 transition text-white">
                     購入する
-                  </button>
+                  </a>
                 </div>
               </div>
             </div>

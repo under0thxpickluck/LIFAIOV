@@ -314,7 +314,7 @@ export default function VisionPage() {
 
           <div className="flex items-center gap-2">
             <Link
-              href="/purchase"
+              href="/5000"
               className="rounded-xl bg-zinc-900 text-white px-4 py-2 text-sm font-semibold shadow-sm hover:bg-zinc-800 active:bg-zinc-900"
             >
               クレジット購入
@@ -785,7 +785,7 @@ export default function VisionPage() {
               <div className="mt-2 text-sm text-white/80">進捗・目標・何が起きるかを公開して、安心して参加できる場所にします。</div>
             </div>
             <div className="flex gap-2">
-              <Link href="/purchase" className="rounded-xl bg-white text-zinc-900 px-5 py-3 text-sm font-semibold shadow-sm hover:bg-zinc-100">
+              <Link href="/5000" className="rounded-xl bg-white text-zinc-900 px-5 py-3 text-sm font-semibold shadow-sm hover:bg-zinc-100">
                 クレジット購入へ
               </Link>
               <Link href="/apply" className="rounded-xl bg-white/10 px-5 py-3 text-sm font-semibold ring-1 ring-white/20 hover:bg-white/15">

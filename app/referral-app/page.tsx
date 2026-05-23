@@ -339,9 +339,7 @@ export default function ReferralAppPage() {
   if (!authed) return <PasswordGate onAuth={() => setAuthed(true)} />;
 
   const auth = getAuth();
-  const group = (data as any)?.group || (auth as any)?.group || "";
-  const is5000 = group === "5000";
-  const purchasePath = is5000 ? "/5000" : "/purchase/jam";
+  const purchasePath = "/5000";
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const refCode = data?.my_ref_code || "";
   const refUrl = refCode ? `${origin}${purchasePath}?refCode=${encodeURIComponent(refCode)}` : "";

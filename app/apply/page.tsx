@@ -287,7 +287,7 @@ export default function ApplyPage() {
 
         <div className="mb-6 flex items-center justify-between gap-3">
           <Link
-            href="/purchase"
+            href="/5000"
             className="text-sm font-semibold text-slate-700 hover:text-slate-900 underline decoration-slate-300 hover:decoration-slate-500"
           >
             ← 戻る（権利購入）
