@@ -17,6 +17,10 @@ export async function shareOrDownloadAudio(
   const a = document.createElement("a");
   a.href = proxyUrl;
   a.download = filename;
+  // target="_blank" で新しいタブを開き、現在ページの履歴を保持する
+  // （モバイルブラウザでダウンロード後に戻るボタンが消える問題を防ぐ）
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
   const target = document.body ?? document.documentElement;
   target.appendChild(a);
   a.click();
