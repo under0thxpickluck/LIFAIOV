@@ -214,6 +214,7 @@ export default function Admin5000Page() {
                         <th className="py-2 px-3 text-left text-white/50 font-medium">ステータス</th>
                         <th className="py-2 px-3 text-left text-white/50 font-medium">氏名</th>
                         <th className="py-2 px-3 text-left text-white/50 font-medium">メール</th>
+                        <th className="py-2 px-3 text-left text-white/50 font-medium">操作</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -223,6 +224,29 @@ export default function Admin5000Page() {
                           <td className="py-2 px-3 text-xs text-yellow-400">{row.status}</td>
                           <td className="py-2 px-3">{row.name}</td>
                           <td className="py-2 px-3 text-white/70">{row.email}</td>
+                          <td className="py-2 px-3">
+                            {row.status === "manual_review" && (
+                              <div>
+                                <button
+                                  onClick={() => approve(row.apply_id)}
+                                  disabled={approving === row.apply_id}
+                                  className="rounded-lg px-3 py-1.5 text-xs font-semibold transition"
+                                  style={
+                                    approving === row.apply_id
+                                      ? { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.3)" }
+                                      : { background: "linear-gradient(135deg, #f59e0b, #ef4444)", color: "#fff" }
+                                  }
+                                >
+                                  {approving === row.apply_id ? "承認中..." : "手動承認"}
+                                </button>
+                                {messages[row.apply_id] && (
+                                  <p className="mt-1 text-[10px] text-white/50 max-w-xs break-all">
+                                    {messages[row.apply_id]}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>

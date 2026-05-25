@@ -5143,24 +5143,38 @@ function sendResetMail_(to, loginId, token, myRefCode, plan) {
   const resetPath = "https://lifaiov.vercel.app/reset?plan=5000&token=" + encodeURIComponent(token);
   const loginUrl = "https://lifaiov.vercel.app/5000/login";
   const url = resetPath;
-  const subject = "【LIFAI】初回パスワード設定のご案内";
+  const subject = is5000 ? "【LIFAI】アカウント承認のご案内" : "【LIFAI】初回パスワード設定のご案内";
 
-  const body =
-    "LIFAIへのご登録ありがとうございます。\n\n" +
-    "初回パスワード設定はこちら（72時間有効）：\n" +
-    url +
-    "\n\n" +
-    "ログインID：\n" +
-    loginId +
-    "\n\n" +
-    "このURLは1回のみ利用できます。\n\n" +
-    "パスワード設定後はこちらからログインできます：\n" +
-    loginUrl + "\n\n" +
-    "もしパスワードの設定がうまくできなかった場合は、公式LINEにてお名前とメールアドレスを添えてご連絡ください。\n" +
-    "対応いたします。\n" +
-    "https://lin.ee/VPo2xOn\n\n" +
-    "LIFAI公式" +
-    (myRefCode ? "\n\n--------------------\nあなたの紹介コード：" + myRefCode + "\n友人をLIFAIに紹介する際にお使いください。\n--------------------" : "");
+  const body = is5000
+    ? "LIFAIへのご参加ありがとうございます。アカウントが承認されました。\n\n" +
+      "■ STEP 1：月額サポート契約のお手続き（¥9,800/月）\n" +
+      "LIFAIのご利用には月額契約が必要です。下記よりお手続きください。\n\n" +
+      "  https://square.link/u/JM500LiD\n\n" +
+      "■ STEP 2：初回パスワード設定（72時間有効・1回限り）\n" +
+      "  " + url + "\n\n" +
+      "  ログインID：" + loginId + "\n\n" +
+      "■ STEP 3：ログイン\n" +
+      "パスワード設定後は下記よりログインしてください。\n\n" +
+      "  " + loginUrl + "\n\n" +
+      "ご不明な点は公式LINEへお名前とメールアドレスを添えてご連絡ください。\n" +
+      "https://lin.ee/VPo2xOn\n\n" +
+      "LIFAI公式" +
+      (myRefCode ? "\n\n--------------------\nあなたの紹介コード：" + myRefCode + "\n友人をLIFAIに紹介する際にお使いください。\n--------------------" : "")
+    : "LIFAIへのご登録ありがとうございます。\n\n" +
+      "初回パスワード設定はこちら（72時間有効）：\n" +
+      url +
+      "\n\n" +
+      "ログインID：\n" +
+      loginId +
+      "\n\n" +
+      "このURLは1回のみ利用できます。\n\n" +
+      "パスワード設定後はこちらからログインできます：\n" +
+      loginUrl + "\n\n" +
+      "もしパスワードの設定がうまくできなかった場合は、公式LINEにてお名前とメールアドレスを添えてご連絡ください。\n" +
+      "対応いたします。\n" +
+      "https://lin.ee/VPo2xOn\n\n" +
+      "LIFAI公式" +
+      (myRefCode ? "\n\n--------------------\nあなたの紹介コード：" + myRefCode + "\n友人をLIFAIに紹介する際にお使いください。\n--------------------" : "");
 
   Logger.log('[sendMail] to=' + to);
   try {
