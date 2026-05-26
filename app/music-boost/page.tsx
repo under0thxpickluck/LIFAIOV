@@ -159,6 +159,36 @@ export default function MusicBoostPage() {
       .catch(() => {});
   }, [userId, status]);
 
+  const handleMusicBoostCheckout = async (plan: typeof PLANS[0]) => {
+    if (!userId) {
+      alert("ログインしてから購入してください");
+      return;
+    }
+    const packId = `music_boost_${plan.id}`;
+    try {
+      const res = await fetch("/api/square/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: userId,
+          pack_id: packId,
+          bp_amount: 0, // music-boost は BP付与なし（Webhook側でログ記録のみ）
+          price_cents: Math.round(plan.price * 100),
+          label: `Music Boost ${plan.label} (${plan.percent}% / ${plan.slots}枠)`,
+          redirect_path: "/music-boost", // 決済後に music-boost ページへ戻る
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok || !data.checkout_url) {
+        alert("決済ページの準備に失敗しました。時間をおいて再試行してください。");
+        return;
+      }
+      window.open(data.checkout_url, "_blank", "noopener,noreferrer");
+    } catch {
+      alert("エラーが発生しました。再試行してください。");
+    }
+  };
+
   const handleSubscribe = async (planId: string, paymentMethod = "ep") => {
     if (!userId || busy) return;
     setBusy(true); setMsg("");
@@ -421,14 +451,12 @@ export default function MusicBoostPage() {
                     );
                   })()}
                   {/* クレジットカード（Square） */}
-                  <a
-                    href={plan.squareUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={() => handleMusicBoostCheckout(plan)}
                     className="w-full py-2 rounded-lg text-sm font-bold border border-white/20 bg-white/5 hover:bg-white/10 flex items-center justify-center gap-2 transition text-white/80"
                   >
-                    💳 クレジットカードで申し込む
-                  </a>
+                    💳 クレジットカードで購入
+                  </button>
                 </div>
               )}
               {isCurrent && (

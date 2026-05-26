@@ -87,6 +87,40 @@ export default function MembershipPage() {
     setMsg(`🔒 現在BPパック購入は準備中です（${pack.label}パック / $${pack.price}`);
   };
 
+  const handleSquarePurchase = async (pack: typeof BP_PACKS[0]) => {
+    if (!userId) {
+      setMsg("ログインしてから購入してください");
+      return;
+    }
+    setBusy(true);
+    setMsg("");
+    try {
+      const res = await fetch("/api/square/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: userId,
+          pack_id: pack.id,
+          bp_amount: pack.bp,
+          price_cents: Math.round(pack.price * 100), // $7.5 → 750 cents
+          label: `${pack.label}パック - ${pack.bp.toLocaleString()}BP`,
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok || !data.checkout_url) {
+        setMsg("決済ページの準備に失敗しました。時間をおいて再試行してください。");
+        console.error("[membership] create-checkout failed", data);
+        return;
+      }
+      window.open(data.checkout_url, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      console.error("[membership] create-checkout error", e);
+      setMsg("エラーが発生しました。再試行してください。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const totalBp = (status?.base_bp ?? 0) + (status?.extra_bp ?? 0);
 
   return (
@@ -216,13 +250,12 @@ export default function MembershipPage() {
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-lg">${pack.price}</p>
-                  <a
-                    href={pack.squareUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-2 inline-block px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 text-sm font-bold hover:scale-105 transition text-white">
-                    購入する
-                  </a>
+                  <button
+                    onClick={() => handleSquarePurchase(pack)}
+                    disabled={busy}
+                    className="mt-2 inline-block px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 text-sm font-bold hover:scale-105 transition text-white disabled:opacity-60 disabled:cursor-not-allowed">
+                    {busy ? "準備中…" : "購入する"}
+                  </button>
                 </div>
               </div>
             </div>
