@@ -4520,6 +4520,31 @@ function approveRowCore5000_(ss5000, applySheet, header, idx, rowIndex, reason) 
     applySheet.getRange(rowIndex, idx["auto_approve_reason"] + 1).setValue(reason);
   }
 
+  // --- BP付与（5000専用シートに書き込む）---
+  try {
+    ensureCols_(applySheet, applySheet.getDataRange().getValues()[0], [
+      "bp_balance", "ep_balance", "bp_granted_at", "bp_grant_plan", "bp_grant_amount", "ep_grant_amount"
+    ]);
+    const freshHeader5k = applySheet.getRange(1, 1, 1, applySheet.getLastColumn()).getValues()[0];
+    const freshIdx5k = indexMap_(freshHeader5k);
+    const alreadyGranted5k = applySheet.getRange(rowIndex, freshIdx5k["bp_granted_at"] + 1).getValue();
+    if (!alreadyGranted5k) {
+      const planStr5k_core = str_(applySheet.getRange(rowIndex, freshIdx5k["plan"] + 1).getValue());
+      const bpMap5k_core = { "500": 1000, "2000": 4000, "3000": 8000, "5000": 10000 };
+      const bpGrant5k_core = bpMap5k_core[planStr5k_core] || 0;
+      const curBp5k = Number(applySheet.getRange(rowIndex, freshIdx5k["bp_balance"] + 1).getValue() || 0);
+      applySheet.getRange(rowIndex, freshIdx5k["bp_balance"] + 1).setValue(curBp5k + bpGrant5k_core);
+      applySheet.getRange(rowIndex, freshIdx5k["ep_balance"] + 1).setValue(0);
+      applySheet.getRange(rowIndex, freshIdx5k["bp_granted_at"] + 1).setValue(new Date());
+      applySheet.getRange(rowIndex, freshIdx5k["bp_grant_plan"] + 1).setValue(planStr5k_core);
+      applySheet.getRange(rowIndex, freshIdx5k["bp_grant_amount"] + 1).setValue(bpGrant5k_core);
+      applySheet.getRange(rowIndex, freshIdx5k["ep_grant_amount"] + 1).setValue(0);
+      Logger.log("[approveRowCore5000_] BP granted: plan=" + planStr5k_core + " bp=" + bpGrant5k_core);
+    }
+  } catch (bpErr5k) {
+    Logger.log("[approveRowCore5000_] BP grant error: " + String(bpErr5k));
+  }
+
   // --- 紹介チェーン遡り（最大5段・二重記録防止）---
   const referralAlreadyProcessed5000 = applySheet.getRange(rowIndex, idx["referral_processed_at"] + 1).getValue();
   const referralResults5000 = [];

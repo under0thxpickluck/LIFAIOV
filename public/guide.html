@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LIFAI ガイドブック — BP・EP完全解説</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:       #09090b;
+      --surface:  #18181b;
+      --surface2: #27272a;
+      --border:   #3f3f46;
+      --text:     #fafafa;
+      --muted:    #a1a1aa;
+      --faint:    #52525b;
+      --bp:       #fbbf24;
+      --bp-dim:   rgba(251,191,36,.15);
+      --bp-glow:  rgba(251,191,36,.35);
+      --ep:       #34d399;
+      --ep-dim:   rgba(52,211,153,.13);
+      --ep-glow:  rgba(52,211,153,.32);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background-color: var(--bg);
+      background-image:
+        radial-gradient(ellipse 80vw 60vh at 50% -10%, rgba(251,191,36,.07) 0%, transparent 70%),
+        radial-gradient(circle at 1px 1px, #3f3f46 1px, transparent 0);
+      background-size: auto, 28px 28px;
+      color: var(--text);
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 14px;
+      line-height: 1.7;
+      min-height: 100vh;
+      padding-bottom: 80px;
+    }
+
+    /* ─── HERO ───────────────────────────────── */
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 64px 24px 52px;
+      text-align: center;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(251,191,36,.08) 0%, transparent 100%);
+      pointer-events: none;
+    }
+    .hero-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'Syne', sans-serif;
+      font-size: 10px;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--bp);
+      background: var(--bp-dim);
+      border: 1px solid rgba(251,191,36,.3);
+      border-radius: 99px;
+      padding: 4px 14px;
+      margin-bottom: 20px;
+    }
+    .hero-label::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--bp);
+      box-shadow: 0 0 8px var(--bp);
+    }
+    .hero-title {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(36px, 10vw, 56px);
+      font-weight: 800;
+      letter-spacing: -.02em;
+      line-height: 1;
+      color: var(--text);
+    }
+    .hero-title span { color: var(--bp); text-shadow: 0 0 40px var(--bp-glow); }
+    .hero-sub { margin-top: 14px; font-size: 13px; color: var(--muted); letter-spacing: .04em; }
+    .hero-badges {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 24px;
+      flex-wrap: wrap;
+    }
+    .hero-badge {
+      font-size: 11px; font-weight: 700;
+      padding: 5px 14px;
+      border-radius: 99px; border: 1px solid;
+    }
+    .hero-badge.bp { color: var(--bp); border-color: rgba(251,191,36,.4); background: var(--bp-dim); }
+    .hero-badge.ep { color: var(--ep); border-color: rgba(52,211,153,.4);  background: var(--ep-dim); }
+
+    /* ─── LAYOUT ─────────────────────────────── */
+    .wrap { max-width: 680px; margin: 0 auto; padding: 0 16px; }
+
+    /* ─── CHAPTER ────────────────────────────── */
+    .chapter {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin: 52px 0 20px;
+    }
+    .chapter-num {
+      font-family: 'Syne', sans-serif;
+      font-size: 11px; font-weight: 700;
+      letter-spacing: .15em;
+      color: var(--faint);
+      white-space: nowrap;
+    }
+    .chapter-line { flex: 1; height: 1px; background: linear-gradient(90deg, var(--border), transparent); }
+    .chapter-title {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(18px, 5vw, 22px);
+      font-weight: 800;
+      letter-spacing: -.01em;
+      white-space: nowrap;
+    }
+
+    /* ─── WHAT IS ────────────────────────────── */
+    .two-up { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 400px) { .two-up { grid-template-columns: 1fr; } }
+
+    .what-card {
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      padding: 22px 18px;
+      position: relative;
+      overflow: hidden;
+    }
+    .what-card::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 120px; height: 120px;
+      border-radius: 50%;
+      filter: blur(40px);
+      opacity: .6;
+    }
+    .what-card.bp::before { background: var(--bp-glow); }
+    .what-card.ep::before { background: var(--ep-glow); }
+    .what-icon  { font-size: 28px; line-height: 1; margin-bottom: 10px; }
+    .what-name  { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; letter-spacing: .03em; }
+    .what-card.bp .what-name { color: var(--bp); }
+    .what-card.ep .what-name { color: var(--ep); }
+    .what-long  { font-size: 13px; color: var(--muted); margin-top: 8px; line-height: 1.6; }
+    .what-tag   { display: inline-block; margin-top: 12px; font-size: 10px; font-weight: 700; letter-spacing: .08em; padding: 3px 10px; border-radius: 99px; }
+    .what-card.bp .what-tag { background: var(--bp-dim); color: var(--bp); }
+    .what-card.ep .what-tag { background: var(--ep-dim); color: var(--ep); }
+
+    /* ─── EARN CARDS ─────────────────────────── */
+    .earn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 380px) { .earn-grid { grid-template-columns: 1fr; } }
+
+    .earn-card {
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      padding: 18px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: border-color .2s, transform .2s;
+    }
+    .earn-card:hover { transform: translateY(-2px); }
+    .earn-card.bp-card:hover { border-color: rgba(251,191,36,.5); }
+    .earn-card.ep-card:hover { border-color: rgba(52,211,153,.5); }
+    .earn-card.wide { grid-column: span 2; }
+
+    .earn-card-icon  { font-size: 24px; line-height: 1; }
+    .earn-card-title { font-size: 13px; font-weight: 900; color: var(--text); letter-spacing: -.01em; }
+    .earn-card-desc  { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+    /* ★ 潰れ対策: wrap + 余白確保 */
+    .earn-reward {
+      margin-top: auto;
+      padding-top: 12px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .earn-amount {
+      font-family: 'Syne', sans-serif;
+      font-size: 16px;
+      font-weight: 800;
+      white-space: nowrap;
+      line-height: 1.2;
+    }
+    .bp-card .earn-amount { color: var(--bp); }
+    .ep-card .earn-amount { color: var(--ep); }
+    .earn-freq {
+      font-size: 10px; font-weight: 700;
+      letter-spacing: .06em;
+      padding: 3px 9px;
+      border-radius: 99px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .bp-card .earn-freq { background: var(--bp-dim); color: var(--bp); }
+    .ep-card .earn-freq { background: var(--ep-dim); color: var(--ep); }
+
+    /* ─── MISSION LIST ───────────────────────── */
+    .mission-list {
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      overflow: hidden;
+    }
+    .mission-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      gap: 8px;
+    }
+    .mission-row:last-child { border-bottom: none; }
+    .mission-left { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+    .mission-emoji { font-size: 18px; flex-shrink: 0; }
+    .mission-name  { font-size: 13px; font-weight: 700; }
+    /* ★ 潰れ対策 */
+    .mission-reward {
+      font-family: 'Syne', sans-serif;
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--bp);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .mission-total {
+      text-align: right;
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 10px;
+    }
+    .mission-total strong {
+      font-family: 'Syne', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--bp);
+    }
+
+    /* ─── STAKING TABLE ──────────────────────── */
+    .staking-table {
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      overflow: hidden;
+      margin-top: 14px;
+    }
+    .staking-row { display: grid; grid-template-columns: 1fr 1fr 1.4fr; border-bottom: 1px solid var(--border); }
+    .staking-row:last-child { border-bottom: none; }
+    .staking-row.head { background: #1f1f23; }
+    .staking-cell { padding: 11px 14px; font-size: 12px; }
+    .staking-row.head .staking-cell {
+      font-size: 10px; font-weight: 700;
+      letter-spacing: .08em; color: var(--faint);
+      text-transform: uppercase;
+    }
+    .staking-cell .days  { font-weight: 900; color: var(--text); white-space: nowrap; }
+    .staking-cell .rate  { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 15px; color: var(--bp); white-space: nowrap; }
+    .staking-cell .note  { font-size: 11px; color: var(--muted); }
+
+    /* ─── GACHA PILLS ────────────────────────── */
+    .gacha-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .gacha-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      padding: 5px 12px;
+      font-size: 11px;
+    }
+    .gacha-pill .pill-bp  { font-family: 'Syne', sans-serif; font-weight: 800; color: var(--bp); white-space: nowrap; }
+    .gacha-pill .pill-pct { color: var(--faint); white-space: nowrap; }
+    .rarity-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ─── USE GRID ───────────────────────────── */
+    .use-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    @media (max-width: 420px) { .use-grid { grid-template-columns: 1fr 1fr; } }
+
+    .use-card {
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      padding: 18px 14px;
+      text-align: center;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      transition: border-color .2s, transform .2s;
+    }
+    .use-card:hover { transform: translateY(-2px); }
+    .use-card.bp:hover { border-color: rgba(251,191,36,.5); }
+    .use-card.ep:hover { border-color: rgba(52,211,153,.5); }
+    .use-icon  { font-size: 28px; line-height: 1; }
+    .use-title { font-size: 12px; font-weight: 900; color: var(--text); }
+    .use-desc  { font-size: 11px; color: var(--muted); line-height: 1.5; }
+    .use-badge { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 99px; white-space: nowrap; }
+    .use-card.bp .use-badge { background: var(--bp-dim); color: var(--bp); }
+    .use-card.ep .use-badge { background: var(--ep-dim); color: var(--ep); }
+    .use-badge.coming { background: rgba(255,255,255,.05); color: var(--faint); }
+
+    /* ─── HIGHLIGHT BOX ──────────────────────── */
+    .highlight-box {
+      border-radius: 16px;
+      padding: 16px 18px;
+      font-size: 12.5px; line-height: 1.65;
+      display: flex; gap: 12px; align-items: flex-start;
+    }
+    .highlight-box.bp { background: var(--bp-dim); border: 1px solid rgba(251,191,36,.25); color: rgba(251,191,36,.9); }
+    .highlight-box.ep { background: var(--ep-dim); border: 1px solid rgba(52,211,153,.25); color: rgba(52,211,153,.9); }
+    .highlight-box-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ─── INFO ROW ───────────────────────────── */
+    .info-row {
+      display: flex; gap: 10px; align-items: flex-start;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-row-icon { font-size: 16px; flex-shrink: 0; margin-top: 2px; }
+    .info-row-body { flex: 1; }
+    .info-row-title { font-size: 12.5px; font-weight: 700; color: var(--text); }
+    .info-row-desc  { font-size: 11.5px; color: var(--muted); margin-top: 2px; line-height: 1.6; }
+
+    /* ─── STREAK TABLE ───────────────────────── */
+    .streak-table {
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      overflow: hidden;
+      margin-top: 12px;
+    }
+    .streak-row { display: grid; grid-template-columns: 1.2fr 1fr 1.5fr; border-bottom: 1px solid var(--border); }
+    .streak-row:last-child { border-bottom: none; }
+    .streak-row.head { background: var(--surface2); }
+    .streak-cell { padding: 10px 14px; font-size: 12px; }
+    .streak-row.head .streak-cell { font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--faint); text-transform: uppercase; }
+    .streak-cell .streak-day  { font-weight: 900; color: var(--text); }
+    .streak-cell .streak-bp   { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 14px; color: var(--bp); white-space: nowrap; }
+    .streak-cell .streak-note { font-size: 11px; color: var(--muted); }
+
+    /* ─── DIVIDER / FOOTER ───────────────────── */
+    .divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 48px 0 0; }
+
+    footer {
+      text-align: center;
+      padding: 48px 24px 24px;
+      font-size: 11px; color: var(--faint); letter-spacing: .08em;
+    }
+    footer strong { font-family: 'Syne', sans-serif; color: var(--muted); }
+
+    /* ─── FADE ANIMATION ─────────────────────── */
+    .fade-up {
+      opacity: 0;
+      transform: translateY(18px);
+      transition: opacity .5s ease, transform .5s ease;
+    }
+    .fade-up.visible { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+
+<!-- ═══ HERO ══════════════════════════════════════════════════════════════ -->
+<div class="hero fade-up visible">
+  <div class="hero-label">LIFAI 公式ガイド</div>
+  <h1 class="hero-title">LIFAI<br><span>GUIDE</span></h1>
+  <p class="hero-sub">BP・EP 完全解説 — ポイントの増やし方と使い方</p>
+  <div class="hero-badges">
+    <span class="hero-badge bp">⚡ BP Balance Point</span>
+    <span class="hero-badge ep">🎁 EP Exchange Point</span>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- ═══ CHAPTER 1: BP・EPとは ══════════════════════════════════════════ -->
+  <div class="chapter fade-up">
+    <span class="chapter-num">01</span>
+    <h2 class="chapter-title">BP・EP とは？</h2>
+    <div class="chapter-line"></div>
+  </div>
+
+  <div class="two-up fade-up">
+    <div class="what-card bp">
+      <div class="what-icon">⚡</div>
+      <div class="what-name">BP</div>
+      <p class="what-long">LIFAIコミュニティ内で使える独自ポイント。毎日のログイン・ミッション・ガチャ・ステーキングなど、さまざまな活動で貯められます。使えば消費されますが、月次で一定量が自動回復します。</p>
+      <span class="what-tag">Balance Point</span>
+    </div>
+    <div class="what-card ep">
+      <div class="what-icon">🎁</div>
+      <div class="what-name">EP</div>
+      <p class="what-long">メンバー間で贈り合えるギフトポイント。感謝や貢献を形にするLIFAI専用のクレジットです。購入では手に入らず、活動・貢献・贈与でのみ増えます。有効期限があるため使いきりましょう。</p>
+      <span class="what-tag">Exchange Point</span>
+    </div>
+  </div>
+
+  <!-- ═══ CHAPTER 2: BPの増やし方 ════════════════════════════════════════ -->
+  <div class="chapter fade-up">
+    <span class="chapter-num">02</span>
+    <h2 class="chapter-title">BP の増やし方</h2>
+    <div class="chapter-line"></div>
+  </div>
+
+  <!-- ─── 入会時の初期BP付与 ───────────────────── -->
+  <div class="earn-grid fade-up">
+    <div class="earn-card bp-card wide">
+      <div class="earn-card-icon">🎉</div>
+      <div class="earn-card-title">入会ボーナス（プラン購入時に一度だけ付与）</div>
+      <div class="earn-card-desc">
+        LIFAIに入会した時点で、加入したプランに応じたBPが最初から付与されます。これがあなたの最初のBP残高になります。金額が大きいプランほど多くのBPが付与されます。
+      </div>
+      <div class="staking-table">
+        <div class="staking-row head">
+          <div class="staking-cell">プラン（入会金額）</div>
+          <div class="staking-cell">付与BP</div>
+          <div class="staking-cell">BP上限（cap）</div>
+        </div>
+        <div class="staking-row">
+          <div class="staking-cell"><span class="days">Starter（$34）</span></div>
+          <div class="staking-cell"><span class="rate">300 BP</span></div>
+          <div class="staking-cell"><span class="note">上限 300 BP</span></div>
+        </div>
+        <div class="staking-row">
+          <div class="staking-cell"><span class="days">Builder（$57）</span></div>
+          <div class="staking-cell"><span class="rate">600 BP</span></div>
+          <div class="staking-cell"><span class="note">上限 600 BP</span></div>
+        </div>
+        <div class="staking-row">
+          <div class="staking-cell"><span class="days">Automation（$114）</span></div>
+          <div class="staking-cell"><span class="rate">1,200 BP</span></div>
+          <div class="staking-cell"><span class="note">上限 1,200 BP</span></div>
+        </div>
+        <div class="staking-row">
+          <div class="staking-cell"><span class="days">Core（$567）</span></div>
+          <div class="staking-cell"><span class="rate">6,000 BP</span></div>
+          <div class="staking-cell"><span class="note">上限 6,000 BP</span></div>
+        </div>
+        <div class="staking-row">
+          <div class="staking-cell"><span class="days">Infra（$1,134）</span></div>
+          <div class="staking-cell"><span class="rate">12,000 BP</span></div>
+          <div class="staking-cell"><span class="note">上限 12,000 BP</span></div>
+        </div>
+      </div>
+      <div class="highlight-box bp" style="margin-top:12px;">
+        <span class="highlight-box-icon">💡</span>
+        <span>「BP上限（cap）」とは、このプランで保有できるBPの基準値です。ステーキングや月次回復の計算にも使われます。ガチャなどで上限を超えて保有することも可能です。</span>
+      </div>
+      <div class="earn-reward">
+        <span class="earn-amount">入会時に一度だけ</span>
+        <span class="earn-freq">WELCOME</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── ログインボーナス ─────────────────────── -->
+  <div class="earn-grid fade-up" style="margin-top:10px;">
+    <div class="earn-card bp-card wide">
+      <div class="earn-card-icon">🎁</div>
+      <div class="earn-card-title">ログインボーナス（連続ログイン報酬）</div>
+      <div class="earn-card-desc">
+        毎日アプリを開くだけでBPが貰えます。連続ログインの日数が増えるほど報酬がアップするため、毎日続けることが重要です。途切れると連続記録がリセットされてしまうので注意しましょう。
+      </div>
+      <div class="streak-table">
+        <div class="streak-row head">
+          <div class="streak-cell">連続日数</div>
+          <div class="streak-cell">ボーナス</div>
+          <div class="streak-cell">ポイント</div>
+        </div>
+        <div class="streak-row">
+          <div class="streak-cell"><span class="streak-day">1日目〜</span></div>
+          <div class="streak-cell"><span class="streak-bp">+3 BP</span></div>
+          <div class="streak-cell"><span class="streak-note">毎日の基本報酬</span></div>
+        </div>
+        <div class="streak-row">
+          <div class="streak-cell"><span class="streak-day">7日連続</span></div>
+          <div class="streak-cell"><span class="streak-bp">+10 BP</span></div>
+          <div class="streak-cell"><span class="streak-note">週1ボーナス</span></div>
+        </div>
+        <div class="streak-row">
+          <div class="streak-cell"><span class="streak-day">30日連続</span></div>
+          <div class="streak-cell"><span class="streak-bp">+50 BP</span></div>
+          <div class="streak-cell"><span class="streak-note">月間達成ボーナス</span></div>
+        </div>
+      </div>
+      <div class="earn-reward">
+        <span class="earn-amount">毎日獲得</span>
+        <span class="earn-freq">DAILY</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── ミッション ───────────────────────────── -->
+  <div class="fade-up" style="margin-top:10px;">
+    <div class="highlight-box bp">
+      <span class="highlight-box-icon">📋</span>
+      <span><strong>今日のミッション</strong> — 毎日0時にリセット。3つのミッションを全達成すると全完了ボーナスが加算されます。毎日コツコツこなすだけで、月に最大 1,500BP 相当になります。</span>
+    </div>
+  </div>
+
+  <div class="mission-list fade-up" style="margin-top:10px;">
+    <div class="mission-row">
+      <div class="mission-left">
+        <span class="mission-emoji">📱</span>
+        <div>
+          <div class="mission-name">ログイン</div>
+          <div style="font-size:11px;color:var(--muted);">アプリを開くだけで完了</div>
+        </div>
+      </div>
+      <span class="mission-reward">+10 BP</span>
+    </div>
+    <div class="mission-row">
+      <div class="mission-left">
+        <span class="mission-emoji">🔮</span>
+        <div>
+          <div class="mission-name">占いをする</div>
+          <div style="font-size:11px;color:var(--muted);">団子占いページで運勢チェック</div>
+        </div>
+      </div>
+      <span class="mission-reward">+10 BP</span>
+    </div>
+    <div class="mission-row">
+      <div class="mission-left">
+        <span class="mission-emoji">🎵</span>
+        <div>
+          <div class="mission-name">音楽を聴く</div>
+          <div style="font-size:11px;color:var(--muted);">ラジオ機能（現在調整中）</div>
+        </div>
+      </div>
+      <span class="mission-reward">+10 BP</span>
+    </div>
+    <div class="mission-row" style="background:rgba(251,191,36,.04);">
+      <div class="mission-left">
+        <span class="mission-emoji">🎉</span>
+        <div>
+          <div class="mission-name">全完了ボーナス</div>
+          <div style="font-size:11px;color:var(--muted);">上記3つをすべて達成したとき</div>
+        </div>
+      </div>
+      <span class="mission-reward">+20 BP</span>
+    </div>
+  </div>
+  <p class="mission-total fade-up">1日の最大獲得量 <strong>50 BP</strong> ／ 月間換算 約 <strong>1,500 BP</strong></p>
+
+  <!-- ─── 団子占い ─────────────────────────────── -->
+  <div class="earn-grid fade-up" style="margin-top:10px;">
+    <div class="earn-card bp-card">
+      <div class="earn-card-icon">🔮</div>
+      <div class="earn-card-title">団子占い</div>
+      <div class="earn-card-desc">毎日の運勢を占うだけで +10BP。ミッション「占いをする」の達成にも同時カウントされます。性格診断クイズを一度やっておくと、あなただけの占い結果が毎日表示されます。</div>
+      <div class="earn-reward">
+        <span class="earn-amount">+10 BP</span>
+        <span class="earn-freq">DAILY</span>
+      </div>
+    </div>
+
+    <div class="earn-card bp-card">
+      <div class="earn-card-icon">🎮</div>
+      <div class="earn-card-title">LIFAI Arcade</div>
+      <div class="earn-card-desc">タップゲームやRumbleなどのミニゲームに挑戦してBP報酬をゲット。ゲームの種類は順次追加予定。スキマ時間でもBPを稼げます。</div>
+      <div class="earn-reward">
+        <span class="earn-amount">ゲーム報酬</span>
+        <span class="earn-freq">GAME</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── LIFASLOT ─────────────────────────────── -->
+  <div class="earn-grid fade-up" style="margin-top:10px;">
+    <div class="earn-card bp-card wide">
+      <div class="earn-card-icon">🎰</div>
+      <div class="earn-card-title">LIFASLOT（BPガチャ）</div>
+      <div class="earn-card-desc">BPを消費して抽選し、当たったBPをそのまま獲得できます。使ったBP以上を引き当てることも十分あります。</div>
+
+      <div style="margin-top:10px;">
+        <div class="info-row">
+          <div class="info-row-icon">1️⃣</div>
+          <div class="info-row-body">
+            <div class="info-row-title">単発（1回）</div>
+            <div class="info-row-desc">100BP消費で1回引く。気軽に試したいときに。</div>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="info-row-icon">🔟</div>
+          <div class="info-row-body">
+            <div class="info-row-title">10連</div>
+            <div class="info-row-desc">1,000BPで10回まとめて引く。合計150BP以上が必ず保証されます。</div>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="info-row-icon">☀️</div>
+          <div class="info-row-body">
+            <div class="info-row-title">デイリー（1日1回限定）</div>
+            <div class="info-row-desc">毎日1回だけ参加できる特別枠（80BP消費）。通常より有利な設定になっています。</div>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="info-row-icon">🏆</div>
+          <div class="info-row-body">
+            <div class="info-row-title">天井システム</div>
+            <div class="info-row-desc">100回引くと高レアが必ず当たる「天井」があります。50回を超えると高レアの確率がさらにアップ。</div>
+          </div>
+        </div>
+        <div class="info-row" style="border-bottom:none;">
+          <div class="info-row-icon">🔷</div>
+          <div class="info-row-body">
+            <div class="info-row-title">欠片（フラグメント）</div>
+            <div class="info-row-desc">ガチャを回すたびに「欠片」を獲得。将来的な特典交換に使用予定です。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="gacha-pills">
+        <div class="gacha-pill"><span class="rarity-dot" style="background:#a1a1aa"></span><span class="pill-bp">5〜40 BP</span><span class="pill-pct">82%</span></div>
+        <div class="gacha-pill"><span class="rarity-dot" style="background:#4ade80"></span><span class="pill-bp">80〜150 BP</span><span class="pill-pct">13%</span></div>
+        <div class="gacha-pill"><span class="rarity-dot" style="background:#60a5fa"></span><span class="pill-bp">300 BP</span><span class="pill-pct">3%</span></div>
+        <div class="gacha-pill"><span class="rarity-dot" style="background:#c084fc"></span><span class="pill-bp">600 BP</span><span class="pill-pct">0.8%</span></div>
+        <div class="gacha-pill"><span class="rarity-dot" style="background:#fbbf24"></span><span class="pill-bp">1,000 BP</span><span class="pill-pct">1%</span></div>
+        <div class="gacha-pill"><span class="rarity-dot" style="background:#f472b6"></span><span class="pill-bp">5,000 BP</span><span class="pill-pct">0.18%</span></div>
+        <div class="gacha-pill"><span class="rarity-dot" style="background:#f87171"></span><span class="pill-bp">20,000 BP</span><span class="pill-pct">0.02%</span></div>
+      </div>
+      <div class="earn-reward">
+        <span class="earn-amount">最大 20,000 BP</span>
+        <span class="earn-freq">100 BP / 回</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── ステーキング ──────────────────────────── -->
+  <div class="earn-grid fade-up" style="margin-top:10px;">
+    <div class="earn-card bp-card wide">
+      <div class="earn-card-icon">💎</div>
+      <div class="earn-card-title">ステーキング（BP預け入れ）</div>
+      <div class="earn-card-desc">
+        BPを指定した期間「預ける」ことで、期間終了後に利息付きで返ってきます。預けている期間はそのBPを使用できませんが、長く預けるほど高いリターンが得られます。期間が終わったら画面の受け取りボタン（クレーム）を押すことで受取完了です。
+      </div>
+      <div class="staking-table">
+        <div class="staking-row head">
+          <div class="staking-cell">プラン</div>
+          <div class="staking-cell">利率</div>
+          <div class="staking-cell">例：1,000BP預けた場合</div>
+        </div>
+        <div class="staking-row">
+          <div class="staking-cell"><span class="days">30日ロック</span></div>
+          <div class="staking-cell"><span class="rate">+10%</span></div>
+          <div class="staking-cell"><span class="note">→ 1,100 BP で受取</span></div>
+        </div>
+        <div class="staking-row">
+          <div class="staking-cell"><span class="days">60日ロック</span></div>
+          <div class="staking-cell"><span class="rate">+25%</span></div>
+          <div class="staking-cell"><span class="note">→ 1,250 BP で受取</span></div>
+        </div>
+        <div class="staking-row">
+          <div class="staking-cell"><span class="days">90日ロック</span></div>
+          <div class="staking-cell"><span class="rate">+50%</span></div>
+          <div class="staking-cell"><span class="note">→ 1,500 BP で受取</span></div>
+        </div>
+      </div>
+      <div class="highlight-box bp" style="margin-top:12px;">
+        <span class="highlight-box-icon">⚠️</span>
+        <span>預けている間はBPを使用できません。引き出しは期間終了後の受け取りボタン（クレーム）で行います。複数のステーキングを同時に持つことも可能です。<br><br>※ 利率は運営の判断により予告なく変更される場合があります。すでに申し込み済みのステーキングには変更前の利率が適用されます。</span>
+      </div>
+      <div class="earn-reward">
+        <span class="earn-amount">最大 +50%</span>
+        <span class="earn-freq">STAKING</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── 月次回復 ──────────────────────────────── -->
+  <div class="earn-grid fade-up" style="margin-top:10px;">
+    <div class="earn-card bp-card wide">
+      <div class="earn-card-icon">🔄</div>
+      <div class="earn-card-title">月次 BP 自動回復</div>
+      <div class="earn-card-desc">
+        BPは30日ごとに一定量が自動で回復します。回復量はあなたのプランに応じた上限（cap）の50%を目安に計算されます。すでに上限に達している場合は回復しません。毎日ログインするだけで自動的に処理されます。特別な操作は必要ありません。
+      </div>
+      <div class="earn-reward">
+        <span class="earn-amount">cap × 50% 回復</span>
+        <span class="earn-freq">MONTHLY</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ CHAPTER 3: EPの増やし方 ════════════════════════════════════════ -->
+  <div class="chapter fade-up">
+    <span class="chapter-num">03</span>
+    <h2 class="chapter-title">EP の増やし方</h2>
+    <div class="chapter-line"></div>
+  </div>
+
+  <div class="fade-up">
+    <div class="highlight-box ep">
+      <span class="highlight-box-icon">💡</span>
+      <span>EP は <strong>活動・貢献・贈与</strong> でのみ増えます。BPとは別の流通で、メンバー同士のつながりを可視化するポイントです。有効期限があるためこまめに確認しましょう。</span>
+    </div>
+  </div>
+
+  <div class="earn-grid fade-up" style="margin-top:10px;">
+    <div class="earn-card ep-card wide">
+      <div class="earn-card-icon">📻</div>
+      <div class="earn-card-title">ラジオを聴く</div>
+      <div class="earn-card-desc">
+        トップページ下部の「ラジオカード」から楽曲を選んで再生し、感想を送るとEPが付与される機能です。<br><br>
+        <span style="display:inline-flex;align-items:center;gap:6px;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);border-radius:8px;padding:6px 10px;font-size:11px;color:var(--ep);">🔧 現在この機能は調整中です。再開時にあらためてお知らせします。</span>
+      </div>
+      <div class="earn-reward">
+        <span class="earn-amount">調整中</span>
+        <span class="earn-freq">RADIO</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="earn-grid fade-up" style="margin-top:10px;">
+    <div class="earn-card ep-card">
+      <div class="earn-card-icon">🎵</div>
+      <div class="earn-card-title">楽曲売却承認</div>
+      <div class="earn-card-desc">楽曲の売却申請が管理者に承認されると、EPが自動的に付与されます。次回ログイン時にトップページで通知が表示されます。</div>
+      <div class="earn-reward">
+        <span class="earn-amount">承認時に付与</span>
+        <span class="earn-freq">MUSIC</span>
+      </div>
+    </div>
+
+    <div class="earn-card ep-card">
+      <div class="earn-card-icon">🎁</div>
+      <div class="earn-card-title">GiftEP 受け取り</div>
+      <div class="earn-card-desc">他のメンバーが「ありがとう」の気持ちを込めてEPを贈ってくれます。贈り合いによってコミュニティへの貢献が可視化される仕組みです。</div>
+      <div class="earn-reward">
+        <span class="earn-amount">贈与で受取</span>
+        <span class="earn-freq">GIFT</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ CHAPTER 4: BPの使い道 ═══════════════════════════════════════════ -->
+  <div class="chapter fade-up">
+    <span class="chapter-num">04</span>
+    <h2 class="chapter-title">BP の使い道</h2>
+    <div class="chapter-line"></div>
+  </div>
+
+  <div class="use-grid fade-up">
+    <div class="use-card bp">
+      <div class="use-icon">🎰</div>
+      <div class="use-title">LIFASLOT</div>
+      <div class="use-desc">100BPを消費してガチャを回す。当たれば消費以上のBPが返ってくることも！</div>
+      <span class="use-badge">100 BP / 回</span>
+    </div>
+    <div class="use-card bp">
+      <div class="use-icon">💎</div>
+      <div class="use-title">ステーキング</div>
+      <div class="use-desc">BPを預けて最大+50%の利息を獲得。長期ほど高リターン。</div>
+      <span class="use-badge">30〜90日</span>
+    </div>
+    <div class="use-card bp">
+      <div class="use-icon">🛒</div>
+      <div class="use-title">マーケット</div>
+      <div class="use-desc">メンバー同士が直接出品・購入できる場所。スキルやデジタル品の売買にBPを使用。</div>
+      <span class="use-badge">メンバー間売買</span>
+    </div>
+    <div class="use-card bp" style="grid-column:span 3;">
+      <div class="use-icon">🎶</div>
+      <div class="use-title">narasu 代理申請</div>
+      <div class="use-desc">楽曲の配信申請をLIFAI運営に代行してもらえるサービス。BPまたはEPで利用可能。</div>
+      <span class="use-badge">3,000 BP または 1,000 EP</span>
+    </div>
+  </div>
+
+  <!-- ═══ CHAPTER 5: EPの使い道 ═══════════════════════════════════════════ -->
+  <div class="chapter fade-up">
+    <span class="chapter-num">05</span>
+    <h2 class="chapter-title">EP の使い道</h2>
+    <div class="chapter-line"></div>
+  </div>
+
+  <div class="earn-grid fade-up">
+
+    <!-- GiftEP贈与 -->
+    <div class="earn-card ep-card">
+      <div class="earn-card-icon">🎁</div>
+      <div class="earn-card-title">GiftEP 贈与</div>
+      <div class="earn-card-desc">
+        持っているEPを任意のメンバーへ贈れます。「GiftEP」メニューから相手のIDを入力して送信するだけ。「ありがとう」「お疲れさま」の気持ちをポイントで伝えましょう。
+      </div>
+      <div class="earn-reward">
+        <span class="earn-amount">メンバーへ贈れる</span>
+        <span class="earn-freq">GIFT</span>
+      </div>
+    </div>
+
+    <!-- Gift交換 -->
+    <div class="earn-card ep-card">
+      <div class="earn-card-icon">🎀</div>
+      <div class="earn-card-title">Gift 交換</div>
+      <div class="earn-card-desc">
+        貯まったEPで特典・商品と交換できる機能を準備中です。どんなアイテムが登場するかお楽しみに！
+      </div>
+      <div class="earn-reward">
+        <span class="earn-amount">近日公開</span>
+        <span class="earn-freq" style="background:rgba(255,255,255,.05);color:var(--faint);">COMING SOON</span>
+      </div>
+    </div>
+
+    <!-- narasu代理申請 -->
+    <div class="earn-card ep-card wide">
+      <div class="earn-card-icon">🎶</div>
+      <div class="earn-card-title">narasu 代理申請（EP または BP で利用）</div>
+      <div class="earn-card-desc">
+        「narasu」とは、アーティストが自分の楽曲を国内外の音楽プラットフォームへ配信するためのサービスです。本来は自分でアカウント登録・申請フォームの記入が必要ですが、このサービスを使うとLIFAI運営が代わりにすべての申請作業を行ってくれます。音楽配信の手続きが初めての方でも安心して利用できます。<br><br>
+        <strong style="color:var(--text);">申請時に必要なもの</strong><br>
+        ・narasuのログインID・パスワード<br>
+        ・配信したい楽曲の音源URL<br>
+        ・アーティスト名・ジャケット情報など<br><br>
+        ※ 審査はnarasu側が行うため、必ずしも配信が保証されるわけではありません。
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+        <span style="background:var(--ep-dim);border:1px solid rgba(52,211,153,.3);color:var(--ep);border-radius:99px;padding:4px 14px;font-size:12px;font-weight:800;white-space:nowrap;">EP払い：1,000 EP</span>
+        <span style="background:var(--bp-dim);border:1px solid rgba(251,191,36,.3);color:var(--bp);border-radius:99px;padding:4px 14px;font-size:12px;font-weight:800;white-space:nowrap;">BP払い：3,000 BP</span>
+      </div>
+      <div class="earn-reward">
+        <span class="earn-amount">楽曲を配信できる</span>
+        <span class="earn-freq">AGENCY</span>
+      </div>
+    </div>
+
+    <!-- 音楽ブースト -->
+    <div class="earn-card ep-card wide">
+      <div class="earn-card-icon">🚀</div>
+      <div class="earn-card-title">Music Boost（楽曲の露出を高める）</div>
+      <div class="earn-card-desc">
+        あなたの楽曲を企業向け音楽配信サービスに掲載し、カフェ・美容室・オフィスなどの店舗BGMとして実際に流してもらえる月額サービスです。再生数を機械的に増やすのではなく、「自然な環境でリスナーに届ける」ことが目的です。<br><br>
+        プランが上がるほど採用の優先度・枠数が増え、より多くの場所で流れやすくなります。契約期間中は楽曲情報をいつでも変更できます。
+      </div>
+      <div style="margin-top:12px;">
+        <div class="staking-table">
+          <div class="staking-row head">
+            <div class="staking-cell">プラン</div>
+            <div class="staking-cell">月額</div>
+            <div class="staking-cell">採用枠・ブースト率</div>
+          </div>
+          <div class="staking-row">
+            <div class="staking-cell"><span class="days">Starter</span></div>
+            <div class="staking-cell"><span class="rate" style="color:var(--ep);">$9 / 月</span></div>
+            <div class="staking-cell"><span class="note">10枠・2%ブースト</span></div>
+          </div>
+          <div class="staking-row">
+            <div class="staking-cell"><span class="days">Basic</span></div>
+            <div class="staking-cell"><span class="rate" style="color:var(--ep);">$59 / 月</span></div>
+            <div class="staking-cell"><span class="note">50枠・10%ブースト</span></div>
+          </div>
+          <div class="staking-row">
+            <div class="staking-cell"><span class="days">Pro</span></div>
+            <div class="staking-cell"><span class="rate" style="color:var(--ep);">$149 / 月</span></div>
+            <div class="staking-cell"><span class="note">100枠・20%ブースト</span></div>
+          </div>
+          <div class="staking-row">
+            <div class="staking-cell"><span class="days">Legend</span></div>
+            <div class="staking-cell"><span class="rate" style="color:var(--ep);">$1,000 / 月</span></div>
+            <div class="staking-cell"><span class="note">225枠・45%ブースト</span></div>
+          </div>
+        </div>
+        <p style="font-size:10px;color:var(--faint);margin-top:6px;">※ プランは全10段階。詳細は Music Boost ページで確認できます。</p>
+      </div>
+      <div class="earn-reward">
+        <span class="earn-amount">月額制（Square決済）</span>
+        <span class="earn-freq">BOOST</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="divider fade-up"></div>
+
+  <!-- ═══ CHAPTER 6: 音楽活動の流れ ══════════════════════════════════════ -->
+  <div class="chapter fade-up">
+    <span class="chapter-num">06</span>
+    <h2 class="chapter-title">音楽活動の流れ</h2>
+    <div class="chapter-line"></div>
+  </div>
+
+  <div class="fade-up">
+    <div class="highlight-box ep">
+      <span class="highlight-box-icon">🎯</span>
+      <span>楽曲を作って、世界に届けて、さらに広める。LIFAIではこの3ステップをすべてアプリ内でサポートしています。</span>
+    </div>
+  </div>
+
+  <!-- ステップカード -->
+  <div class="fade-up" style="margin-top:16px;display:flex;flex-direction:column;gap:0;">
+
+    <!-- STEP 1 -->
+    <div style="display:flex;gap:0;align-items:stretch;">
+      <div style="display:flex;flex-direction:column;align-items:center;width:48px;flex-shrink:0;">
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:13px;font-weight:800;color:#fff;flex-shrink:0;">1</div>
+        <div style="width:2px;flex:1;background:linear-gradient(180deg,#6366f1,#8b5cf6 60%,transparent);margin-top:4px;"></div>
+      </div>
+      <div style="flex:1;padding-bottom:20px;padding-left:14px;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:18px 16px;">
+          <div style="font-size:22px;line-height:1;margin-bottom:8px;">🎼</div>
+          <div style="font-size:14px;font-weight:900;color:var(--text);margin-bottom:6px;">楽曲を作る — MUSICCREATE</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.65;">
+            トップページの「MUSICCREATE」から、歌詞・楽曲構成・サウンドを3ステップで生成できます。AIが作曲をサポートしてくれるので、音楽制作の経験がなくても大丈夫です。<br><br>
+            完成した楽曲は音源URLとして保存しておきましょう。次のステップで使用します。
+          </div>
+          <div style="margin-top:12px;display:inline-flex;align-items:center;gap:6px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);border-radius:99px;padding:4px 12px;font-size:11px;font-weight:700;color:#a5b4fc;">🎼 MUSICCREATE（Beta）</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div style="display:flex;gap:0;align-items:stretch;">
+      <div style="display:flex;flex-direction:column;align-items:center;width:48px;flex-shrink:0;">
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#10b981,#059669);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:13px;font-weight:800;color:#fff;flex-shrink:0;">2</div>
+        <div style="width:2px;flex:1;background:linear-gradient(180deg,#10b981,#059669 60%,transparent);margin-top:4px;"></div>
+      </div>
+      <div style="flex:1;padding-bottom:20px;padding-left:14px;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:18px 16px;">
+          <div style="font-size:22px;line-height:1;margin-bottom:8px;">🎶</div>
+          <div style="font-size:14px;font-weight:900;color:var(--text);margin-bottom:6px;">楽曲を配信する</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.65;">
+            作った楽曲を音楽プラットフォームへ配信します。方法は2つあります。
+          </div>
+
+          <!-- 2択カード -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:14px 12px;">
+              <div style="font-size:16px;margin-bottom:6px;">🤝</div>
+              <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:4px;">代理申請（おすすめ）</div>
+              <div style="font-size:11px;color:var(--muted);line-height:1.5;">「narasu代理申請」メニューから申請。LIFAI運営がnarauへの手続きをすべて代行してくれます。操作が難しい方にも安心。</div>
+              <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:5px;">
+                <span style="background:var(--ep-dim);border:1px solid rgba(52,211,153,.3);color:var(--ep);border-radius:99px;padding:2px 9px;font-size:10px;font-weight:800;">1,000 EP</span>
+                <span style="background:var(--bp-dim);border:1px solid rgba(251,191,36,.3);color:var(--bp);border-radius:99px;padding:2px 9px;font-size:10px;font-weight:800;">3,000 BP</span>
+              </div>
+            </div>
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:14px 12px;">
+              <div style="font-size:16px;margin-bottom:6px;">🙋</div>
+              <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:4px;">自分で配信</div>
+              <div style="font-size:11px;color:var(--muted);line-height:1.5;">narasuのサイトに直接ログインして、楽曲情報を自分で入力・申請する方法。無料で利用できますが、手続きが必要です。</div>
+              <div style="margin-top:10px;">
+                <span style="background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--muted);border-radius:99px;padding:2px 9px;font-size:10px;font-weight:800;">無料（自己申請）</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div style="display:flex;gap:0;align-items:stretch;">
+      <div style="display:flex;flex-direction:column;align-items:center;width:48px;flex-shrink:0;">
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#ef4444);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:13px;font-weight:800;color:#fff;flex-shrink:0;">3</div>
+      </div>
+      <div style="flex:1;padding-left:14px;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:18px 16px;">
+          <div style="font-size:22px;line-height:1;margin-bottom:8px;">🚀</div>
+          <div style="font-size:14px;font-weight:900;color:var(--text);margin-bottom:6px;">露出を広げる — Music Boost</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.65;">
+            配信した楽曲を「Music Boost」に登録すると、カフェ・美容室・オフィスなど店舗のBGMとして実際に流してもらえます。SNS以外の新しい接点をつくることで、知らなかった人にも自然に届けることができます。<br><br>
+            プランが上がるほど採用されやすくなり、より多くの場所で再生されます。契約期間中は楽曲情報をいつでも変更可能です。
+          </div>
+          <div style="margin-top:12px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--faint);text-transform:uppercase;margin-bottom:8px;">プランの目安</div>
+            <div style="display:flex;flex-direction:column;gap:5px;">
+              <div style="display:flex;justify-content:space-between;font-size:11px;">
+                <span style="color:var(--muted);">Starter</span>
+                <span style="color:var(--text);font-weight:700;">$9/月 ・ 10枠 ・ 2%ブースト</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;">
+                <span style="color:var(--muted);">Basic</span>
+                <span style="color:var(--text);font-weight:700;">$59/月 ・ 50枠 ・ 10%ブースト</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;">
+                <span style="color:var(--muted);">Pro</span>
+                <span style="color:var(--text);font-weight:700;">$149/月 ・ 100枠 ・ 20%ブースト</span>
+              </div>
+              <div style="font-size:10px;color:var(--faint);margin-top:4px;">※ 全10プラン。詳細はMusicBoostページで確認できます。</div>
+            </div>
+          </div>
+          <div style="margin-top:12px;display:inline-flex;align-items:center;gap:6px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:99px;padding:4px 12px;font-size:11px;font-weight:700;color:#fcd34d;">🚀 Music Boost（月額・Square決済）</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /steps -->
+
+  <!-- ═══ CHAPTER 7: ノート生成の流れ ══════════════════════════════════════ -->
+  <div class="chapter fade-up">
+    <span class="chapter-num">07</span>
+    <h2 class="chapter-title">ノート生成 → note販売の流れ</h2>
+    <div class="chapter-line"></div>
+  </div>
+
+  <div class="fade-up">
+    <div class="highlight-box bp">
+      <span class="highlight-box-icon">📝</span>
+      <span>テーマを入力するだけで、noteで売れる記事をAIが自動で作成します。文章を書いたことがない方でも3分で完成します。</span>
+    </div>
+  </div>
+
+  <div class="fade-up" style="margin-top:16px;display:flex;flex-direction:column;gap:0;">
+
+    <!-- STEP 1 -->
+    <div style="display:flex;gap:0;align-items:stretch;">
+      <div style="display:flex;flex-direction:column;align-items:center;width:48px;flex-shrink:0;">
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#a78bfa);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:13px;font-weight:800;color:#fff;flex-shrink:0;">1</div>
+        <div style="width:2px;flex:1;background:linear-gradient(180deg,#8b5cf6,#a78bfa 60%,transparent);margin-top:4px;"></div>
+      </div>
+      <div style="flex:1;padding-bottom:20px;padding-left:14px;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:18px 16px;">
+          <div style="font-size:22px;line-height:1;margin-bottom:8px;">⚙️</div>
+          <div style="font-size:14px;font-weight:900;color:var(--text);margin-bottom:6px;">記事の方向性を決める</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.65;">
+            「ノート生成」を開き、以下の項目を入力します。迷ったらシンプルな言葉でも大丈夫です。
+          </div>
+          <div style="margin-top:10px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;">
+            <div style="font-size:11px;color:var(--muted);"><span style="color:var(--text);font-weight:700;">テーマ</span>　何について書くか（例：「副業で月5万円稼ぐ方法」）</div>
+            <div style="font-size:11px;color:var(--muted);"><span style="color:var(--text);font-weight:700;">対象読者</span>　誰に向けるか（例：会社員・初心者・主婦）</div>
+            <div style="font-size:11px;color:var(--muted);"><span style="color:var(--text);font-weight:700;">文章スタイル</span>　記事の雰囲気（例：わかりやすく・プロっぽく）</div>
+            <div style="font-size:11px;color:var(--muted);"><span style="color:var(--text);font-weight:700;">有料設定</span>　「導入無料＋本文有料」が一番売れやすいのでおすすめ</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div style="display:flex;gap:0;align-items:stretch;">
+      <div style="display:flex;flex-direction:column;align-items:center;width:48px;flex-shrink:0;">
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#a78bfa);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:13px;font-weight:800;color:#fff;flex-shrink:0;">2</div>
+        <div style="width:2px;flex:1;background:linear-gradient(180deg,#8b5cf6,#a78bfa 60%,transparent);margin-top:4px;"></div>
+      </div>
+      <div style="flex:1;padding-bottom:20px;padding-left:14px;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:18px 16px;">
+          <div style="font-size:22px;line-height:1;margin-bottom:8px;">💡</div>
+          <div style="font-size:14px;font-weight:900;color:var(--text);margin-bottom:6px;">タイトルと構成を選ぶ</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.65;">
+            AIが「売れやすいタイトル候補」を複数提案します。各タイトルには売れやすさスコア・想定価格・ターゲット・見出し構成も表示されるので、一番気に入ったものを選ぶだけです。迷ったら「おすすめの切り口」と表示されているものを選べばOKです。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div style="display:flex;gap:0;align-items:stretch;">
+      <div style="display:flex;flex-direction:column;align-items:center;width:48px;flex-shrink:0;">
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#a78bfa);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:13px;font-weight:800;color:#fff;flex-shrink:0;">3</div>
+        <div style="width:2px;flex:1;background:linear-gradient(180deg,#8b5cf6,#a78bfa 60%,transparent);margin-top:4px;"></div>
+      </div>
+      <div style="flex:1;padding-bottom:20px;padding-left:14px;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:18px 16px;">
+          <div style="font-size:22px;line-height:1;margin-bottom:8px;">✨</div>
+          <div style="font-size:14px;font-weight:900;color:var(--text);margin-bottom:6px;">本文を生成する</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.65;">
+            「本文を生成」ボタンを押すだけで数秒後に記事が完成します。一緒にSNS投稿文（X・LINE用）や説明文も自動で作られます。そのまま使ってもよいですし、少し手を加えてオリジナル感を出すとより売れやすくなります。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 4 -->
+    <div style="display:flex;gap:0;align-items:stretch;">
+      <div style="display:flex;flex-direction:column;align-items:center;width:48px;flex-shrink:0;">
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#8b5cf6,#a78bfa);display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:13px;font-weight:800;color:#fff;flex-shrink:0;">4</div>
+      </div>
+      <div style="flex:1;padding-left:14px;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:18px 16px;">
+          <div style="font-size:22px;line-height:1;margin-bottom:8px;">🛍️</div>
+          <div style="font-size:14px;font-weight:900;color:var(--text);margin-bottom:6px;">noteに投稿して販売する</div>
+          <div style="font-size:12px;color:var(--muted);line-height:1.65;">
+            生成した記事をnote.com（ノート）にコピー&ペーストして投稿します。noteは月間数千万人が使う日本最大級の記事販売プラットフォームです。有料記事として設定することで、読んでくれた人から直接収益を得ることができます。<br><br>
+            SNS投稿文もそのまま使って宣伝すれば、集客まで一気に完結します。
+          </div>
+          <div style="margin-top:10px;display:inline-flex;align-items:center;gap:6px;background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.3);border-radius:99px;padding:4px 12px;font-size:11px;font-weight:700;color:#c4b5fd;">📝 ノート生成（アプリ内）→ note.com で販売</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /note steps -->
+
+  <!-- ═══ CHAPTER 8: リファラル（紹介報酬） ════════════════════════════════ -->
+  <div class="chapter fade-up">
+    <span class="chapter-num">08</span>
+    <h2 class="chapter-title">リファラル（紹介報酬）</h2>
+    <div class="chapter-line"></div>
+  </div>
+
+  <div class="earn-grid fade-up">
+    <div class="earn-card bp-card wide">
+      <div class="earn-card-icon">🤝</div>
+      <div class="earn-card-title">友達を紹介して報酬を受け取る</div>
+      <div class="earn-card-desc">
+        あなた専用の紹介コードを使って友人・知人をLIFAIに招待すると、その方が入会した金額に応じた報酬が受け取れます。紹介した相手がさらに誰かを紹介した場合も、最大5段階まで連鎖的に報酬が入ります。
+      </div>
+
+      <div class="staking-table" style="margin-top:12px;">
+        <div class="staking-row head">
+          <div class="staking-cell">段階</div>
+          <div class="staking-cell">対象</div>
+          <div class="staking-cell">報酬率</div>
+        </div>
+        <div class="staking-row">
+          <div class="staking-cell"><span class="days">1段階目</span></div>
+          <div class="staking-cell"><span class="note">あなたが直接紹介した人</span></div>
+          <div class="staking-cell"><span class="rate">10%</span></div>
+        </div>
+        <div class="staking-row">
+          <div class="staking-cell"><span class="days">2段階目</span></div>
+          <div class="staking-cell"><span class="note">紹介した人が紹介した人</span></div>
+          <div class="staking-cell"><span class="rate">5%</span></div>
+        </div>
+        <div class="staking-row">
+          <div class="staking-cell"><span class="days">3段階目</span></div>
+          <div class="staking-cell"><span class="note">さらにその先</span></div>
+          <div class="staking-cell"><span class="rate">2%</span></div>
+        </div>
+        <div class="staking-row">
+          <div class="staking-cell"><span class="days">4〜5段階目</span></div>
+          <div class="staking-cell"><span class="note">さらにその先</span></div>
+          <div class="staking-cell"><span class="rate">各 1〜2%</span></div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <div class="info-row">
+          <div class="info-row-icon">📋</div>
+          <div class="info-row-body">
+            <div class="info-row-title">紹介コードの確認・共有</div>
+            <div class="info-row-desc">トップページの「リファラ」メニューを開くと、あなた専用の紹介コードとQRコードが表示されます。そのままコピーして友人に送るか、QRを見せるだけで紹介完了です。</div>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="info-row-icon">💰</div>
+          <div class="info-row-body">
+            <div class="info-row-title">報酬・実績の確認</div>
+            <div class="info-row-desc">同じ「リファラ」メニューで、紹介した人の一覧・報酬履歴・累計報酬額をいつでも確認できます。</div>
+          </div>
+        </div>
+        <div class="info-row" style="border-bottom:none;">
+          <div class="info-row-icon">⏳</div>
+          <div class="info-row-body">
+            <div class="info-row-title">反映にタイムラグがある場合について</div>
+            <div class="info-row-desc">紹介報酬の反映はスタッフが内容を確認したうえで処理しています。そのため、入会が確認されてから実際に報酬が表示されるまで少し時間がかかることがあります。しばらく待っても表示されない場合はスタッフへご連絡ください。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="earn-reward">
+        <span class="earn-amount">最大 5段階で報酬</span>
+        <span class="earn-freq">REFERRAL</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ CHAPTER 9: りふぁねこ（AIチャット） ══════════════════════════════ -->
+  <div class="chapter fade-up">
+    <span class="chapter-num">09</span>
+    <h2 class="chapter-title">りふぁねこ — AI チャットボット</h2>
+    <div class="chapter-line"></div>
+  </div>
+
+  <div class="earn-grid fade-up">
+    <div class="earn-card bp-card wide">
+      <div class="earn-card-icon">🐱</div>
+      <div class="earn-card-title">りふぁねこって何？</div>
+      <div class="earn-card-desc">
+        「りふぁねこ」はLIFAIに組み込まれたAIチャットボットです。ChatGPTと同じような感覚で使えます。LIFAIのことはもちろん、AI・副業・日常の疑問まで何でも気軽に質問してみてください。
+      </div>
+
+      <div style="margin-top:12px;">
+        <div class="info-row">
+          <div class="info-row-icon">💬</div>
+          <div class="info-row-body">
+            <div class="info-row-title">何を聞けばいい？</div>
+            <div class="info-row-desc">「BPって何に使えばいい？」「note記事のタイトルを考えて」「副業のアイデアを教えて」など、思ったことをそのまま話しかけるだけで答えてくれます。難しい言葉は不要です。</div>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="info-row-icon">🖼️</div>
+          <div class="info-row-body">
+            <div class="info-row-title">画像も送れる</div>
+            <div class="info-row-desc">スクリーンショットや画像を添付して「これって何？」と聞くことも可能です。</div>
+          </div>
+        </div>
+        <div class="info-row" style="border-bottom:none;">
+          <div class="info-row-icon">🧭</div>
+          <div class="info-row-body">
+            <div class="info-row-title">サービスへのショートカット付き</div>
+            <div class="info-row-desc">チャット画面のサイドメニューから音楽生成・ノート生成・ガチャ・占いなど各機能にワンタップで移動できます。使い方に迷ったときの入口としても便利です。</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:14px;background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:14px 16px;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--faint);text-transform:uppercase;margin-bottom:8px;">りふぁねこのあいさつ</div>
+        <div style="font-size:13px;color:var(--text);line-height:1.65;">「やあ！何でも聞いてね。AI・副業・LIFAIのことも、日常のことも答えるよ 🐱」</div>
+      </div>
+
+      <div class="earn-reward">
+        <span class="earn-amount">ChatGPT 感覚で使える</span>
+        <span class="earn-freq">AI CHAT</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider fade-up"></div>
+
+</div><!-- /wrap -->
+
+<footer class="fade-up">
+  <strong>LIFAI</strong> — AI Education Community<br>
+  <span style="margin-top:6px;display:block;">このガイドはメンバー向け公式資料です</span>
+</footer>
+
+<script>
+  const els = document.querySelectorAll('.fade-up');
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+        obs.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.06 });
+  els.forEach((el, i) => {
+    el.style.transitionDelay = (i * 0.035) + 's';
+    obs.observe(el);
+  });
+</script>
+</body>
+</html>
