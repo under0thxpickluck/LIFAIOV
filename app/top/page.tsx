@@ -290,18 +290,26 @@ export default function AppHomePage() {
     // ログインボーナス
     const loginId = (a as any)?.loginId ?? (a as any)?.login_id ?? (a as any)?.id ?? "";
     if (loginId) {
-      fetch("/api/daily-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ loginId }),
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.ok && data.bp_earned > 0) {
-            setLoginBonus({ bp_earned: data.bp_earned, streak: data.streak });
-          }
+      const todayJst = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const bonusKey = "addval_login_bonus_date_" + loginId;
+      const alreadyClaimed = typeof window !== "undefined" && localStorage.getItem(bonusKey) === todayJst;
+      if (!alreadyClaimed) {
+        fetch("/api/daily-login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ loginId }),
         })
-        .catch(() => {});
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.ok && data.bp_earned > 0) {
+              if (typeof window !== "undefined") localStorage.setItem(bonusKey, todayJst);
+              setLoginBonus({ bp_earned: data.bp_earned, streak: data.streak });
+            } else if (data.reason === "already_claimed") {
+              if (typeof window !== "undefined") localStorage.setItem(bonusKey, todayJst);
+            }
+          })
+          .catch(() => {});
+      }
 
       // 楽曲売却承認通知チェック
       fetch("/api/apply-sell/notify", {

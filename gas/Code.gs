@@ -2191,6 +2191,16 @@ function handle_(key, body) {
     const loginId = str_(body.loginId);
     if (!loginId) return json_({ ok: false, error: "loginId_required" });
 
+    // 同一ユーザーの並行リクエストによる二重付与を防ぐ
+    const lock = LockService.getScriptLock();
+    try {
+      lock.waitLock(10000);
+    } catch (e) {
+      return json_({ ok: false, error: "lock_timeout" });
+    }
+
+    try {
+
     let values = sheet.getDataRange().getValues();
     let header = values[0];
 
@@ -2289,6 +2299,10 @@ function handle_(key, body) {
     }
 
     return json_({ ok: true, bp_earned: bpEarned, streak: streak, bp_balance: newBp });
+
+    } finally {
+      lock.releaseLock();
+    }
   }
 
   // =========================================================
