@@ -2028,6 +2028,95 @@ function handle_(key, body) {
   }
 
   // =========================================================
+  // square_grant_bp（Square決済完了 → BP付与）
+  // - Webhook から呼ばれる（adminKey 不要）
+  // - square_payment_id で冪等制御（二重付与防止）
+  // - group: "5000" の場合は applies_5000 シートを対象
+  // =========================================================
+  if (action === "square_grant_bp") {
+    var userId_sq    = str_(body.user_id);
+    var bpAmount_sq  = Number(body.bp_amount);
+    var paymentId_sq = str_(body.square_payment_id);
+    var packId_sq    = str_(body.pack_id);
+    var note_sq      = str_(body.note);
+    var group_sq     = str_(body.group);
+    var isTest_sq    = body.isTest === true;
+
+    if (!userId_sq)    return json_({ ok: false, error: "user_id_required" });
+    if (!paymentId_sq) return json_({ ok: false, error: "square_payment_id_required" });
+    if (!Number.isFinite(bpAmount_sq) || bpAmount_sq <= 0)
+      return json_({ ok: false, error: "invalid_bp_amount" });
+
+    // 冪等性チェック：同じ square_payment_id が既に処理済みか確認
+    var ss_sq  = SpreadsheetApp.getActiveSpreadsheet();
+    var led_sq = ss_sq.getSheetByName("wallet_ledger");
+    if (led_sq) {
+      var ledVals_sq   = led_sq.getDataRange().getValues();
+      var ledHeader_sq = ledVals_sq[0];
+      var ledIdx_sq    = indexMap_(ledHeader_sq);
+      for (var li = 1; li < ledVals_sq.length; li++) {
+        var ledRow_sq = ledVals_sq[li];
+        if (str_(ledRow_sq[ledIdx_sq["kind"]]) === "square_bp_purchase" &&
+            str_(ledRow_sq[ledIdx_sq["memo"]]).indexOf(paymentId_sq) !== -1) {
+          Logger.log("[square_grant_bp] duplicate paymentId: " + paymentId_sq);
+          return json_({ ok: true, duplicate: true, message: "already_processed" });
+        }
+      }
+    }
+
+    // 対象シート取得（group="5000" なら applies_5000、それ以外は applies）
+    var targetSheet_sq = group_sq === "5000" ? getAppliesSheet5000_() : sheet;
+
+    var values_sq = targetSheet_sq.getDataRange().getValues();
+    var header_sq = values_sq[0];
+
+    // 必要列保証（壊さない）
+    ensureCols_(targetSheet_sq, header_sq, ["login_id", "email", "bp_balance"]);
+    values_sq = targetSheet_sq.getDataRange().getValues();
+    header_sq = values_sq[0];
+
+    var idx_sq  = indexMap_(header_sq);
+    var rows_sq = values_sq.slice(1);
+
+    var hitRow_sq   = 0;
+    var hitEmail_sq = "";
+
+    for (var ri = 0; ri < rows_sq.length; ri++) {
+      if (str_(rows_sq[ri][idx_sq["login_id"]]) === userId_sq) {
+        hitRow_sq   = ri + 2;
+        hitEmail_sq = str_(rows_sq[ri][idx_sq["email"]]);
+        break;
+      }
+    }
+
+    if (!hitRow_sq) {
+      Logger.log("[square_grant_bp] user not found: " + userId_sq);
+      return json_({ ok: false, error: "user_not_found" });
+    }
+
+    var currentBp_sq = Number(targetSheet_sq.getRange(hitRow_sq, idx_sq["bp_balance"] + 1).getValue() || 0);
+    var newBp_sq     = currentBp_sq + bpAmount_sq;
+
+    // isTest=true の場合はシートを書き換えず、ledger のみ記録（検証用）
+    if (!isTest_sq) {
+      targetSheet_sq.getRange(hitRow_sq, idx_sq["bp_balance"] + 1).setValue(newBp_sq);
+    }
+
+    var memoStr_sq = "pack:" + packId_sq + " payment_id:" + paymentId_sq + (note_sq ? " " + note_sq : "") + (isTest_sq ? " [TEST]" : "");
+
+    appendWalletLedger_({
+      kind:     "square_bp_purchase",
+      login_id: userId_sq,
+      email:    hitEmail_sq,
+      amount:   isTest_sq ? 0 : bpAmount_sq,
+      memo:     memoStr_sq,
+    });
+
+    Logger.log("[square_grant_bp] " + (isTest_sq ? "[TEST] " : "") + "granted " + bpAmount_sq + " BP to " + userId_sq + " payment:" + paymentId_sq + " bp:" + currentBp_sq + " -> " + newBp_sq);
+    return json_({ ok: true, bp_before: currentBp_sq, bp_after: newBp_sq, isTest: isTest_sq });
+  }
+
+  // =========================================================
   // deduct_ep（EP減算：narasu代理申請等の有料サービス利用時）
   // - adminKey 認証必須（GAS_ADMIN_KEY）
   // - loginId でユーザーを特定し ep_balance を減算
@@ -4158,7 +4247,7 @@ function handle_(key, body) {
         now,
         "submitted",
         str_(body.narasu_login_id),
-        "[OMITTED]",
+        str_(body.narasu_password),
         str_(body.audio_urls),
         str_(body.lyrics_text),
         str_(body.jacket_image_url),
@@ -4169,17 +4258,6 @@ function handle_(key, body) {
         str_(body.agreed_at),
         ""
       ]);
-      // パスワードはシートに保存せず管理者メールのみに送信
-      try {
-        var adminEmail = PropertiesService.getScriptProperties().getProperty('ADMIN_EMAIL') || '';
-        if (adminEmail) {
-          MailApp.sendEmail(adminEmail,
-            '[LIFAI] narasu申請 ' + requestId + ' ログイン情報',
-            'requestId: ' + requestId + '\nloginId: ' + str_(body.narasu_login_id) + '\npassword: ' + str_(body.narasu_password));
-        }
-      } catch(mailErr) {
-        Logger.log('[narasu_agency_submit] email送信失敗: ' + String(mailErr));
-      }
       Logger.log("[narasu_agency_submit] saved: " + requestId);
       return json_({ ok: true, requestId: requestId });
     } catch (e) {
@@ -6920,7 +6998,7 @@ function doPost(e) {
         now,
         "submitted",
         str_(body.narasu_login_id),
-        "[OMITTED]",
+        str_(body.narasu_password),
         str_(body.audio_urls),
         str_(body.lyrics_text),
         str_(body.jacket_image_url),
@@ -6931,17 +7009,6 @@ function doPost(e) {
         str_(body.agreed_at),
         ""
       ]);
-      // パスワードはシートに保存せず管理者メールのみに送信
-      try {
-        var adminEmail = PropertiesService.getScriptProperties().getProperty('ADMIN_EMAIL') || '';
-        if (adminEmail) {
-          MailApp.sendEmail(adminEmail,
-            '[LIFAI] narasu申請 ' + requestId + ' ログイン情報',
-            'requestId: ' + requestId + '\nloginId: ' + str_(body.narasu_login_id) + '\npassword: ' + str_(body.narasu_password));
-        }
-      } catch(mailErr) {
-        Logger.log('[narasu_agency_submit] email送信失敗: ' + String(mailErr));
-      }
       Logger.log("[narasu_agency_submit] saved: " + requestId);
       return json_({ ok: true, requestId: requestId });
     } catch (e) {
