@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type LevelSummary = {
   level: number;
@@ -75,6 +75,8 @@ export default function MonthlyTab() {
   const [loading,  setLoading]  = useState(false);
   const [err,      setErr]      = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [monthSummaries,  setMonthSummaries]  = useState<Array<{ month: string; total_ep: number; referrer_count: number } | null>>([]);
+  const [summaryLoading,  setSummaryLoading]  = useState(false);
 
   const load = async (m: string) => {
     setLoading(true);
@@ -98,6 +100,26 @@ export default function MonthlyTab() {
     }
   };
 
+  const loadMonthlySummaries = async () => {
+    setSummaryLoading(true);
+    const months = monthOptions().slice(0, 6);
+    const results = await Promise.allSettled(
+      months.map(m =>
+        fetch("/api/admin/affiliate-summary", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+          body: JSON.stringify({ month: m }),
+        })
+          .then(r => r.json())
+          .then((j: any) => j?.ok ? { month: m, total_ep: Number(j.summary?.total_ep ?? 0), referrer_count: Number(j.summary?.referrer_count ?? 0) } : null)
+          .catch(() => null)
+      )
+    );
+    setMonthSummaries(results.map(r => r.status === "fulfilled" ? r.value : null));
+    setSummaryLoading(false);
+  };
+
   const toggleExpand = (id: string) => {
     setExpanded(prev => {
       const next = new Set(prev);
@@ -105,6 +127,12 @@ export default function MonthlyTab() {
       return next;
     });
   };
+
+  useEffect(() => {
+    load(currentMonth());
+    loadMonthlySummaries();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div>
@@ -236,6 +264,39 @@ export default function MonthlyTab() {
           )}
         </>
       )}
+          {/* 直近6ヶ月サマリ */}
+          <div className="mt-8">
+            <p className="mb-3 text-sm font-bold text-zinc-300">直近6ヶ月サマリ（末締め）</p>
+            {summaryLoading ? (
+              <div className="h-24 animate-pulse rounded-xl bg-zinc-800" />
+            ) : (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                {monthOptions().slice(0, 6).map((m, i) => {
+                  const s = monthSummaries[i];
+                  return (
+                    <button
+                      key={m}
+                      onClick={() => { setMonth(m); load(m); }}
+                      className={[
+                        "rounded-xl border p-3 text-left transition hover:border-amber-500/60",
+                        month === m ? "border-amber-500 bg-zinc-800" : "border-zinc-800 bg-zinc-900"
+                      ].join(" ")}
+                    >
+                      <p className="mb-1 text-[11px] font-bold text-zinc-400">{fmtMonth(m)}</p>
+                      {s ? (
+                        <>
+                          <p className="text-sm font-bold text-amber-400">{fmtEp(s.total_ep)}</p>
+                          <p className="text-[10px] text-zinc-500">{s.referrer_count} 人</p>
+                        </>
+                      ) : (
+                        <p className="text-[10px] text-zinc-600">データなし</p>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
     </div>
   );
 }
