@@ -142,10 +142,11 @@ export default function ApplyPage() {
   useEffect(() => {
     const initial = loadDraft();
 
-    // ✅ URLの applyId / plan を draft に反映（決済後に /apply?applyId=... で戻ってくる想定）
+    // ✅ URLの applyId / plan / refCode を draft に反映
     const qs = new URLSearchParams(window.location.search);
     const applyIdFromUrl = qs.get("applyId") ?? "";
     const planFromUrl = qs.get("plan");
+    const refCodeFromUrl = qs.get("refCode") ?? "";
 
     const merged: Draft = {
       ...emptyDraft,
@@ -157,7 +158,8 @@ export default function ApplyPage() {
       nameKana: initial.nameKana ?? "",
       discordId: initial.discordId ?? "",
       refName: initial.refName ?? "",
-      refId: initial.refId ?? "",
+      // refId が未入力の場合のみ URL の refCode を補完（既入力は維持）
+      refId: (initial.refId ?? "") || refCodeFromUrl,
       ageBand: initial.ageBand ?? "",
       prefecture: initial.prefecture ?? "",
       city: initial.city ?? "",

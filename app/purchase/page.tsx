@@ -236,11 +236,14 @@ export default function PurchasePage() {
     const sp = new URLSearchParams(window.location.search);
     const applyIdFromUrl = sp.get("applyId") || undefined;
     const planFromUrl = (sp.get("plan") as Plan | null) || undefined;
+    const refCodeFromUrl = sp.get("refCode") || undefined;
 
     const next = {
       ...d,
       ...(applyIdFromUrl ? { applyId: applyIdFromUrl } : null),
       ...(planFromUrl ? { plan: planFromUrl } : null),
+      // refId が未入力の場合のみ URL の refCode を補完（既入力は維持）
+      ...(refCodeFromUrl && !d.refId ? { refId: refCodeFromUrl } : null),
     };
 
     saveDraft(next);
