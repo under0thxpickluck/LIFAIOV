@@ -1,7 +1,7 @@
 # LIFAI システム仕様書
 
 > 作成日: 2026-03-08  
-> 更新日: 2026-04-24  
+> 更新日: 2026-05-29  
 > 対象ブランチ: main  
 > フレームワーク: Next.js 14 (App Router)
 
@@ -94,8 +94,7 @@ aisalon/
 │   ├── top/page.tsx                    # ダッシュボード (認証後)
 │   ├── start/page.tsx                  # オンボーディング
 │   ├── purchase/
-│   │   ├── page.tsx                    # Step 1: プラン選択
-│   │   └── jam/page.tsx                # JAMプラン選択
+│   │   └── page.tsx                    # Step 1: プラン選択（OVでは /5000 にリダイレクト）
 │   ├── apply/page.tsx                  # Step 2: 申請フォーム
 │   ├── confirm/page.tsx                # Step 3: 確認・送信
 │   ├── pending/page.tsx                # 審査待ち画面
@@ -139,7 +138,7 @@ aisalon/
 │   │   ├── login/page.tsx              # 5000ログイン
 │   │   ├── apply/page.tsx              # 5000申請
 │   │   ├── confirm/page.tsx            # 5000確認
-│   │   ├── admin/page.tsx              # 5000管理
+│   │   ├── admin/page.tsx              # 5000管理（申請承認 + 財務ゲートウェイ + 音楽売却管理）
 │   │   └── purchase-status/page.tsx    # 支払い状況確認
 │   ├── column/
 │   │   ├── page.tsx                    # コラム一覧
@@ -418,6 +417,14 @@ npm test       # Jest テスト実行
 | `/5000/admin/*` | 5000プログラム管理画面 |
 | `/api/5000/admin/*` | 5000プログラム管理API |
 
+### リダイレクトルール（OV専用）
+
+| アクセス先 | リダイレクト先 | 理由 |
+|---|---|---|
+| `/login` | `/5000/login` | OVは5000専用サイトのため |
+| `/purchase`, `/purchase/*` | `/5000` | OVでは通常購入フロー非使用 |
+| `/purchase/jam`, `/purchase/jam/*` | `/5000` | JAMDAOルート廃止（安全装置として維持） |
+
 ### 処理フロー
 
 1. リクエストパスが対象かチェック
@@ -564,6 +571,8 @@ npm test       # Jest テスト実行
 | job | 職業 |
 
 **任意入力項目:** `refName`（紹介者名）、`refId`（紹介者ID）
+
+**refCode 自動補完:** URL パラメータ `?refCode=R-xxxx` が付いている場合、`refId` フィールドに自動セット（既入力は維持）。`/purchase?refCode=...` 経由でも draft 経由で引き継ぎ可能。
 
 **自動保存:** `addval_apply_draft_v1`（sessionStorage）
 
@@ -1706,6 +1715,7 @@ GET/POST {GAS_WEBAPP_URL}?key={GAS_API_KEY}&action={action}&...params
 | `market_notify_purchase` | POST | `/api/market/buy`（fire-and-forget） | 購入通知（買い手に納品URL・売り手に通知） |
 | `sell_request` | POST | `/api/market/sell-request` | 出品者自身による売却申請 |
 | `music_sell_submit` | POST | `/api/apply-sell/submit` | 楽曲売却申請（EP価格・審査制） |
+| `music_sell_delete` | DELETE | `/api/admin/music-sell-requests` | 承認済み楽曲売却申請を物理削除（`approved` 行のみ・adminKey必須） |
 | `narasu_agency_submit` | POST | `/api/narasu-agency/submit` | Narasu Agency パートナー申請送信 |
 | `narasu_pay_bp` | POST | `/api/narasu-agency/pay-bp` | Narasu Agency BP支払い |
 | `narasu_pay_ep` | POST | `/api/narasu-agency/pay-ep` | Narasu Agency EP支払い |
@@ -1910,6 +1920,17 @@ GET/POST {GAS_WEBAPP_URL}?key={GAS_API_KEY}&action={action}&...params
 
 **注意:** 申請後「ご利用ありがとうございます。24時間〜48時間以内に売却申請の可否の返答が行われます。今しばらくお待ちください。」と表示。
 
+### 管理者側の操作
+
+| 操作 | API | 説明 |
+|---|---|---|
+| 一覧取得 | `GET /api/admin/music-sell-requests` | GAS action: `music_sell_list` |
+| 承認/却下 | `POST /api/admin/music-sell-requests` `{ requestId, status }` | GAS action: `music_sell_update`。承認時にEP付与 |
+| 削除 | `DELETE /api/admin/music-sell-requests` `{ requestId }` | GAS action: `music_sell_delete`。`approved` 行のみ物理削除可 |
+
+承認時: `applies` シートの `ep_balance` に `price_usdt` 分のEPを加算し `wallet_ledger` に `kind: "music_sell"` で記録。  
+削除は承認済み（`approved`）行のみ可能。未承認行（`pending`）は削除不可。
+
 ---
 
 ## 21. LIFAI ラジオ
@@ -2026,7 +2047,17 @@ GET/POST {GAS_WEBAPP_URL}?key={GAS_API_KEY}&action={action}&...params
 - `/5000/confirm` — 確認画面
 - `/5000/login` — ログイン
 - `/5000/purchase-status` — 支払い状況確認
-- `/5000/admin` — 管理者画面
+- `/5000/admin` — 管理者画面（申請承認 + 財務ゲートウェイ + 音楽売却管理）
+
+**`/5000/admin` 機能:**
+
+| セクション | 内容 |
+|---|---|
+| 承認待ち | `/api/5000/admin/list` で取得。`/api/5000/admin/approve` で承認 |
+| 承認済み | 承認済みユーザー一覧表示 |
+| その他 | `manual_review` など手動承認が必要なケース |
+| 財務管理ゲートウェイ | パスワード入力 → `POST /api/admin/finance-unlock` → `/admin/finance` へ遷移（本家財務ページと共用） |
+| 楽曲売却申請管理 | `/api/admin/music-sell-requests` を使用（本家と共用API）。承認/却下/削除ボタン搭載 |
 
 ---
 
@@ -2160,6 +2191,11 @@ const { isDark, toggleTheme } = useTheme();
 ### 音楽審査
 - `/api/admin/music-review` — 提出された楽曲の審査・承認
 
+### 楽曲売却申請管理（本家 `/admin`）
+- 申請一覧: `GET /api/admin/music-sell-requests`
+- 承認/却下: `POST /api/admin/music-sell-requests { requestId, status }`
+- **削除（新規）**: `DELETE /api/admin/music-sell-requests { requestId }` — `approved` 行のみ削除可。承認済みが蓄積した場合のクリーンアップ用
+
 ### 財務管理 (`/admin/finance`)
 
 **アクセス:** Basic Auth 通過後、さらに追加パスワード認証が必要（`FINANCE_UNLOCK_PASS`）
@@ -2173,10 +2209,20 @@ const { isDark, toggleTheme } = useTheme();
 
 | タブ | コンポーネント | 内容 |
 |---|---|---|
-| ユーザー詳細 | `UsersTab` | 会員のウォレット残高・取引履歴 |
+| ユーザー詳細 | `UsersTab` | 会員のウォレット残高・取引履歴。EP/BP/USDフィルタトグル付き |
 | アフィリエイト | `AffiliateTab` | 紹介関係のドラッグ＆ドロップ再割当 |
 | 紹介ツリー | `TreeTab` | 紹介ツリー可視化。「🔗 refcodeから紹介者を更新」ボタンで一括バックフィル実行 |
-| 月次集計 | `MonthlyTab` | 月次アフィリエイトEP集計（読み取り専用）。`month=YYYY-MM` 指定で紹介者別・段別の集計を表示 |
+| 月次集計 | `MonthlyTab` | 月次アフィリエイトEP集計（読み取り専用）。ページロード時に当月を自動集計。直近6ヶ月サマリカード表示（クリックで詳細切替）。末締め集計 |
+
+**UsersTab — wallet_ledger の通貨分類:**
+
+| 通貨 | kind 一覧 |
+|---|---|
+| EP | `music_sell`, `radio_ep`, `rumble_weekly_ep`, `deduct_ep` |
+| BP | `gacha_cost`, `gacha_prize`, `login_bonus`, `deduct_bp`, `rumble_daily_bp`, `square_bp_purchase`, `monthly_recover`, `fortune_daily`, `stake_lock`, `stake_claim`, `market_confirm_fee`, `mission_*` |
+| USD/その他 | `referral_bonus`, `referral_entry` など上記以外 |
+
+フィルタトグル（全て/EP/BP/USD）で対象行を絞り込み表示。各行の `kind` セルに EP/BP/USD バッジを表示。
 
 **関連API:**
 
@@ -2325,4 +2371,4 @@ reward_ep  = floor(amount_jpy × rate_pct/100 × 4)  (ep_per_jpy)
 
 ---
 
-*この仕様書は `C:\Users\unitu\aisalon` プロジェクトの全ファイルを解析して更新されました（2026-04-27）。*
+*この仕様書は `C:\Users\unitu\lifaiov` プロジェクトの全ファイルを解析して更新されました（2026-05-29）。*
