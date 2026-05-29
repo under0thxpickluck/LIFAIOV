@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getAuth } from "@/app/lib/auth";
 
+const NARASU_REQUEST_ID_KEY = "lifai_narasu_request_id_v1";
+
 type PayState = "select" | "bp_processing" | "bp_done" | "bp_error" | "ep_processing" | "ep_done" | "ep_error";
 
 export default function NarasuCompletePage() {
@@ -12,6 +14,7 @@ export default function NarasuCompletePage() {
   const [epError, setEpError] = useState("");
   const [bpError, setBpError] = useState("");
   const [loginId, setLoginId] = useState("");
+  const [requestId, setRequestId] = useState("");
 
   useEffect(() => {
     const auth = getAuth();
@@ -21,6 +24,8 @@ export default function NarasuCompletePage() {
       (auth as any)?.id ??
       "";
     setLoginId(id);
+    const rid = sessionStorage.getItem(NARASU_REQUEST_ID_KEY) ?? "";
+    setRequestId(rid);
   }, []);
 
   async function handleBpPay() {
@@ -35,7 +40,7 @@ export default function NarasuCompletePage() {
       const res = await fetch("/api/narasu-agency/pay-bp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ loginId }),
+        body: JSON.stringify({ loginId, requestId }),
       });
       const data = await res.json();
       if (!data.ok) {
@@ -66,7 +71,7 @@ export default function NarasuCompletePage() {
       const res = await fetch("/api/narasu-agency/pay-ep", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ loginId }),
+        body: JSON.stringify({ loginId, requestId }),
       });
       const data = await res.json();
       if (!data.ok) {

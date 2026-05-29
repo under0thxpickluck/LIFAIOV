@@ -4251,8 +4251,17 @@ function handle_(key, body) {
           "jacket_image_url", "jacket_note",
           "artist_name", "note",
           "agreed_terms_version", "agreed_at",
-          "admin_memo"
+          "admin_memo",
+          "login_id", "payment_status", "payment_method", "paid_at"
         ]);
+      } else {
+        var existingHeaders = narasuSheet.getRange(1, 1, 1, narasuSheet.getLastColumn()).getValues()[0].map(function(h) { return String(h); });
+        ["login_id", "payment_status", "payment_method", "paid_at"].forEach(function(col) {
+          if (existingHeaders.indexOf(col) === -1) {
+            narasuSheet.getRange(1, existingHeaders.length + 1).setValue(col);
+            existingHeaders.push(col);
+          }
+        });
       }
       var requestId = "NA-" + Date.now();
       var now = new Date().toISOString();
@@ -4270,6 +4279,10 @@ function handle_(key, body) {
         str_(body.note),
         str_(body.agreed_terms_version),
         str_(body.agreed_at),
+        "",
+        str_(body.login_id),
+        "unpaid",
+        "",
         ""
       ]);
       Logger.log("[narasu_agency_submit] saved: " + requestId);
@@ -7059,8 +7072,17 @@ function doPost(e) {
           "jacket_image_url", "jacket_note",
           "artist_name", "note",
           "agreed_terms_version", "agreed_at",
-          "admin_memo"
+          "admin_memo",
+          "login_id", "payment_status", "payment_method", "paid_at"
         ]);
+      } else {
+        var existingHeaders = narasuSheet.getRange(1, 1, 1, narasuSheet.getLastColumn()).getValues()[0].map(function(h) { return String(h); });
+        ["login_id", "payment_status", "payment_method", "paid_at"].forEach(function(col) {
+          if (existingHeaders.indexOf(col) === -1) {
+            narasuSheet.getRange(1, existingHeaders.length + 1).setValue(col);
+            existingHeaders.push(col);
+          }
+        });
       }
       var requestId = "NA-" + Date.now();
       var now = new Date().toISOString();
@@ -7078,12 +7100,52 @@ function doPost(e) {
         str_(body.note),
         str_(body.agreed_terms_version),
         str_(body.agreed_at),
+        "",
+        str_(body.login_id),
+        "unpaid",
+        "",
         ""
       ]);
       Logger.log("[narasu_agency_submit] saved: " + requestId);
       return json_({ ok: true, requestId: requestId });
     } catch (e) {
       Logger.log("[narasu_agency_submit] error: " + String(e));
+      return json_({ ok: false, error: String(e) });
+    }
+  }
+  if (action === "narasu_agency_update_payment") {
+    try {
+      var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("narasu_agency");
+      if (!sheet) return json_({ ok: false, error: "sheet_not_found" });
+      var reqId = str_(body.request_id);
+      var payMethod = str_(body.payment_method);
+      if (!reqId || !payMethod) return json_({ ok: false, error: "missing_params" });
+      var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(function(h) { return String(h); });
+      ["login_id", "payment_status", "payment_method", "paid_at"].forEach(function(col) {
+        if (headers.indexOf(col) === -1) {
+          sheet.getRange(1, headers.length + 1).setValue(col);
+          headers.push(col);
+        }
+      });
+      var idx = {};
+      headers.forEach(function(h, i) { idx[h] = i; });
+      var data = sheet.getDataRange().getValues();
+      for (var i = 1; i < data.length; i++) {
+        if (String(data[i][idx["request_id"]]) === reqId) {
+          var rowNum = i + 1;
+          var now = new Date().toISOString();
+          if (idx["payment_status"] !== undefined) sheet.getRange(rowNum, idx["payment_status"] + 1).setValue("paid");
+          if (idx["payment_method"] !== undefined) sheet.getRange(rowNum, idx["payment_method"] + 1).setValue(payMethod);
+          if (idx["paid_at"] !== undefined) sheet.getRange(rowNum, idx["paid_at"] + 1).setValue(now);
+          if (idx["login_id"] !== undefined && str_(body.login_id)) sheet.getRange(rowNum, idx["login_id"] + 1).setValue(str_(body.login_id));
+          Logger.log("[narasu_agency_update_payment] updated: " + reqId + " method=" + payMethod);
+          return json_({ ok: true, requestId: reqId });
+        }
+      }
+      Logger.log("[narasu_agency_update_payment] not found: " + reqId);
+      return json_({ ok: false, error: "request_not_found" });
+    } catch (e) {
+      Logger.log("[narasu_agency_update_payment] error: " + String(e));
       return json_({ ok: false, error: String(e) });
     }
   }

@@ -33,6 +33,7 @@ export async function POST(req: Request) {
       note,
       agreedTermsVersion,
       agreedAt,
+      loginId,
     } = body ?? {};
 
     if (!narasuLoginId || !narasuPassword) {
@@ -57,6 +58,7 @@ export async function POST(req: Request) {
       note: note ?? "",
       agreed_terms_version: agreedTermsVersion ?? "",
       agreed_at: agreedAt ?? "",
+      login_id: loginId ?? "",
     });
 
     return NextResponse.json(gas, { headers: { "Cache-Control": "no-store" } });

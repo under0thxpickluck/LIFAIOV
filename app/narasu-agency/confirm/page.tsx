@@ -4,7 +4,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { isGatePassed, loadDraft, clearDraft } from "@/lib/narasu-agency/storage";
+import { getAuth } from "@/app/lib/auth";
 import type { NarasuAgencyDraft } from "@/lib/narasu-agency/types";
+
+const NARASU_REQUEST_ID_KEY = "lifai_narasu_request_id_v1";
 
 export default function NarasuConfirmPage() {
   const router = useRouter();
@@ -24,13 +27,18 @@ export default function NarasuConfirmPage() {
     setSubmitting(true);
     setError("");
     try {
+      const auth = getAuth();
+      const loginId = (auth as any)?.loginId ?? (auth as any)?.login_id ?? (auth as any)?.id ?? "";
       const res = await fetch("/api/narasu-agency/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(draft),
+        body: JSON.stringify({ ...draft, loginId }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error ?? "送信失敗");
+      if (data.requestId) {
+        sessionStorage.setItem(NARASU_REQUEST_ID_KEY, data.requestId);
+      }
       clearDraft();
       router.push("/narasu-agency/complete");
     } catch (e) {
