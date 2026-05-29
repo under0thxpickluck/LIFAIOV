@@ -217,6 +217,7 @@ export default function AdminPage() {
   const [musicSellErr,      setMusicSellErr]      = useState<string | null>(null);
   const [musicSellMsg,      setMusicSellMsg]      = useState<string | null>(null);
   const [updatingMusicId,   setUpdatingMusicId]   = useState<string | null>(null);
+  const [deletingMusicId,   setDeletingMusicId]   = useState<string | null>(null);
 
   // --- 既存: 売却申請 ---
   const [sellRequests, setSellRequests] = useState<SellRequest[]>([]);
@@ -293,6 +294,25 @@ export default function AdminPage() {
       setMusicSellErr(String(e?.message ?? e));
     } finally {
       setUpdatingMusicId(null);
+    }
+  };
+
+  const handleMusicSellDelete = async (requestId: string) => {
+    setDeletingMusicId(requestId); setMusicSellErr(null); setMusicSellMsg(null);
+    try {
+      const res  = await fetch("/api/admin/music-sell-requests", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId }),
+      });
+      const json = await res.json();
+      if (!json?.ok) throw new Error(json?.error ?? "delete_failed");
+      setMusicSellMsg("🗑 削除しました");
+      await loadMusicSellRequests();
+    } catch (e: any) {
+      setMusicSellErr(String(e?.message ?? e));
+    } finally {
+      setDeletingMusicId(null);
     }
   };
 
@@ -789,6 +809,15 @@ export default function AdminPage() {
                                 {busy ? "…" : "却下"}
                               </button>
                             </div>
+                          )}
+                          {req.status === "approved" && (
+                            <button
+                              onClick={() => handleMusicSellDelete(req.request_id)}
+                              disabled={deletingMusicId === req.request_id}
+                              className="rounded-lg border border-red-800 px-3 py-1.5 text-xs font-bold text-red-400 hover:bg-red-900/30 disabled:opacity-50"
+                            >
+                              {deletingMusicId === req.request_id ? "…" : "🗑 削除"}
+                            </button>
                           )}
                         </Td>
                       </tr>
