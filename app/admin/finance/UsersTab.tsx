@@ -37,6 +37,21 @@ type LedgerItem = {
   memo: string;
 };
 
+const EP_KINDS = new Set([
+  "music_sell", "radio_ep", "rumble_weekly_ep", "deduct_ep",
+]);
+const BP_KINDS = new Set([
+  "gacha_cost", "gacha_prize", "login_bonus", "deduct_bp",
+  "rumble_daily_bp", "square_bp_purchase", "monthly_recover",
+  "fortune_daily", "stake_lock", "stake_claim", "market_confirm_fee",
+]);
+
+function ledgerCurrency(kind: string): "EP" | "BP" | "USD" {
+  if (EP_KINDS.has(kind)) return "EP";
+  if (BP_KINDS.has(kind) || kind.startsWith("mission_")) return "BP";
+  return "USD";
+}
+
 function clsx(...a: Array<string | false | null | undefined>) {
   return a.filter(Boolean).join(" ");
 }
@@ -64,6 +79,7 @@ export default function UsersTab() {
   const [err,      setErr]      = useState<string | null>(null);
   const [query,    setQuery]    = useState("");
   const [selected, setSelected] = useState<AdminUser | null>(null);
+  const [ledgerFilter, setLedgerFilter] = useState<"all" | "EP" | "BP" | "USD">("all");
 
   useEffect(() => {
     setLoading(true);
@@ -98,6 +114,11 @@ export default function UsersTab() {
       .filter(l => l.login_id === selected.login_id)
       .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
   }, [ledger, selected]);
+
+  const filteredLedger = useMemo(() => {
+    if (ledgerFilter === "all") return userLedger;
+    return userLedger.filter(l => ledgerCurrency(l.kind) === ledgerFilter);
+  }, [userLedger, ledgerFilter]);
 
   return (
     <div className="flex gap-4">
@@ -217,9 +238,30 @@ export default function UsersTab() {
           </section>
 
           <section>
-            <p className="mb-2 text-xs font-bold text-zinc-400 uppercase tracking-wide">
-              Wallet 履歴（{userLedger.length} 件）
-            </p>
+            <div className="mb-2 flex items-center justify-between gap-2 flex-wrap">
+              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wide">
+                Wallet 履歴（{filteredLedger.length} / {userLedger.length} 件）
+              </p>
+              <div className="flex gap-1">
+                {(["all", "EP", "BP", "USD"] as const).map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setLedgerFilter(f)}
+                    className={clsx(
+                      "rounded-md px-2 py-0.5 text-[10px] font-bold transition",
+                      ledgerFilter === f
+                        ? f === "EP"  ? "bg-emerald-700 text-white"
+                          : f === "BP"  ? "bg-amber-700 text-white"
+                          : f === "USD" ? "bg-blue-700 text-white"
+                          : "bg-zinc-600 text-white"
+                        : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+                    )}
+                  >
+                    {f === "all" ? "全て" : f}
+                  </button>
+                ))}
+              </div>
+            </div>
             {userLedger.length === 0 ? (
               <p className="text-xs text-zinc-600">履歴なし</p>
             ) : (
@@ -234,10 +276,20 @@ export default function UsersTab() {
                     </tr>
                   </thead>
                   <tbody>
-                    {userLedger.map((l, i) => (
+                    {filteredLedger.map((l, i) => (
                       <tr key={i} className="border-t border-zinc-800">
                         <td className="px-2 py-1.5 text-[10px] text-zinc-400 whitespace-nowrap">{fmt(l.ts)}</td>
-                        <td className="px-2 py-1.5 text-[10px] text-zinc-300">{l.kind}</td>
+                        <td className="px-2 py-1.5 text-[10px] text-zinc-300">
+                          <span className={clsx(
+                            "mr-1 rounded px-1 py-0.5 text-[9px] font-bold",
+                            ledgerCurrency(l.kind) === "EP"  ? "bg-emerald-900/60 text-emerald-400"
+                            : ledgerCurrency(l.kind) === "BP"  ? "bg-amber-900/60 text-amber-400"
+                            : "bg-blue-900/60 text-blue-400"
+                          )}>
+                            {ledgerCurrency(l.kind)}
+                          </span>
+                          {l.kind}
+                        </td>
                         <td className={clsx(
                           "px-2 py-1.5 text-[10px] font-bold text-right",
                           l.amount >= 0 ? "text-emerald-400" : "text-red-400"
