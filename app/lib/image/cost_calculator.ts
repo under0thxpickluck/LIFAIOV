@@ -12,7 +12,7 @@ export function calcImageCost(state: ImageChatState): ImagePreviewCost {
   const hq = state.hq ? 20 : 0;
   const edit = state.edit ? 30 : 0;
 
-  const totalBp = clamp(base + turn + text + style + hq + edit, 30, 150);
+  const totalBp = clamp(base + turn + text + style + hq + edit, 50, 150);
 
   return {
     totalBp,

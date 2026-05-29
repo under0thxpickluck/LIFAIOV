@@ -92,7 +92,8 @@ export async function POST(req: NextRequest) {
 
     if (gptRes.ok) {
       const gptData = await gptRes.json();
-      const parsed = JSON.parse(gptData.choices?.[0]?.message?.content ?? "{}");
+      let parsed: any = {};
+      try { parsed = JSON.parse(gptData.choices?.[0]?.message?.content ?? "{}"); } catch {}
       reply = parsed.reply ?? "";
       if (parsed.field && parsed.value) {
         updatedState = { ...updatedState, [parsed.field]: parsed.value };

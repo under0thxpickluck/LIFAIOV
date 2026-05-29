@@ -44,12 +44,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "insufficient_bp", totalBp }, { status: 402 });
     }
 
-    // BP仮ロック
-    const lockRes = await gasPost("bp_lock", { id, amount: totalBp, reason: "image_generate" });
-    if (!lockRes.ok) {
-      return NextResponse.json({ ok: false, error: "bp_lock_failed" }, { status: 502 });
+    // BP消費
+    const adminKey = process.env.GAS_ADMIN_KEY ?? "";
+    const deductRes = await gasPost("deduct_bp", { adminKey, loginId: id, amount: totalBp });
+    if (!deductRes.ok) {
+      return NextResponse.json({ ok: false, error: deductRes.error ?? "deduct_bp_failed" }, { status: 400 });
     }
-    const lockId = lockRes.lock_id as string;
 
     // 画像生成
     let imageUrl: string;
@@ -57,21 +57,18 @@ export async function POST(req: NextRequest) {
       const prompt = buildPrompt(state);
       imageUrl = await generateImage(prompt);
     } catch {
-      // 失敗時BP返却
-      await gasPost("bp_refund", { id, lock_id: lockId });
       return NextResponse.json({ ok: false, error: "generation_failed" }, { status: 500 });
     }
 
-    // 確定 + 履歴保存
-    await gasPost("bp_commit", { id, lock_id: lockId });
-    await gasPost("image_log", {
+    // 履歴保存（fire-and-forget）
+    gasPost("image_log", {
       id,
       prompt: buildPrompt(state),
       image_url: imageUrl,
       bp_used: totalBp,
       type: "generate",
       meta_json: JSON.stringify({ breakdown }),
-    });
+    }).catch(() => {});
 
     return NextResponse.json({ ok: true, imageUrl, bpUsed: totalBp });
   } catch {

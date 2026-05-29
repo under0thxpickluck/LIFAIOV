@@ -121,7 +121,8 @@ export async function createJob(
   prompt: SongJob["prompt"],
   bpLocked: number
 ): Promise<void> {
-  await callGas("create_music_job", { jobId, userId, prompt, bpLocked });
+  const res = await callGas("create_music_job", { jobId, userId, prompt, bpLocked });
+  if (!res.ok) throw new Error(`create_music_job_failed: ${res.error ?? "unknown"}`);
 }
 
 export async function getJob(jobId: string): Promise<SongJob | null> {

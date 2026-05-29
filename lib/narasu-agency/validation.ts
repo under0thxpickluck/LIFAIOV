@@ -27,9 +27,19 @@ export function validateDraft(draft: NarasuAgencyDraft): ValidationErrors {
     }
   }
 
-  if (draft.jacketImageUrl.trim() && !isValidUrl(draft.jacketImageUrl.trim())) {
+  if (!draft.jacketImageUrl.trim()) {
+    errors.jacketImageUrl = "ジャケット画像URLを入力してください";
+  } else if (!isValidUrl(draft.jacketImageUrl.trim())) {
     errors.jacketImageUrl = "ジャケット画像URLの形式が正しくありません";
   }
+
+  if (!draft.artistName.trim()) errors.artistName = "アーティスト名を入力してください";
+  if (!draft.artistNameKana.trim()) errors.artistNameKana = "アーティスト名（仮名）を入力してください";
+  if (!draft.artistNameAlpha.trim()) errors.artistNameAlpha = "アーティスト名（アルファベット）を入力してください";
+
+  if (!draft.albumName.trim()) errors.albumName = "アルバム名を入力してください";
+  if (!draft.albumNameKana.trim()) errors.albumNameKana = "アルバム名（仮名）を入力してください";
+  if (!draft.albumNameAlpha.trim()) errors.albumNameAlpha = "アルバム名（アルファベット）を入力してください";
 
   return errors;
 }

@@ -193,9 +193,9 @@ export default function NarasuFormPage() {
 
             {/* アーティスト名 */}
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-              <p className="text-xs font-bold text-slate-500">申請アーティスト名</p>
+              <p className="text-xs font-bold text-slate-500">申請アーティスト名（必須）</p>
               <div>
-                <label className={labelCls}>アーティスト名</label>
+                <label className={labelCls}>アーティスト名<span className="text-rose-500"> *</span></label>
                 <input
                   type="text"
                   value={draft.artistName}
@@ -203,9 +203,10 @@ export default function NarasuFormPage() {
                   className={inputCls}
                   placeholder="例: LIFAI Studio"
                 />
+                {errors.artistName && <p className={errorCls}>{errors.artistName}</p>}
               </div>
               <div>
-                <label className={labelCls}>アーティスト名（仮名）</label>
+                <label className={labelCls}>アーティスト名（仮名）<span className="text-rose-500"> *</span></label>
                 <input
                   type="text"
                   value={draft.artistNameKana}
@@ -213,9 +214,10 @@ export default function NarasuFormPage() {
                   className={inputCls}
                   placeholder="例: ライファイスタジオ"
                 />
+                {errors.artistNameKana && <p className={errorCls}>{errors.artistNameKana}</p>}
               </div>
               <div>
-                <label className={labelCls}>アーティスト名（アルファベット）</label>
+                <label className={labelCls}>アーティスト名（アルファベット）<span className="text-rose-500"> *</span></label>
                 <input
                   type="text"
                   value={draft.artistNameAlpha}
@@ -223,14 +225,15 @@ export default function NarasuFormPage() {
                   className={inputCls}
                   placeholder="例: LIFAI Studio"
                 />
+                {errors.artistNameAlpha && <p className={errorCls}>{errors.artistNameAlpha}</p>}
               </div>
             </div>
 
             {/* アルバム情報 */}
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-              <p className="text-xs font-bold text-slate-500">アルバム名</p>
+              <p className="text-xs font-bold text-slate-500">アルバム名（必須）</p>
               <div>
-                <label className={labelCls}>アルバム名</label>
+                <label className={labelCls}>アルバム名<span className="text-rose-500"> *</span></label>
                 <input
                   type="text"
                   value={draft.albumName}
@@ -238,9 +241,10 @@ export default function NarasuFormPage() {
                   className={inputCls}
                   placeholder="例: First Light"
                 />
+                {errors.albumName && <p className={errorCls}>{errors.albumName}</p>}
               </div>
               <div>
-                <label className={labelCls}>アルバム名（仮名）</label>
+                <label className={labelCls}>アルバム名（仮名）<span className="text-rose-500"> *</span></label>
                 <input
                   type="text"
                   value={draft.albumNameKana}
@@ -248,9 +252,10 @@ export default function NarasuFormPage() {
                   className={inputCls}
                   placeholder="例: ファーストライト"
                 />
+                {errors.albumNameKana && <p className={errorCls}>{errors.albumNameKana}</p>}
               </div>
               <div>
-                <label className={labelCls}>アルバム名（アルファベット）</label>
+                <label className={labelCls}>アルバム名（アルファベット）<span className="text-rose-500"> *</span></label>
                 <input
                   type="text"
                   value={draft.albumNameAlpha}
@@ -258,7 +263,22 @@ export default function NarasuFormPage() {
                   className={inputCls}
                   placeholder="例: First Light"
                 />
+                {errors.albumNameAlpha && <p className={errorCls}>{errors.albumNameAlpha}</p>}
               </div>
+            </div>
+
+            {/* ジャケット画像 */}
+            <div>
+              <label className={labelCls}>ジャケット画像URL<span className="text-rose-500"> *</span></label>
+              <p className="mt-0.5 text-[11px] text-slate-400">Google ドライブ・Dropbox 等にアップロードした画像の共有URLを貼り付けてください</p>
+              <input
+                type="url"
+                value={draft.jacketImageUrl}
+                onChange={(e) => update("jacketImageUrl", e.target.value)}
+                className={inputCls}
+                placeholder="https://drive.google.com/..."
+              />
+              {errors.jacketImageUrl && <p className={errorCls}>{errors.jacketImageUrl}</p>}
             </div>
 
             {/* 補足事項 */}

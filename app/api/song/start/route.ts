@@ -181,6 +181,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "gas_admin_key_missing" }, { status: 500 });
   }
 
+  const jobId = generateJobId();
+  try {
+    await createJob(
+      jobId,
+      String(id),
+      {
+        theme:       String(theme),
+        genre:       String(genre),
+        mood:        String(mood),
+        isPro:       !!isPro,
+        bpmHint:     bpmHint ? Number(bpmHint) : undefined,
+        vocalStyle:  vocalStyle ? String(vocalStyle) : undefined,
+        vocalMood:   vocalMood ? String(vocalMood) : undefined,
+        language:    language  ? String(language)  : "ja",
+        instruments: instruments.length > 0 ? instruments : undefined,
+        duration,
+      },
+      bpCost
+    );
+  } catch {
+    return NextResponse.json({ ok: false, error: "job_create_failed" }, { status: 500 });
+  }
+
   try {
     const deductRes = await fetch(
       `${gasUrl}${gasUrl.includes("?") ? "&" : "?"}key=${encodeURIComponent(gasKey)}`,
@@ -198,33 +221,16 @@ export async function POST(req: Request) {
     );
     const deductData = await deductRes.json().catch(() => ({ ok: false }));
     if (!deductData.ok) {
+      await updateJob(jobId, { status: "failed", error: "deduct_bp_failed" });
       return NextResponse.json(
         { ok: false, error: deductData.error || "deduct_bp_failed" },
         { status: 400 }
       );
     }
   } catch {
+    await updateJob(jobId, { status: "failed", error: "deduct_bp_request_failed" });
     return NextResponse.json({ ok: false, error: "deduct_bp_request_failed" }, { status: 502 });
   }
-
-  const jobId = generateJobId();
-  await createJob(
-    jobId,
-    String(id),
-    {
-      theme:       String(theme),
-      genre:       String(genre),
-      mood:        String(mood),
-      isPro:       !!isPro,
-      bpmHint:     bpmHint ? Number(bpmHint) : undefined,
-      vocalStyle:  vocalStyle ? String(vocalStyle) : undefined,
-      vocalMood:   vocalMood ? String(vocalMood) : undefined,
-      language:    language  ? String(language)  : "ja",
-      instruments: instruments.length > 0 ? instruments : undefined,
-      duration,
-    },
-    bpCost
-  );
 
   const openaiKey = process.env.OPENAI_API_KEY;
   if (!openaiKey) {

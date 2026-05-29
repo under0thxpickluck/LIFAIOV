@@ -14,8 +14,27 @@ import ImageStylePicker from "@/components/image/ImageStylePicker";
 import ImageGenerateButton from "@/components/image/ImageGenerateButton";
 import ImageEditPanel from "@/components/image/ImageEditPanel";
 
+const MAX_SESSION = 10;
+const COOLDOWN_SEC = 20;
+
 type Message = { role: "ai" | "user"; text: string };
 type Tab = "generate" | "history" | "edit";
+
+async function downloadImage(url: string, filename: string) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  } catch {
+    window.open(url, "_blank");
+  }
+}
 
 export default function ImagePage() {
   const router = useRouter();
@@ -40,7 +59,16 @@ export default function ImagePage() {
   const [editResultUrl, setEditResultUrl] = useState<string | null>(null);
   const [editLoading, setEditLoading] = useState(false);
 
+  const [sessionCount, setSessionCount] = useState(0);
+  const [cooldownLeft, setCooldownLeft] = useState(0);
+  const [copied, setCopied] = useState(false);
+
   const initialized = useRef(false);
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => { if (cooldownRef.current) clearInterval(cooldownRef.current); };
+  }, []);
 
   useEffect(() => {
     const a = getAuth();
@@ -101,8 +129,24 @@ export default function ImagePage() {
     }
   }, [authId, authCode, messages, state]);
 
+  const startCooldown = useCallback(() => {
+    setCooldownLeft(COOLDOWN_SEC);
+    if (cooldownRef.current) clearInterval(cooldownRef.current);
+    cooldownRef.current = setInterval(() => {
+      setCooldownLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(cooldownRef.current!);
+          cooldownRef.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
+
   const handleGenerate = useCallback(async () => {
     if (!authId || !authCode || !cost) return;
+    if (cooldownLeft > 0 || sessionCount >= MAX_SESSION) return;
     setGenerating(true);
     setGenError("");
     try {
@@ -115,6 +159,8 @@ export default function ImagePage() {
       if (data.ok) {
         setImageUrl(data.imageUrl);
         setBalance((b) => b - data.bpUsed);
+        setSessionCount((c) => c + 1);
+        startCooldown();
       } else {
         setGenError(data.error === "insufficient_bp" ? "BPが不足しています" : "生成に失敗しました");
       }
@@ -123,7 +169,7 @@ export default function ImagePage() {
     } finally {
       setGenerating(false);
     }
-  }, [authId, authCode, state, hq, cost]);
+  }, [authId, authCode, state, hq, cost, cooldownLeft, sessionCount, startCooldown]);
 
   const loadHistory = useCallback(async () => {
     if (!authId || !authCode) return;
@@ -216,6 +262,33 @@ export default function ImagePage() {
             <div className="flex flex-col gap-4">
               <ImagePreviewCard imageUrl={imageUrl} loading={generating} />
 
+              {/* ダウンロード・コピーボタン */}
+              {imageUrl && !generating && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => downloadImage(imageUrl, `lifai_image_${Date.now()}.png`)}
+                    className="flex-1 rounded-xl border border-white/10 bg-[#0d1a2e] py-2.5 text-xs font-semibold text-[#EAF0FF] transition hover:bg-white/10"
+                  >
+                    ⬇ ダウンロード
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(imageUrl).then(() => {
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      });
+                    }}
+                    className={`flex-1 rounded-xl border py-2.5 text-xs font-semibold transition ${
+                      copied
+                        ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
+                        : "border-white/10 bg-[#0d1a2e] text-[#EAF0FF] hover:bg-white/10"
+                    }`}
+                  >
+                    {copied ? "✓ コピー済み" : "🔗 URLコピー"}
+                  </button>
+                </div>
+              )}
+
               <ImageStylePicker
                 selected={state.style}
                 onChange={(s) => setState((prev) => ({ ...prev, style: s }))}
@@ -241,10 +314,21 @@ export default function ImagePage() {
                 <p className="rounded-xl bg-[#FF6B6B]/10 px-4 py-2 text-sm text-[#FF6B6B]">{genError}</p>
               )}
 
+              {/* レート制限表示 */}
+              <div className="flex items-center justify-between text-xs text-[#A8B3CF]">
+                <span>今セッションの生成回数: {sessionCount} / {MAX_SESSION}</span>
+                {cooldownLeft > 0 && (
+                  <span className="text-[#7C5CFF] font-semibold">次の生成まで {cooldownLeft}秒</span>
+                )}
+                {sessionCount >= MAX_SESSION && (
+                  <span className="text-[#FF6B6B] font-semibold">セッション上限に達しました</span>
+                )}
+              </div>
+
               <ImageGenerateButton
                 onClick={handleGenerate}
                 loading={generating}
-                disabled={!cost || balance < (cost?.totalBp ?? 0)}
+                disabled={!cost || balance < (cost?.totalBp ?? 0) || cooldownLeft > 0 || sessionCount >= MAX_SESSION}
                 bpCost={cost?.totalBp ?? 0}
               />
             </div>

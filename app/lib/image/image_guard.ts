@@ -1,6 +1,6 @@
 import type { ImageChatState } from "./image_types";
 
-const MIN_BP = Number(process.env.IMAGE_MIN_BP ?? 30);
+const MIN_BP = Number(process.env.IMAGE_MIN_BP ?? 50);
 const MAX_BP = Number(process.env.IMAGE_MAX_BP ?? 150);
 
 export function validateState(state: Partial<ImageChatState>): string | null {

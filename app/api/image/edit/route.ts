@@ -46,30 +46,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "insufficient_bp", totalBp }, { status: 402 });
     }
 
-    // BP仮ロック
-    const lockRes = await gasPost("bp_lock", { id, amount: totalBp, reason: "image_edit" });
-    if (!lockRes.ok) {
-      return NextResponse.json({ ok: false, error: "bp_lock_failed" }, { status: 502 });
+    // BP消費
+    const adminKey = process.env.GAS_ADMIN_KEY ?? "";
+    const deductRes = await gasPost("deduct_bp", { adminKey, loginId: id, amount: totalBp });
+    if (!deductRes.ok) {
+      return NextResponse.json({ ok: false, error: deductRes.error ?? "deduct_bp_failed" }, { status: 400 });
     }
-    const lockId = lockRes.lock_id as string;
 
+    // 画像編集
     let resultUrl: string;
     try {
       resultUrl = await editImage({ imageUrl, instruction });
     } catch {
-      await gasPost("bp_refund", { id, lock_id: lockId });
-      return NextResponse.json({ ok: false, error: "edit_not_available" }, { status: 501 });
+      return NextResponse.json({ ok: false, error: "edit_failed" }, { status: 500 });
     }
 
-    await gasPost("bp_commit", { id, lock_id: lockId });
-    await gasPost("image_log", {
+    // 履歴保存（fire-and-forget）
+    gasPost("image_log", {
       id,
       prompt: instruction,
       image_url: resultUrl,
       bp_used: totalBp,
       type: "edit",
       meta_json: JSON.stringify({ breakdown, original: imageUrl }),
-    });
+    }).catch(() => {});
 
     return NextResponse.json({ ok: true, imageUrl: resultUrl, bpUsed: totalBp });
   } catch {

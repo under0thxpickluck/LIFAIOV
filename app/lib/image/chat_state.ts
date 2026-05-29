@@ -5,10 +5,10 @@ export function mergeState(
   updates: Partial<ImageChatState>
 ): ImageChatState {
   return {
-    turns: (current.turns ?? 0) + (updates.turns ?? 0),
-    textLength: (current.textLength ?? 0) + (updates.textLength ?? 0),
     ...current,
     ...updates,
+    turns: (current.turns ?? 0) + (updates.turns ?? 0),
+    textLength: (current.textLength ?? 0) + (updates.textLength ?? 0),
   };
 }
 
