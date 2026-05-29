@@ -135,7 +135,10 @@ export async function updateJob(
   jobId: string,
   fields: Partial<Omit<SongJob, "jobId">>
 ): Promise<void> {
-  await callGas("update_music_job", { jobId, fields });
+  const res = await callGas("update_music_job", { jobId, fields });
+  if (!res.ok) {
+    console.warn(`[JobStore] update_music_job failed for ${jobId}: ${JSON.stringify(res)}`);
+  }
 }
 
 // listUserJobs は今は未使用だがシグネチャ維持

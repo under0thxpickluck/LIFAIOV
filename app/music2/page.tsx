@@ -590,6 +590,8 @@ export default function Music2Page() {
         const msg =
           data.error === "insufficient_bp"
             ? `BPが不足しています（現在: ${data.bp ?? "?"}BP、必要: ${isProSettingsActive ? 250 : 100}BP）`
+            : data.error === "job_create_failed"
+            ? "サーバー設定のエラーが発生しました。管理者に連絡してください。（GAS未デプロイの可能性）"
             : `エラーが発生しました（${data.error ?? "unknown"}）`;
         setErrorMsg(msg);
         setLoading(false);

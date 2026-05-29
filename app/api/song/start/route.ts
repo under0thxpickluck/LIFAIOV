@@ -285,10 +285,13 @@ export async function POST(req: Request) {
   }
 
   const completedJob = await getJob(jobId);
+  if (!completedJob) {
+    console.error(`[Job ${jobId}][start] getJob returned null after creation — GAS persistence may be broken`);
+  }
   return NextResponse.json({
     ok:            true,
     jobId,
-    status:        completedJob?.status ?? "structure_ready",
-    structureData: completedJob?.structureData ?? null,
+    status:        completedJob?.status ?? (generated ? "structure_ready" : "failed"),
+    structureData: completedJob?.structureData ?? generated?.structureData ?? null,
   });
 }
