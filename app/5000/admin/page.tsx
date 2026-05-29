@@ -17,12 +17,36 @@ type ApplyRow = {
   [key: string]: string | undefined;
 };
 
+type MusicSellRequest5000 = {
+  request_id: string;
+  login_id: string;
+  title: string;
+  music_url: string;
+  price_usdt: string;
+  memo: string;
+  status: string;
+  created_at: string;
+};
+
 export default function Admin5000Page() {
   const [rows, setRows] = useState<ApplyRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [approving, setApproving] = useState<string | null>(null);
   const [messages, setMessages] = useState<Record<string, string>>({});
+
+  // --- 財務ゲートウェイ ---
+  const [financePass, setFinancePass] = useState("");
+  const [financeBusy, setFinanceBusy] = useState(false);
+  const [financeErr,  setFinanceErr]  = useState<string | null>(null);
+
+  // --- 音楽売却申請 ---
+  const [musicSellRequests, setMusicSellRequests] = useState<MusicSellRequest5000[]>([]);
+  const [musicSellLoading,  setMusicSellLoading]  = useState(false);
+  const [musicSellErr,      setMusicSellErr]      = useState<string | null>(null);
+  const [musicSellMsg,      setMusicSellMsg]      = useState<string | null>(null);
+  const [updatingMusicId,   setUpdatingMusicId]   = useState<string | null>(null);
+  const [deletingMusicId,   setDeletingMusicId]   = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -42,7 +66,10 @@ export default function Admin5000Page() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    loadMusicSellRequests();
+  }, []);
 
   const approve = async (applyId: string) => {
     if (!applyId) return;
@@ -68,6 +95,80 @@ export default function Admin5000Page() {
       setMessages((m) => ({ ...m, [applyId]: `エラー: ${String(e)}` }));
     } finally {
       setApproving(null);
+    }
+  };
+
+  // ── 財務ゲートウェイ ──────────────────────────────────────
+  const handleFinanceUnlock = async () => {
+    if (!financePass.trim() || financeBusy) return;
+    setFinanceBusy(true); setFinanceErr(null);
+    try {
+      const res  = await fetch("/api/admin/finance-unlock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: financePass }),
+      });
+      const json = await res.json();
+      if (!json?.ok) throw new Error(json?.error ?? "unlock_failed");
+      sessionStorage.setItem("finance_token", json.token);
+      window.location.href = "/admin/finance";
+    } catch (e: any) {
+      setFinanceErr(String(e?.message ?? e));
+    } finally {
+      setFinanceBusy(false);
+    }
+  };
+
+  // ── 音楽売却申請 ─────────────────────────────────────────
+  const loadMusicSellRequests = async () => {
+    setMusicSellLoading(true); setMusicSellErr(null);
+    try {
+      const res  = await fetch("/api/admin/music-sell-requests", { cache: "no-store" });
+      const json = await res.json();
+      if (!json?.ok) throw new Error(json?.error ?? "fetch_failed");
+      setMusicSellRequests(Array.isArray(json.requests) ? json.requests : []);
+    } catch (e: any) {
+      setMusicSellErr(String(e?.message ?? e));
+    } finally {
+      setMusicSellLoading(false);
+    }
+  };
+
+  const handleMusicSellUpdate = async (requestId: string, status: "approved" | "rejected") => {
+    setUpdatingMusicId(requestId); setMusicSellErr(null); setMusicSellMsg(null);
+    try {
+      const res  = await fetch("/api/admin/music-sell-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId, status }),
+      });
+      const json = await res.json();
+      if (!json?.ok) throw new Error(json?.error ?? "update_failed");
+      setMusicSellMsg(status === "approved" ? "✅ 承認しました" : "❌ 却下しました");
+      await loadMusicSellRequests();
+    } catch (e: any) {
+      setMusicSellErr(String(e?.message ?? e));
+    } finally {
+      setUpdatingMusicId(null);
+    }
+  };
+
+  const handleMusicSellDelete = async (requestId: string) => {
+    setDeletingMusicId(requestId); setMusicSellErr(null); setMusicSellMsg(null);
+    try {
+      const res  = await fetch("/api/admin/music-sell-requests", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId }),
+      });
+      const json = await res.json();
+      if (!json?.ok) throw new Error(json?.error ?? "delete_failed");
+      setMusicSellMsg("🗑 削除しました");
+      await loadMusicSellRequests();
+    } catch (e: any) {
+      setMusicSellErr(String(e?.message ?? e));
+    } finally {
+      setDeletingMusicId(null);
     }
   };
 
@@ -256,6 +357,140 @@ export default function Admin5000Page() {
             )}
           </>
         )}
+        {/* ═══ 財務管理ゲートウェイ ════════════════════════════ */}
+        <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6">
+          <p className="mb-1 text-lg font-semibold" style={{ color: "#6C63FF" }}>🔒 財務管理</p>
+          <p className="mb-4 text-xs text-white/40">
+            パスワードを入力して財務管理ページへ進んでください。ブラウザを閉じると再認証が必要です。
+          </p>
+          {financeErr && (
+            <div className="mb-3 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm font-bold text-red-400">
+              {financeErr === "invalid_password" ? "パスワードが違います" : financeErr}
+            </div>
+          )}
+          <div className="flex gap-3">
+            <input
+              type="password"
+              placeholder="財務パスワード"
+              value={financePass}
+              onChange={e => setFinancePass(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") handleFinanceUnlock(); }}
+              className="w-56 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/20 focus:border-purple-500 focus:outline-none"
+            />
+            <button
+              onClick={handleFinanceUnlock}
+              disabled={financeBusy || !financePass.trim()}
+              className="rounded-lg px-5 py-2 text-sm font-bold transition disabled:opacity-40"
+              style={{ background: "linear-gradient(135deg, #6C63FF, #00D4FF)", color: "#fff" }}
+            >
+              {financeBusy ? "確認中…" : "財務管理へ →"}
+            </button>
+          </div>
+        </section>
+
+        {/* ═══ 楽曲売却申請 ════════════════════════════════════ */}
+        <section className="mt-10">
+          <div className="mb-3 flex items-center gap-3">
+            <h2 className="text-sm font-bold tracking-wider text-white/60 uppercase">
+              楽曲売却申請
+            </h2>
+            <button
+              onClick={loadMusicSellRequests}
+              disabled={musicSellLoading}
+              className="rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60 hover:bg-white/10 disabled:opacity-40"
+            >
+              {musicSellLoading ? "読み込み中…" : "更新"}
+            </button>
+          </div>
+
+          {musicSellMsg && (
+            <div className="mb-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-bold text-emerald-400">
+              {musicSellMsg}
+            </div>
+          )}
+          {musicSellErr && (
+            <div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-bold text-red-400">
+              エラー：{musicSellErr}
+            </div>
+          )}
+
+          {musicSellLoading ? (
+            <div className="h-24 animate-pulse rounded-xl bg-white/5" />
+          ) : musicSellRequests.length === 0 ? (
+            <p className="text-sm text-white/30">申請はありません</p>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-white/10">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="py-2 px-3 text-left text-white/50 font-medium text-xs">申請日時</th>
+                    <th className="py-2 px-3 text-left text-white/50 font-medium text-xs">ユーザー</th>
+                    <th className="py-2 px-3 text-left text-white/50 font-medium text-xs">楽曲タイトル</th>
+                    <th className="py-2 px-3 text-left text-white/50 font-medium text-xs">希望価格</th>
+                    <th className="py-2 px-3 text-left text-white/50 font-medium text-xs">ステータス</th>
+                    <th className="py-2 px-3 text-right text-white/50 font-medium text-xs">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {musicSellRequests.map((req, i) => {
+                    const busy = updatingMusicId === req.request_id;
+                    const isPending = req.status === "pending";
+                    return (
+                      <tr key={req.request_id || i} className="border-b border-white/5 hover:bg-white/5">
+                        <td className="py-2 px-3 text-xs text-white/40 whitespace-nowrap">{req.created_at}</td>
+                        <td className="py-2 px-3 text-xs font-mono text-cyan-400">{req.login_id}</td>
+                        <td className="py-2 px-3 text-xs text-white/70 max-w-[160px]">
+                          <div className="truncate">{req.title}</div>
+                        </td>
+                        <td className="py-2 px-3 text-xs text-purple-300">{req.price_usdt ? `${req.price_usdt} EP` : "—"}</td>
+                        <td className="py-2 px-3 text-xs">
+                          <span className={[
+                            "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                            req.status === "approved" ? "bg-green-500/20 text-green-300"
+                            : req.status === "rejected" ? "bg-white/10 text-white/30"
+                            : "bg-yellow-500/20 text-yellow-300"
+                          ].join(" ")}>
+                            {req.status === "approved" ? "承認済" : req.status === "rejected" ? "却下済" : "審査中"}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 text-right">
+                          {isPending && (
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => handleMusicSellUpdate(req.request_id, "approved")}
+                                disabled={busy}
+                                className="rounded-lg px-3 py-1.5 text-xs font-bold transition disabled:opacity-50"
+                                style={{ background: "linear-gradient(135deg, #10b981, #0d9488)", color: "#fff" }}
+                              >
+                                {busy ? "…" : "承認"}
+                              </button>
+                              <button
+                                onClick={() => handleMusicSellUpdate(req.request_id, "rejected")}
+                                disabled={busy}
+                                className="rounded-lg border border-white/20 px-3 py-1.5 text-xs font-bold text-white/60 hover:bg-white/10 disabled:opacity-50"
+                              >
+                                {busy ? "…" : "却下"}
+                              </button>
+                            </div>
+                          )}
+                          {req.status === "approved" && (
+                            <button
+                              onClick={() => handleMusicSellDelete(req.request_id)}
+                              disabled={deletingMusicId === req.request_id}
+                              className="rounded-lg border border-red-500/30 px-3 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/10 disabled:opacity-50"
+                            >
+                              {deletingMusicId === req.request_id ? "…" : "🗑 削除"}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       </div>
     </main>
   );
