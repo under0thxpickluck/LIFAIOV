@@ -2367,6 +2367,146 @@ function handle_(key, body) {
   }
 
   // =========================================================
+  // cc_affiliate_pending_list（管理：CC付与待ちリスト取得）
+  // =========================================================
+  if (action === "cc_affiliate_pending_list") {
+    if (str_(body.adminKey) !== ADMIN_SECRET) {
+      return json_({ ok: false, error: "admin_unauthorized" });
+    }
+    var pendingSheet_l = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("cc_affiliate_pending");
+    if (!pendingSheet_l) return json_({ ok: true, items: [] });
+    var pData_l    = pendingSheet_l.getDataRange().getValues();
+    var pHeaders_l = pData_l[0];
+    var pIdx_l     = indexMap_(pHeaders_l);
+    var items_l    = [];
+    for (var li = 1; li < pData_l.length; li++) {
+      var row_l = pData_l[li];
+      var ts_l  = row_l[pIdx_l["ts"]];
+      var gAt_l = row_l[pIdx_l["granted_at"]];
+      items_l.push({
+        square_payment_id: str_(row_l[pIdx_l["square_payment_id"]]),
+        payer_login_id:    str_(row_l[pIdx_l["payer_login_id"]]),
+        referrer_login_id: str_(row_l[pIdx_l["referrer_login_id"]]),
+        referrer_email:    str_(row_l[pIdx_l["referrer_email"]]),
+        amount_usd:        Number(row_l[pIdx_l["amount_usd"]] || 0),
+        reward_ep:         Number(row_l[pIdx_l["reward_ep"]]  || 0),
+        status:            str_(row_l[pIdx_l["status"]]),
+        ts:                ts_l  ? new Date(ts_l).toISOString()  : "",
+        granted_at:        gAt_l ? new Date(gAt_l).toISOString() : "",
+      });
+    }
+    return json_({ ok: true, items: items_l });
+  }
+
+  // =========================================================
+  // cc_affiliate_grant（管理：CC付与待ちを実際にEP付与）
+  // =========================================================
+  if (action === "cc_affiliate_grant") {
+    if (str_(body.adminKey) !== ADMIN_SECRET) {
+      return json_({ ok: false, error: "admin_unauthorized" });
+    }
+    var paymentId_g = str_(body.payment_id);
+    if (!paymentId_g) return json_({ ok: false, error: "payment_id_required" });
+
+    var pendingSheet_g = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("cc_affiliate_pending");
+    if (!pendingSheet_g) return json_({ ok: false, error: "pending_sheet_not_found" });
+
+    var pData_g    = pendingSheet_g.getDataRange().getValues();
+    var pHeaders_g = pData_g[0];
+    var pIdx_g     = indexMap_(pHeaders_g);
+
+    var targetRow_g = -1;
+    var record_g    = null;
+    for (var gi = 1; gi < pData_g.length; gi++) {
+      if (str_(pData_g[gi][pIdx_g["square_payment_id"]]) === paymentId_g) {
+        targetRow_g = gi + 1;
+        record_g    = pData_g[gi];
+        break;
+      }
+    }
+    if (targetRow_g === -1) return json_({ ok: false, error: "payment_not_found" });
+    if (str_(record_g[pIdx_g["status"]]) !== "pending") return json_({ ok: false, error: "already_granted" });
+
+    var refLoginId_g   = str_(record_g[pIdx_g["referrer_login_id"]]);
+    var refEmail_g     = str_(record_g[pIdx_g["referrer_email"]]);
+    var rewardEp_g     = Number(record_g[pIdx_g["reward_ep"]]  || 0);
+    var amountUsd_g    = Number(record_g[pIdx_g["amount_usd"]] || 0);
+    var payerLoginId_g = str_(record_g[pIdx_g["payer_login_id"]]);
+
+    var appValues_g = sheet.getDataRange().getValues();
+    var appHeader_g = appValues_g[0];
+    ensureCols_(sheet, appHeader_g, ["login_id", "ep_balance", "ep_notification"]);
+    appValues_g = sheet.getDataRange().getValues();
+    appHeader_g = appValues_g[0];
+    var appIdx_g = indexMap_(appHeader_g);
+
+    var refRow_g = -1;
+    for (var agi = 1; agi < appValues_g.length; agi++) {
+      if (str_(appValues_g[agi][appIdx_g["login_id"]]) === refLoginId_g) {
+        refRow_g = agi + 1;
+        break;
+      }
+    }
+    if (refRow_g === -1) return json_({ ok: false, error: "referrer_not_found" });
+
+    var curEp_g = Number(sheet.getRange(refRow_g, appIdx_g["ep_balance"] + 1).getValue() || 0);
+    sheet.getRange(refRow_g, appIdx_g["ep_balance"] + 1).setValue(curEp_g + rewardEp_g);
+
+    appendWalletLedger_({
+      kind:     "cc_affiliate_reward",
+      login_id: refLoginId_g,
+      email:    refEmail_g,
+      amount:   rewardEp_g,
+      memo:     JSON.stringify({
+        from:              payerLoginId_g,
+        level:             1,
+        amount_usd:        amountUsd_g,
+        rate_pct:          5,
+        square_payment_id: paymentId_g,
+      }),
+    });
+
+    var curNotif_g = Number(sheet.getRange(refRow_g, appIdx_g["ep_notification"] + 1).getValue() || 0);
+    sheet.getRange(refRow_g, appIdx_g["ep_notification"] + 1).setValue(curNotif_g + rewardEp_g);
+
+    pendingSheet_g.getRange(targetRow_g, pIdx_g["status"]     + 1).setValue("granted");
+    pendingSheet_g.getRange(targetRow_g, pIdx_g["granted_at"] + 1).setValue(new Date());
+
+    Logger.log("[cc_affiliate_grant] granted: referrer=" + refLoginId_g + " ep=" + rewardEp_g);
+    return json_({ ok: true, reward_ep: rewardEp_g, referrer_login_id: refLoginId_g });
+  }
+
+  // =========================================================
+  // ep_notification_clear（ユーザー：EP通知を既読にする）
+  // =========================================================
+  if (action === "ep_notification_clear") {
+    var id_enc   = str_(body.id);
+    var code_enc = str_(body.code);
+    if (!id_enc || !code_enc) return json_({ ok: false, error: "invalid" });
+
+    var encValues = sheet.getDataRange().getValues();
+    var encHeader = encValues[0];
+    ensureCols_(sheet, encHeader, ["login_id", "pw_hash", "email", "ep_notification"]);
+    encValues = sheet.getDataRange().getValues();
+    encHeader = encValues[0];
+    var encIdx = indexMap_(encHeader);
+
+    for (var ei = 1; ei < encValues.length; ei++) {
+      var encRow     = encValues[ei];
+      var encLoginId = str_(encRow[encIdx["login_id"]]);
+      var encEmailV  = encIdx["email"] !== undefined ? str_(encRow[encIdx["email"]]) : "";
+      if (id_enc !== encLoginId && id_enc !== encEmailV) continue;
+      var encPwHash  = str_(encRow[encIdx["pw_hash"]]);
+      if (!encPwHash) return json_({ ok: false, error: "invalid" });
+      var encPwCheck = hmacSha256Hex_(SECRET, encLoginId + ":" + code_enc);
+      if (encPwCheck !== encPwHash) return json_({ ok: false, error: "invalid" });
+      sheet.getRange(ei + 1, encIdx["ep_notification"] + 1).setValue(0);
+      return json_({ ok: true });
+    }
+    return json_({ ok: false, error: "not_found" });
+  }
+
+  // =========================================================
   // daily_login_bonus（ログインボーナス付与：1日1回）
   // - adminKey 認証必須（GAS_ADMIN_KEY）
   // - 連続ログイン日数に応じてBPを付与
