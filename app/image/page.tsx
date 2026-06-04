@@ -92,7 +92,7 @@ export default function ImagePage() {
 
   // コスト計算
   useEffect(() => {
-    if (!state || (state.turns === 0 && !state.character)) return;
+    if (!state) return;
     const s: ImageChatState = { ...state, hq };
     fetch("/api/image/preview-cost", {
       method: "POST",
@@ -219,6 +219,12 @@ export default function ImagePage() {
         {/* ヘッダー */}
         <div className="mb-6 flex items-center justify-between">
           <div>
+            <button
+              onClick={() => router.push("/top")}
+              className="mb-2 flex items-center gap-1 text-xs text-[#A8B3CF] hover:text-[#EAF0FF] transition"
+            >
+              ← ダッシュボードに戻る
+            </button>
             <h1 className="text-xl font-extrabold">AI 画像生成</h1>
             <p className="mt-1 text-xs text-[#A8B3CF]">会話しながらイメージを固めて画像を生成</p>
           </div>

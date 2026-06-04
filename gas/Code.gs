@@ -4247,16 +4247,20 @@ function handle_(key, body) {
         narasuSheet.appendRow([
           "request_id", "created_at", "status",
           "narasu_login_id", "narasu_password",
-          "audio_urls", "lyrics_text",
+          "audio_urls", "audio_titles", "lyrics_text",
           "jacket_image_url", "jacket_note",
-          "artist_name", "note",
+          "artist_name", "artist_name_kana", "artist_name_alpha", "artist_photo_url",
+          "album_name", "album_name_kana", "album_name_alpha",
+          "note",
           "agreed_terms_version", "agreed_at",
           "admin_memo",
           "login_id", "payment_status", "payment_method", "paid_at"
         ]);
       } else {
         var existingHeaders = narasuSheet.getRange(1, 1, 1, narasuSheet.getLastColumn()).getValues()[0].map(function(h) { return String(h); });
-        ["login_id", "payment_status", "payment_method", "paid_at"].forEach(function(col) {
+        ["audio_titles", "artist_name_kana", "artist_name_alpha", "artist_photo_url",
+         "album_name", "album_name_kana", "album_name_alpha",
+         "login_id", "payment_status", "payment_method", "paid_at"].forEach(function(col) {
           if (existingHeaders.indexOf(col) === -1) {
             narasuSheet.getRange(1, existingHeaders.length + 1).setValue(col);
             existingHeaders.push(col);
@@ -4272,10 +4276,17 @@ function handle_(key, body) {
         str_(body.narasu_login_id),
         str_(body.narasu_password),
         str_(body.audio_urls),
+        str_(body.audio_titles),
         str_(body.lyrics_text),
         str_(body.jacket_image_url),
         str_(body.jacket_note),
         str_(body.artist_name),
+        str_(body.artist_name_kana),
+        str_(body.artist_name_alpha),
+        str_(body.artist_photo_url),
+        str_(body.album_name),
+        str_(body.album_name_kana),
+        str_(body.album_name_alpha),
         str_(body.note),
         str_(body.agreed_terms_version),
         str_(body.agreed_at),

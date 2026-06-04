@@ -5,6 +5,14 @@ function isValidUrl(v: string): boolean {
   try { new URL(v); return true; } catch { return false; }
 }
 
+function isKanaOnly(v: string): boolean {
+  return /^[ァ-ヶーヴ・\s　]+$/.test(v);
+}
+
+function isAlphaOnly(v: string): boolean {
+  return /^[a-zA-Z0-9 .,\-_'&()!?]+$/.test(v);
+}
+
 export type ValidationErrors = Partial<Record<keyof NarasuAgencyDraft | "audioUrls_items", string>>;
 
 export function validateDraft(draft: NarasuAgencyDraft): ValidationErrors {
@@ -34,12 +42,32 @@ export function validateDraft(draft: NarasuAgencyDraft): ValidationErrors {
   }
 
   if (!draft.artistName.trim()) errors.artistName = "アーティスト名を入力してください";
-  if (!draft.artistNameKana.trim()) errors.artistNameKana = "アーティスト名（仮名）を入力してください";
-  if (!draft.artistNameAlpha.trim()) errors.artistNameAlpha = "アーティスト名（アルファベット）を入力してください";
+
+  if (!draft.artistNameKana.trim()) {
+    errors.artistNameKana = "アーティスト名（仮名）を入力してください";
+  } else if (!isKanaOnly(draft.artistNameKana)) {
+    errors.artistNameKana = "カタカナで入力してください（例：ライファイスタジオ）";
+  }
+
+  if (!draft.artistNameAlpha.trim()) {
+    errors.artistNameAlpha = "アーティスト名（アルファベット）を入力してください";
+  } else if (!isAlphaOnly(draft.artistNameAlpha)) {
+    errors.artistNameAlpha = "半角英数字・記号のみで入力してください（例：LIFAI Studio）";
+  }
 
   if (!draft.albumName.trim()) errors.albumName = "アルバム名を入力してください";
-  if (!draft.albumNameKana.trim()) errors.albumNameKana = "アルバム名（仮名）を入力してください";
-  if (!draft.albumNameAlpha.trim()) errors.albumNameAlpha = "アルバム名（アルファベット）を入力してください";
+
+  if (!draft.albumNameKana.trim()) {
+    errors.albumNameKana = "アルバム名（仮名）を入力してください";
+  } else if (!isKanaOnly(draft.albumNameKana)) {
+    errors.albumNameKana = "カタカナで入力してください（例：ファーストライト）";
+  }
+
+  if (!draft.albumNameAlpha.trim()) {
+    errors.albumNameAlpha = "アルバム名（アルファベット）を入力してください";
+  } else if (!isAlphaOnly(draft.albumNameAlpha)) {
+    errors.albumNameAlpha = "半角英数字・記号のみで入力してください（例：First Light）";
+  }
 
   return errors;
 }

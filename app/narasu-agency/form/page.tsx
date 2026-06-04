@@ -1,15 +1,16 @@
 // app/narasu-agency/form/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { isGatePassed, loadDraft, saveDraft } from "@/lib/narasu-agency/storage";
 import { validateDraft, type ValidationErrors } from "@/lib/narasu-agency/validation";
 import type { NarasuAgencyDraft, AudioUrlEntry } from "@/lib/narasu-agency/types";
 import { NARASU_TERMS_VERSION } from "@/lib/narasu-agency/constants";
+import { getAuth } from "@/app/lib/auth";
 
 function newAudioEntry(): AudioUrlEntry {
-  return { id: crypto.randomUUID(), url: "" };
+  return { id: crypto.randomUUID(), url: "", title: "" };
 }
 
 function emptyDraft(): NarasuAgencyDraft {
@@ -23,6 +24,7 @@ function emptyDraft(): NarasuAgencyDraft {
     artistName: "",
     artistNameKana: "",
     artistNameAlpha: "",
+    artistPhotoUrl: "",
     albumName: "",
     albumNameKana: "",
     albumNameAlpha: "",
@@ -37,9 +39,14 @@ export default function NarasuFormPage() {
   const [draft, setDraft] = useState<NarasuAgencyDraft>(emptyDraft);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<ValidationErrors>({});
+  const [resolvingIds, setResolvingIds] = useState<Set<string>>(new Set());
+  const lifaiLoginIdRef = useRef("");
+  const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
     if (!isGatePassed()) { router.replace("/narasu-agency"); return; }
+    const auth = getAuth();
+    lifaiLoginIdRef.current = (auth as any)?.loginId ?? (auth as any)?.login_id ?? (auth as any)?.id ?? "";
     const saved = loadDraft();
     if (saved) setDraft(saved);
   }, [router]);
@@ -58,6 +65,46 @@ export default function NarasuFormPage() {
       saveDraft(next);
       return next;
     });
+  }
+
+  function updateAudioTitle(id: string, title: string) {
+    setDraft((prev) => {
+      const next = { ...prev, audioUrls: prev.audioUrls.map((e) => e.id === id ? { ...e, title } : e) };
+      saveDraft(next);
+      return next;
+    });
+  }
+
+  const resolveTitle = useCallback(async (id: string, url: string) => {
+    const trimmed = url.trim();
+    if (!trimmed) return;
+    setResolvingIds((prev) => new Set(prev).add(id));
+    try {
+      const res = await fetch("/api/narasu-agency/resolve-title", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: trimmed, loginId: lifaiLoginIdRef.current }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.ok && data.title) {
+        setDraft((prev) => {
+          const entry = prev.audioUrls.find((e) => e.id === id);
+          if (!entry || entry.title) return prev;
+          const next = { ...prev, audioUrls: prev.audioUrls.map((e) => e.id === id ? { ...e, title: data.title } : e) };
+          saveDraft(next);
+          return next;
+        });
+      }
+    } catch {
+      // resolve失敗は無視
+    } finally {
+      setResolvingIds((prev) => { const s = new Set(prev); s.delete(id); return s; });
+    }
+  }, []);
+
+  function scheduleResolveTitle(id: string, url: string) {
+    clearTimeout(debounceTimers.current[id]);
+    debounceTimers.current[id] = setTimeout(() => resolveTitle(id, url), 800);
   }
 
   function addAudioUrl() {
@@ -158,25 +205,40 @@ export default function NarasuFormPage() {
             <div>
               <label className={labelCls}>音源URL<span className="text-rose-500"> *</span></label>
               <p className="mt-0.5 text-[11px] text-slate-400">複数追加できます</p>
-              <div className="mt-2 space-y-2">
+              <div className="mt-2 space-y-3">
                 {draft.audioUrls.map((entry, idx) => (
-                  <div key={entry.id} className="flex gap-2 items-center">
-                    <input
-                      type="url"
-                      value={entry.url}
-                      onChange={(e) => updateAudioUrl(entry.id, e.target.value)}
-                      className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                      placeholder={`音源URL ${idx + 1}`}
-                    />
-                    {draft.audioUrls.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeAudioUrl(entry.id)}
-                        className="flex-shrink-0 rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50"
-                      >
-                        －
-                      </button>
-                    )}
+                  <div key={entry.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="url"
+                        value={entry.url}
+                        onChange={(e) => { updateAudioUrl(entry.id, e.target.value); scheduleResolveTitle(entry.id, e.target.value); }}
+                        onBlur={(e) => { clearTimeout(debounceTimers.current[entry.id]); resolveTitle(entry.id, e.target.value); }}
+                        className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                        placeholder={`音源URL ${idx + 1}`}
+                      />
+                      {draft.audioUrls.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeAudioUrl(entry.id)}
+                          className="flex-shrink-0 rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                        >
+                          －
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={entry.title ?? ""}
+                        onChange={(e) => updateAudioTitle(entry.id, e.target.value)}
+                        className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                        placeholder="曲名（URLを貼ると自動入力）"
+                      />
+                      {resolvingIds.has(entry.id) && (
+                        <span className="text-xs text-slate-400 animate-pulse">取得中…</span>
+                      )}
+                    </div>
                   </div>
                 ))}
                 <button
@@ -226,6 +288,17 @@ export default function NarasuFormPage() {
                   placeholder="例: LIFAI Studio"
                 />
                 {errors.artistNameAlpha && <p className={errorCls}>{errors.artistNameAlpha}</p>}
+              </div>
+              <div>
+                <label className={labelCls}>アーティスト写真URL <span className="text-slate-400 font-normal">（任意）</span></label>
+                <p className="mt-0.5 text-[11px] text-slate-400">Google ドライブ・Dropbox 等にアップロードした写真の共有URLを貼り付けてください</p>
+                <input
+                  type="url"
+                  value={draft.artistPhotoUrl}
+                  onChange={(e) => update("artistPhotoUrl", e.target.value)}
+                  className={inputCls}
+                  placeholder="https://drive.google.com/..."
+                />
               </div>
             </div>
 

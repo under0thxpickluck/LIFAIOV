@@ -74,9 +74,30 @@ export default function NarasuConfirmPage() {
             <div className={rowCls}>
               <p className={labelCls}>音源URL（{filledUrls.length}件）</p>
               {filledUrls.map((e, i) => (
-                <p key={e.id} className={valueCls}>{i + 1}. {e.url}</p>
+                <div key={e.id} className="mt-1">
+                  <p className={valueCls}>{i + 1}. {e.url}</p>
+                  {e.title && <p className="text-xs text-slate-500 mt-0.5 ml-3">曲名: {e.title}</p>}
+                </div>
               ))}
             </div>
+            {draft.lyricsText && (
+              <div className={rowCls}>
+                <p className={labelCls}>歌詞</p>
+                <p className={valueCls + " whitespace-pre-wrap"}>{draft.lyricsText}</p>
+              </div>
+            )}
+            {draft.jacketImageUrl && (
+              <div className={rowCls}>
+                <p className={labelCls}>ジャケット画像URL</p>
+                <p className={valueCls}>{draft.jacketImageUrl}</p>
+              </div>
+            )}
+            {draft.jacketNote && (
+              <div className={rowCls}>
+                <p className={labelCls}>ジャケット備考</p>
+                <p className={valueCls}>{draft.jacketNote}</p>
+              </div>
+            )}
             {draft.artistName && (
               <div className={rowCls}>
                 <p className={labelCls}>アーティスト名</p>
@@ -93,6 +114,12 @@ export default function NarasuConfirmPage() {
               <div className={rowCls}>
                 <p className={labelCls}>アーティスト名（アルファベット）</p>
                 <p className={valueCls}>{draft.artistNameAlpha}</p>
+              </div>
+            )}
+            {draft.artistPhotoUrl && (
+              <div className={rowCls}>
+                <p className={labelCls}>アーティスト写真URL</p>
+                <p className={valueCls}>{draft.artistPhotoUrl}</p>
               </div>
             )}
             {draft.albumName && (

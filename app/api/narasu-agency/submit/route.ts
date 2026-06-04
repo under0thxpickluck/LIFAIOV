@@ -30,6 +30,12 @@ export async function POST(req: Request) {
       jacketImageUrl,
       jacketNote,
       artistName,
+      artistNameKana,
+      artistNameAlpha,
+      artistPhotoUrl,
+      albumName,
+      albumNameKana,
+      albumNameAlpha,
       note,
       agreedTermsVersion,
       agreedAt,
@@ -39,10 +45,10 @@ export async function POST(req: Request) {
     if (!narasuLoginId || !narasuPassword) {
       return NextResponse.json({ ok: false, error: "missing_account_info" }, { status: 400 });
     }
-    const filledUrls: string[] = (audioUrls ?? [])
+    const filledEntries: { url: string; title: string }[] = (audioUrls ?? [])
       .filter((e: { url: string }) => e.url?.trim())
-      .map((e: { url: string }) => e.url.trim());
-    if (filledUrls.length === 0) {
+      .map((e: { url: string; title?: string }) => ({ url: e.url.trim(), title: e.title?.trim() ?? "" }));
+    if (filledEntries.length === 0) {
       return NextResponse.json({ ok: false, error: "missing_audio_urls" }, { status: 400 });
     }
 
@@ -50,11 +56,18 @@ export async function POST(req: Request) {
       action: "narasu_agency_submit",
       narasu_login_id: narasuLoginId,
       narasu_password: narasuPassword,
-      audio_urls: filledUrls.join("\n"),
+      audio_urls: filledEntries.map((e) => e.url).join("\n"),
+      audio_titles: filledEntries.map((e) => e.title).join("\n"),
       lyrics_text: lyricsText ?? "",
       jacket_image_url: jacketImageUrl ?? "",
       jacket_note: jacketNote ?? "",
       artist_name: artistName ?? "",
+      artist_name_kana: artistNameKana ?? "",
+      artist_name_alpha: artistNameAlpha ?? "",
+      artist_photo_url: artistPhotoUrl ?? "",
+      album_name: albumName ?? "",
+      album_name_kana: albumNameKana ?? "",
+      album_name_alpha: albumNameAlpha ?? "",
       note: note ?? "",
       agreed_terms_version: agreedTermsVersion ?? "",
       agreed_at: agreedAt ?? "",

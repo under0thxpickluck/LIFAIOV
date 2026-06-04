@@ -9,6 +9,7 @@ export type NarasuAgencyStatus =
 export type AudioUrlEntry = {
   id: string;
   url: string;
+  title: string;
 };
 
 export type NarasuAgencyDraft = {
@@ -21,6 +22,7 @@ export type NarasuAgencyDraft = {
   artistName: string;
   artistNameKana: string;
   artistNameAlpha: string;
+  artistPhotoUrl: string;
   albumName: string;
   albumNameKana: string;
   albumNameAlpha: string;
