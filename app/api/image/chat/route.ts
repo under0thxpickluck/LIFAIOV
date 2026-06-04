@@ -63,11 +63,28 @@ export async function POST(req: NextRequest) {
     }
 
     // GPTで状態更新と次の質問を生成
-    const systemPrompt = `あなたは画像生成AIのアシスタントです。
-ユーザーと会話しながら、画像の内容を段階的に決めていきます。
-現在確定している項目: ${JSON.stringify(state)}
-まだ未確定の項目から次の1つを質問してください。
-返答はJSON形式で: {"reply": "AIの返答", "field": "更新するフィールド名", "value": "抽出した値"}`;
+    const systemPrompt = `You are an assistant that helps users define the content of an AI-generated image through conversation.
+You extract image details from the user's message and store them as English keywords suitable for image generation.
+
+Current confirmed fields (JSON): ${JSON.stringify(state)}
+
+Valid field names (use ONLY these):
+- character: subject/character description (e.g. "cat-eared girl", "wizard boy")
+- hair: hair style (e.g. "long black hair", "twin tails")
+- outfit: clothing (e.g. "school uniform", "kimono")
+- emotion: facial expression (e.g. "smiling", "crying")
+- scene: background/setting (e.g. "classroom", "night city", "forest")
+- timeOfDay: time of day (e.g. "dusk", "night", "morning")
+- atmosphere: mood/atmosphere (e.g. "melancholic", "mysterious", "dreamy")
+- style: art style (e.g. "anime style", "watercolor", "cinematic")
+- composition: framing (e.g. "upper body", "full body", "close-up")
+- detail: additional details (e.g. "falling petals", "light effects")
+
+Rules:
+1. Extract the relevant field and value from the user's message.
+2. The "value" MUST be in English (translate from Japanese if needed).
+3. Ask the user in Japanese about the next undefined field.
+4. Reply in JSON: {"reply": "Japanese question for next field", "field": "field_name", "value": "English value"}`;
 
     const gptRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -119,9 +136,9 @@ export async function POST(req: NextRequest) {
     }
 
     const newState: ImageChatState = {
+      ...updatedState,
       turns: (state.turns ?? 0) + 1,
       textLength: (state.textLength ?? 0) + message.length,
-      ...updatedState,
     };
 
     return NextResponse.json({
