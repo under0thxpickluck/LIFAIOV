@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 type LockDays = 30 | 60 | 90;
+type StakeType = "bp" | "ep";
 
 const PLANS: { days: LockDays; rate: number; label: string; rateLabel: string }[] = [
   { days: 30, rate: 0.10, label: "30日", rateLabel: "+10%" },
@@ -36,6 +37,7 @@ type Props = {
 
 export default function StakingModal({ loginId, onClose, onBpChanged }: Props) {
   const [visible,      setVisible]      = useState(false);
+  const [stakeType,    setStakeType]    = useState<StakeType>("bp");
   const [selectedDays, setSelectedDays] = useState<LockDays>(30);
   const [amount,       setAmount]       = useState("");
   const [stakes,       setStakes]       = useState<StakeItem[]>([]);
@@ -170,6 +172,35 @@ export default function StakingModal({ loginId, onClose, onBpChanged }: Props) {
           cursor:       "default",
         }}
       >
+        {/* BP / EP タブ */}
+        <div style={{ display: "flex", gap: "6px", marginBottom: "16px", background: "#27272a", borderRadius: "10px", padding: "4px" }}>
+          <button
+            onClick={() => setStakeType("bp")}
+            style={{
+              flex: 1, padding: "8px 4px", borderRadius: "7px", border: "none",
+              background: stakeType === "bp" ? "rgba(245,158,11,0.15)" : "transparent",
+              color: stakeType === "bp" ? "#f59e0b" : "#71717a",
+              fontSize: "13px", fontWeight: 700, cursor: "pointer", transition: "all 0.15s",
+            }}
+          >
+            💎 BPステーキング
+          </button>
+          <button
+            disabled
+            title="準備中"
+            style={{
+              flex: 1, padding: "8px 4px", borderRadius: "7px", border: "none",
+              background: "transparent",
+              color: "#3f3f46",
+              fontSize: "13px", fontWeight: 700, cursor: "not-allowed",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: "4px",
+            }}
+          >
+            ✨ EPステーキング
+            <span style={{ fontSize: "10px", background: "#3f3f46", color: "#71717a", borderRadius: "4px", padding: "1px 5px" }}>準備中</span>
+          </button>
+        </div>
+
         {/* ヘッダー */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
           <div>
