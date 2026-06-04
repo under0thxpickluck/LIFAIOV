@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import UsersTab from "./UsersTab";
 import AffiliateTab from "./AffiliateTab";
 import TreeTab from "./TreeTab";
@@ -11,34 +10,7 @@ import CcPendingTab from "./CcPendingTab";
 type Tab = "users" | "affiliate" | "tree" | "monthly" | "cc_pending";
 
 export default function FinancePage() {
-  const router = useRouter();
-  const [verified,   setVerified]   = useState(false);
-  const [activeTab,  setActiveTab]  = useState<Tab>("users");
-
-  useEffect(() => {
-    const token = sessionStorage.getItem("finance_token");
-    if (!token) { router.replace("/admin"); return; }
-
-    fetch("/api/admin/verify-finance-token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
-    })
-      .then(r => r.json())
-      .then(json => {
-        if (json?.valid) { setVerified(true); }
-        else { router.replace("/admin"); }
-      })
-      .catch(() => router.replace("/admin"));
-  }, [router]);
-
-  if (!verified) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-zinc-950">
-        <p className="text-sm text-zinc-400">認証確認中…</p>
-      </main>
-    );
-  }
+  const [activeTab, setActiveTab] = useState<Tab>("users");
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "users",      label: "ユーザー詳細" },

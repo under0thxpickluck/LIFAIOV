@@ -541,11 +541,6 @@ export default function AdminPage() {
     }
   };
 
-  // --- Finance ゲートウェイ ---
-  const [financePass, setFinancePass] = useState("");
-  const [financeBusy, setFinanceBusy] = useState(false);
-  const [financeErr,  setFinanceErr]  = useState<string | null>(null);
-
   // --- Rumble管理 ---
   const [forceEntryUserId, setForceEntryUserId] = useState("");
   const [forceEntryBusy,   setForceEntryBusy]   = useState(false);
@@ -555,27 +550,6 @@ export default function AdminPage() {
   const [rewardMsg,        setRewardMsg]         = useState<string | null>(null);
   const [runNowBusy,       setRunNowBusy]       = useState(false);
   const [runNowMsg,        setRunNowMsg]         = useState<string | null>(null);
-
-  // ── Finance ゲートウェイ ──────────────────────────────────
-  const handleFinanceUnlock = async () => {
-    if (!financePass.trim() || financeBusy) return;
-    setFinanceBusy(true); setFinanceErr(null);
-    try {
-      const res  = await fetch("/api/admin/finance-unlock", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: financePass }),
-      });
-      const json = await res.json();
-      if (!json?.ok) throw new Error(json?.error ?? "unlock_failed");
-      sessionStorage.setItem("finance_token", json.token);
-      window.location.href = "/admin/finance";
-    } catch (e: any) {
-      setFinanceErr(String(e?.message ?? e));
-    } finally {
-      setFinanceBusy(false);
-    }
-  };
 
   // ── ページネーション ──────────────────────────────────────
   const totalPages = Math.ceil(membersTotal / PAGE_SIZE);
@@ -1286,37 +1260,16 @@ export default function AdminPage() {
 
         {/* ═══ 財務管理ゲートウェイ ════════════════════════════ */}
         <section className="mt-10 rounded-2xl border border-zinc-700 bg-zinc-900 p-6">
-          <p className="mb-1 text-lg font-semibold text-zinc-200">🔒 財務管理</p>
+          <p className="mb-1 text-lg font-semibold text-zinc-200">財務管理</p>
           <p className="mb-4 text-xs text-zinc-500">
-            パスワードを入力して財務管理ページへ進んでください。ブラウザを閉じると再認証が必要です。
+            財務管理ページへ移動します。
           </p>
-          {financeErr && (
-            <div className="mb-3 rounded-lg bg-red-900/50 px-4 py-2 text-sm font-bold text-red-300">
-              {financeErr === "invalid_password" ? "パスワードが違います" : financeErr}
-            </div>
-          )}
-          <div className="flex gap-3">
-            <input
-              type="password"
-              placeholder="財務パスワード"
-              value={financePass}
-              onChange={e => setFinancePass(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter") handleFinanceUnlock(); }}
-              className="w-56 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-amber-500 focus:outline-none"
-            />
-            <button
-              onClick={handleFinanceUnlock}
-              disabled={financeBusy || !financePass.trim()}
-              className={clsx(
-                "rounded-lg px-5 py-2 text-sm font-bold transition",
-                financeBusy || !financePass.trim()
-                  ? "cursor-not-allowed bg-zinc-700 text-zinc-500"
-                  : "bg-amber-500 text-black hover:bg-amber-600"
-              )}
-            >
-              {financeBusy ? "確認中…" : "財務管理へ →"}
-            </button>
-          </div>
+          <a
+            href="/admin/finance"
+            className="inline-block rounded-lg bg-amber-500 px-5 py-2 text-sm font-bold text-black hover:bg-amber-600 transition"
+          >
+            財務管理へ →
+          </a>
         </section>
 
         <footer className="mt-8 text-center text-xs text-zinc-600">© LIFAI</footer>
