@@ -3,33 +3,25 @@ import type { ImageChatState } from "@/app/lib/image/image_types";
 
 export const maxDuration = 30;
 
-const FIELDS = ["character", "hair", "outfit", "emotion", "scene", "timeOfDay", "atmosphere", "style", "composition", "detail"] as const;
+const FIELDS = ["character", "scene", "atmosphere", "style", "composition", "detail"] as const;
 type Field = typeof FIELDS[number];
 
 const FIELD_LABELS: Record<Field, string> = {
-  character: "キャラクター",
-  hair: "髪型",
-  outfit: "服装",
-  emotion: "表情",
-  scene: "背景",
-  timeOfDay: "時間帯",
-  atmosphere: "雰囲気",
-  style: "画風",
-  composition: "構図",
+  character: "何を描く？",
+  scene: "背景・環境",
+  atmosphere: "雰囲気・ムード",
+  style: "画風・スタイル",
+  composition: "構図・アングル",
   detail: "追加ディテール",
 };
 
 const SUGGESTIONS: Record<Field, string[]> = {
-  character: ["女の子", "男の子", "猫耳の女の子", "魔法少女"],
-  hair: ["ロング", "ボブ", "ポニーテール", "ツインテール"],
-  outfit: ["制服", "私服", "和服", "ドレス"],
-  emotion: ["笑顔", "泣きそう", "無表情", "驚き"],
-  scene: ["教室", "夜の街", "森", "空"],
-  timeOfDay: ["昼", "夕方", "夜", "朝"],
-  atmosphere: ["切ない", "明るい", "神秘的", "幻想的"],
-  style: ["アニメ風", "水彩画風", "ファンタジー", "シネマティック"],
-  composition: ["上半身", "全身", "アップ", "俯瞰"],
-  detail: ["星空", "花びら", "光のエフェクト", "雨粒"],
+  character: ["柴犬の子犬", "アニメの女の子", "古代の龍", "満開の桜の木", "宇宙飛行士"],
+  scene: ["雪山", "夜の海辺", "深海", "未来都市", "秋の森"],
+  atmosphere: ["幻想的", "神秘的", "明るく暖かい", "ダーク", "壮大"],
+  style: ["アニメ風", "リアルな写真風", "水彩画", "油絵", "ピクセルアート"],
+  composition: ["クローズアップ", "全体像", "俯瞰", "広角", "ポートレート"],
+  detail: ["光のエフェクト", "霧", "ボケ背景", "星空", "水の反射"],
 };
 
 function getNextField(state: Partial<ImageChatState>): Field | null {
@@ -63,28 +55,30 @@ export async function POST(req: NextRequest) {
     }
 
     // GPTで状態更新と次の質問を生成
-    const systemPrompt = `You are an assistant that helps users define the content of an AI-generated image through conversation.
-You extract image details from the user's message and store them as English keywords suitable for image generation.
+    const systemPrompt = `You are an assistant that helps users design AI-generated images of ANYTHING — animals, people, landscapes, objects, abstract art, food, vehicles, fantasy creatures, architecture, etc. No restrictions on subject matter.
+
+You extract image details from conversation and store them as English keywords optimized for image generation.
 
 Current confirmed fields (JSON): ${JSON.stringify(state)}
 
 Valid field names (use ONLY these):
-- character: subject/character description (e.g. "cat-eared girl", "wizard boy")
-- hair: hair style (e.g. "long black hair", "twin tails")
-- outfit: clothing (e.g. "school uniform", "kimono")
-- emotion: facial expression (e.g. "smiling", "crying")
-- scene: background/setting (e.g. "classroom", "night city", "forest")
-- timeOfDay: time of day (e.g. "dusk", "night", "morning")
-- atmosphere: mood/atmosphere (e.g. "melancholic", "mysterious", "dreamy")
-- style: art style (e.g. "anime style", "watercolor", "cinematic")
-- composition: framing (e.g. "upper body", "full body", "close-up")
-- detail: additional details (e.g. "falling petals", "light effects")
+- character: The main subject — can be ANYTHING. Examples: "golden retriever puppy", "ancient dragon breathing fire", "cherry blossom tree in full bloom", "futuristic cityscape", "cup of matcha tea", "anime schoolgirl", "astronaut floating in space", "cute cat wearing glasses", "giant whale underwater", "old lighthouse on rocky coast"
+- hair: Texture/surface/fur details — use ONLY if relevant to subject (e.g. "fluffy golden fur", "long silver hair", "rough stone texture", "smooth chrome surface")
+- outfit: Clothing/accessories/natural features — ONLY if relevant (e.g. "red collar with bell", "samurai armor", "autumn-colored leaves", "glowing runes on skin")
+- emotion: Expression/pose/state (e.g. "playful and energetic", "fierce and roaring", "sleeping peacefully", "looking curiously", "mid-leap")
+- scene: Setting/environment (e.g. "snowy mountain peak", "cozy cafe interior", "deep ocean floor", "outer space nebula", "enchanted forest")
+- timeOfDay: Lighting/time condition (e.g. "golden hour sunset", "blue hour twilight", "midday harsh sunlight", "moonlit night", "stormy overcast")
+- atmosphere: Overall mood (e.g. "peaceful and serene", "epic and grand", "dark and mysterious", "whimsical and magical")
+- style: Visual style (e.g. "photorealistic", "anime style", "watercolor painting", "oil painting", "3D render", "pixel art", "sketch", "cinematic")
+- composition: Framing and perspective (e.g. "close-up portrait", "wide establishing shot", "bird's eye view", "macro photography", "dynamic action angle")
+- detail: Additional elements (e.g. "glowing eyes", "falling snow", "lens flare", "bokeh background", "mist and fog", "particles of light")
 
 Rules:
-1. Extract the relevant field and value from the user's message.
-2. The "value" MUST be in English (translate from Japanese if needed).
-3. Ask the user in Japanese about the next undefined field.
-4. Reply in JSON: {"reply": "Japanese question for next field", "field": "field_name", "value": "English value"}`;
+1. If "character" is not yet set, ALWAYS ask what the user wants to draw first — accept any subject with no restrictions.
+2. Skip fields that don't apply to the subject (e.g. skip "hair" and "outfit" for a landscape or building).
+3. Values MUST be in English — translate Japanese input to English image-generation keywords.
+4. Ask follow-up questions in Japanese, tailored to the subject type.
+5. Reply in JSON: {"reply": "Japanese question for next relevant field", "field": "field_name", "value": "English descriptive value"}`;
 
     const gptRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
