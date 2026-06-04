@@ -3231,6 +3231,29 @@ function handle_(key, body) {
   }
 
   // =========================================================
+  // =========================================================
+  // admin_set_staking_pool（月次プール設定）
+  // =========================================================
+  if (action === "admin_set_staking_pool") {
+    if (str_(body.adminKey) !== ADMIN_SECRET) return json_({ ok: false, error: "admin_unauthorized" });
+    var spMonth  = str_(body.month) || new Date().toISOString().slice(0, 7);
+    var spBpPool = Number(body.bp_pool || 0);
+    var spEpPool = Number(body.ep_pool || 0);
+    var spSheet  = getOrCreateStakingPoolSheet_();
+    var spData   = spSheet.getDataRange().getValues();
+    var spIdx    = indexMap_(spData[0]);
+    for (var si = 1; si < spData.length; si++) {
+      if (str_(spData[si][spIdx["month"]]) === spMonth) {
+        spSheet.getRange(si + 1, spIdx["bp_pool"] + 1).setValue(spBpPool);
+        spSheet.getRange(si + 1, spIdx["ep_pool"] + 1).setValue(spEpPool);
+        spSheet.getRange(si + 1, spIdx["set_at"]  + 1).setValue(new Date().toISOString());
+        return json_({ ok: true, month: spMonth, bp_pool: spBpPool, ep_pool: spEpPool });
+      }
+    }
+    spSheet.appendRow([spMonth, spBpPool, spEpPool, new Date().toISOString()]);
+    return json_({ ok: true, month: spMonth, bp_pool: spBpPool, ep_pool: spEpPool });
+  }
+
   // stake_bp（BPステーキング開始：BPを預けて満期後に利息付きで受け取る）
   // - adminKey 認証必須（GAS_ADMIN_KEY）
   // - 最低100BP / days: 30 | 60 | 90
@@ -3247,8 +3270,8 @@ function handle_(key, body) {
     if (!loginId) return json_({ ok: false, error: "loginId_required" });
     if (amount < 100) return json_({ ok: false, reason: "min_100" });
 
-    const RATE_MAP = { 30: 0.10, 60: 0.25, 90: 0.50 };
-    if (!RATE_MAP[days]) return json_({ ok: false, reason: "invalid_days" });
+    var VALID_DAYS = [30, 60, 90];
+    if (VALID_DAYS.indexOf(days) === -1) return json_({ ok: false, reason: "invalid_days" });
 
     // applies シートからユーザー検索
     let values = sheet.getDataRange().getValues();
@@ -3275,7 +3298,13 @@ function handle_(key, body) {
       return json_({ ok: false, reason: "insufficient_bp", bp_balance: currentBp });
     }
 
-    const rate       = RATE_MAP[days];
+    // 動的レート計算（プールベース）
+    var stakeCurrentMonth = new Date().toISOString().slice(0, 7);
+    var stakePoolSetting  = getStakingPoolForMonth_(stakeCurrentMonth);
+    var stakeBpPool       = stakePoolSetting.bp_pool;
+    var stakeStats        = getActiveBpStakeStats_(getOrCreateStakingSheet_());
+    var totalForRate      = stakeStats.total + amount; // この人のステーク込みで計算
+    const rate            = calcStakeRate_(stakeBpPool, totalForRate || 1, days);
     const interestBp = Math.floor(amount * rate);
     const totalBp    = amount + interestBp;
 
@@ -3380,7 +3409,29 @@ function handle_(key, body) {
       });
     }
 
-    return json_({ ok: true, stakes: stakes, bp_balance: bpBalance });
+    // pool_info 計算
+    var gsCurrentMonth = new Date().toISOString().slice(0, 7);
+    var gsPoolSetting  = getStakingPoolForMonth_(gsCurrentMonth);
+    var gsBpPool       = gsPoolSetting.bp_pool;
+    var gsBpStats      = getActiveBpStakeStats_(stakingSheet);
+    var gsRates        = {};
+    [30, 60, 90].forEach(function(d) {
+      gsRates[d] = Math.round(calcStakeRate_(gsBpPool, gsBpStats.total || 1, d) * 10000) / 10000;
+    });
+    var gsGaugePct = gsBpPool > 0 ? Math.min(Math.round(gsBpStats.total / gsBpPool * 100), 100) : 0;
+
+    return json_({
+      ok:         true,
+      stakes:     stakes,
+      bp_balance: bpBalance,
+      pool_info: {
+        pool:              gsBpPool,
+        total_staked:      gsBpStats.total,
+        participant_count: gsBpStats.count,
+        confirmed_rates:   gsRates,
+        gauge_pct:         gsGaugePct,
+      }
+    });
   }
 
   // =========================================================
@@ -5376,6 +5427,57 @@ function getOrCreateStakingSheet_() {
     "interest_bp",
     "total_bp",
   ]);
+}
+
+function getOrCreateStakingPoolSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  return getOrCreateSheetByName_(ss, "staking_pool", [
+    "month", "bp_pool", "ep_pool", "set_at"
+  ]);
+}
+
+// 指定月のプール設定を取得。なければ直近の設定を返す
+function getStakingPoolForMonth_(targetMonth) {
+  const poolSheet = getOrCreateStakingPoolSheet_();
+  const data = poolSheet.getDataRange().getValues();
+  if (data.length < 2) return { bp_pool: 0, ep_pool: 0 };
+  const idx = indexMap_(data[0]);
+  var found = null;
+  for (var i = 1; i < data.length; i++) {
+    var m = str_(data[i][idx["month"]]);
+    if (m <= targetMonth) {
+      if (!found || m > str_(found[idx["month"]])) found = data[i];
+    }
+  }
+  if (!found) return { bp_pool: 0, ep_pool: 0 };
+  return {
+    bp_pool: Number(found[idx["bp_pool"]] || 0),
+    ep_pool: Number(found[idx["ep_pool"]] || 0),
+  };
+}
+
+// 動的レート計算（プールベース・期間倍率・下限保証）
+function calcStakeRate_(pool, totalStaked, days) {
+  var MULTIPLIERS = { 30: 1.0, 60: 2.5, 90: 5.0 };
+  var FLOORS      = { 30: 0.03, 60: 0.075, 90: 0.15 };
+  if (!pool || !totalStaked) return FLOORS[days] || 0.03;
+  var baseRate   = Math.min(pool / totalStaked, 1.0);
+  var periodRate = baseRate * (MULTIPLIERS[days] || 1.0);
+  return Math.max(periodRate, FLOORS[days] || 0.03);
+}
+
+// staking シートのアクティブステーク合計とユニーク参加者数を返す
+function getActiveBpStakeStats_(stakingSheet) {
+  var data = stakingSheet.getDataRange().getValues();
+  if (data.length < 2) return { total: 0, count: 0 };
+  var idx = indexMap_(data[0]);
+  var total = 0, count = 0;
+  for (var i = 1; i < data.length; i++) {
+    if (str_(data[i][idx["status"]]) !== "active") continue;
+    total += Number(data[i][idx["staked_bp"]] || 0);
+    count++;
+  }
+  return { total: total, count: count };
 }
 
 function appendWalletLedger_(o) {

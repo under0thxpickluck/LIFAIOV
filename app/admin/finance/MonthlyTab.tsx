@@ -297,6 +297,104 @@ export default function MonthlyTab() {
               </div>
             )}
           </div>
+
+      {/* ステーキングプール設定 */}
+      <StakingPoolSection />
+    </div>
+  );
+}
+
+function StakingPoolSection() {
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const [month,    setMonth]    = useState(thisMonth);
+  const [bpPool,   setBpPool]   = useState("");
+  const [epPool,   setEpPool]   = useState("");
+  const [saving,   setSaving]   = useState(false);
+  const [msg,      setMsg]      = useState<string | null>(null);
+  const [stats,    setStats]    = useState<{ pool: number; total_staked: number; participant_count: number; confirmed_rates: Record<string, number>; gauge_pct: number } | null>(null);
+
+  useEffect(() => {
+    const gasUrl = "";
+    fetch(`/api/staking?loginId=__pool_info_only__&type=bp`, { cache: "no-store" })
+      .then(r => r.json())
+      .then(d => { if (d.pool_info) setStats(d.pool_info); })
+      .catch(() => {});
+  }, []);
+
+  const save = async () => {
+    setSaving(true); setMsg(null);
+    try {
+      const res  = await fetch("/api/admin/staking-pool", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ month, bp_pool: Number(bpPool), ep_pool: Number(epPool) }),
+      });
+      const data = await res.json();
+      if (data.ok) setMsg(`✅ ${month} のプールを設定しました`);
+      else setMsg("❌ " + (data.error ?? "失敗しました"));
+    } catch { setMsg("❌ 通信エラー"); }
+    setSaving(false);
+  };
+
+  return (
+    <div className="mt-8 rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+      <h2 className="mb-4 text-sm font-bold text-zinc-200">💎 ステーキングプール設定</h2>
+
+      {/* 現在の統計 */}
+      {stats && (
+        <div className="mb-5 rounded-xl border border-zinc-700 bg-zinc-800 p-4">
+          <p className="mb-2 text-xs font-bold text-zinc-400">現在のBP状況</p>
+          <div className="flex flex-wrap gap-4 text-xs text-zinc-300">
+            <span>今月プール: <b className="text-amber-400">{stats.pool.toLocaleString()} BP</b></span>
+            <span>総ステーク: <b>{stats.total_staked.toLocaleString()} BP</b></span>
+            <span>参加者: <b>{stats.participant_count} 人</b></span>
+          </div>
+          <div className="mt-3 flex gap-3 text-xs">
+            {[30, 60, 90].map(d => (
+              <div key={d} className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-center">
+                <p className="text-zinc-500">{d}日</p>
+                <p className="font-bold text-emerald-400">+{((stats.confirmed_rates[d] ?? 0) * 100).toFixed(1)}%</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3">
+            <div className="mb-1 flex justify-between text-[10px] text-zinc-500">
+              <span>プール消費率</span><span>{stats.gauge_pct}%</span>
+            </div>
+            <div className="h-2 rounded-full bg-zinc-700">
+              <div className="h-2 rounded-full bg-amber-500 transition-all" style={{ width: `${stats.gauge_pct}%` }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 入力フォーム */}
+      <div className="flex flex-wrap gap-3">
+        <div>
+          <label className="mb-1 block text-[11px] font-bold text-zinc-400">対象月</label>
+          <input type="month" value={month} onChange={e => setMonth(e.target.value)}
+            className="rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 focus:outline-none" />
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] font-bold text-zinc-400">BPプール</label>
+          <input type="number" min={0} value={bpPool} onChange={e => setBpPool(e.target.value)}
+            placeholder="例: 10000"
+            className="w-36 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 focus:outline-none" />
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] font-bold text-zinc-400">EPプール</label>
+          <input type="number" min={0} value={epPool} onChange={e => setEpPool(e.target.value)}
+            placeholder="例: 5000"
+            className="w-36 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200 focus:outline-none" />
+        </div>
+        <div className="flex items-end">
+          <button onClick={save} disabled={saving}
+            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-black hover:bg-amber-400 disabled:opacity-50">
+            {saving ? "保存中…" : "保存"}
+          </button>
+        </div>
+      </div>
+      {msg && <p className={`mt-3 text-xs ${msg.startsWith("✅") ? "text-emerald-400" : "text-red-400"}`}>{msg}</p>}
     </div>
   );
 }
