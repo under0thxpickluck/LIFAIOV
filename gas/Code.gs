@@ -2028,6 +2028,195 @@ function handle_(key, body) {
   }
 
   // =========================================================
+  // bp_lock（画像生成前BP仮ロック）
+  // - loginId でユーザーを特定し bp_balance を即時減算
+  // - image_locks シートにロック記録を残す
+  // - 返却: { ok, lock_id }
+  // =========================================================
+  if (action === "bp_lock") {
+    var lockLoginId = str_(body.id);
+    var lockAmount  = Number(body.amount);
+    var lockReason  = str_(body.reason) || "image_generate";
+
+    if (!lockLoginId) return json_({ ok: false, error: "id_required" });
+    if (!Number.isFinite(lockAmount) || lockAmount <= 0) return json_({ ok: false, error: "invalid_amount" });
+
+    var lockValues = sheet.getDataRange().getValues();
+    var lockHeader = lockValues[0];
+    ensureCols_(sheet, lockHeader, ["login_id", "email", "bp_balance"]);
+    lockValues = sheet.getDataRange().getValues();
+    lockHeader = lockValues[0];
+    var lockIdx  = indexMap_(lockHeader);
+    var lockRows = lockValues.slice(1);
+
+    var lockHitRow = 0, lockEmail = "";
+    for (var li = 0; li < lockRows.length; li++) {
+      if (str_(lockRows[li][lockIdx["login_id"]]) === lockLoginId) {
+        lockHitRow = li + 2;
+        lockEmail  = str_(lockRows[li][lockIdx["email"]]);
+        break;
+      }
+    }
+    if (!lockHitRow) return json_({ ok: false, error: "not_found" });
+
+    var lockCurrentBp = Number(sheet.getRange(lockHitRow, lockIdx["bp_balance"] + 1).getValue() || 0);
+    if (lockCurrentBp < lockAmount) {
+      return json_({ ok: false, error: "insufficient_bp", bp_balance: lockCurrentBp });
+    }
+
+    var lockNewBp = lockCurrentBp - lockAmount;
+    sheet.getRange(lockHitRow, lockIdx["bp_balance"] + 1).setValue(lockNewBp);
+
+    var lockId = "LOCK-" + Date.now() + "-" + Math.floor(Math.random() * 10000);
+    var ss_lock = SpreadsheetApp.getActiveSpreadsheet();
+    var lockSheet = ss_lock.getSheetByName("image_locks");
+    if (!lockSheet) {
+      lockSheet = ss_lock.insertSheet("image_locks");
+      lockSheet.appendRow(["lock_id", "login_id", "amount", "reason", "status", "created_at"]);
+    }
+    lockSheet.appendRow([lockId, lockLoginId, lockAmount, lockReason, "locked", new Date().toISOString()]);
+
+    appendWalletLedger_({ kind: "image_lock", login_id: lockLoginId, email: lockEmail, amount: -lockAmount, memo: lockReason + " lock:" + lockId });
+    return json_({ ok: true, lock_id: lockId, bp_balance: lockNewBp });
+  }
+
+  // =========================================================
+  // bp_commit（BP消費確定 — ロック済みBPをコミット）
+  // - image_locks のステータスを committed に更新するだけ
+  // =========================================================
+  if (action === "bp_commit") {
+    var commitId = str_(body.lock_id);
+    if (!commitId) return json_({ ok: false, error: "lock_id_required" });
+    try {
+      var ss_commit = SpreadsheetApp.getActiveSpreadsheet();
+      var clSheet   = ss_commit.getSheetByName("image_locks");
+      if (clSheet) {
+        var clData = clSheet.getDataRange().getValues();
+        var clIdx  = indexMap_(clData[0]);
+        for (var ci = 1; ci < clData.length; ci++) {
+          if (str_(clData[ci][clIdx["lock_id"]]) === commitId) {
+            clSheet.getRange(ci + 1, clIdx["status"] + 1).setValue("committed");
+            break;
+          }
+        }
+      }
+    } catch(e) {}
+    return json_({ ok: true });
+  }
+
+  // =========================================================
+  // bp_refund（BP返却 — 生成失敗時にロック分を戻す）
+  // =========================================================
+  if (action === "bp_refund") {
+    var refundLockId = str_(body.lock_id);
+    var refundId     = str_(body.id);
+    if (!refundLockId) return json_({ ok: false, error: "lock_id_required" });
+    try {
+      var ss_ref  = SpreadsheetApp.getActiveSpreadsheet();
+      var rlSheet = ss_ref.getSheetByName("image_locks");
+      if (!rlSheet) return json_({ ok: false, error: "lock_not_found" });
+
+      var rlData   = rlSheet.getDataRange().getValues();
+      var rlIdx    = indexMap_(rlData[0]);
+      var rlAmount = 0, rlLoginId = refundId;
+
+      for (var ri = 1; ri < rlData.length; ri++) {
+        if (str_(rlData[ri][rlIdx["lock_id"]]) === refundLockId) {
+          rlAmount  = Number(rlData[ri][rlIdx["amount"]]);
+          rlLoginId = str_(rlData[ri][rlIdx["login_id"]]) || refundId;
+          rlSheet.getRange(ri + 1, rlIdx["status"] + 1).setValue("refunded");
+          break;
+        }
+      }
+      if (!rlAmount) return json_({ ok: false, error: "lock_not_found" });
+
+      var refValues = sheet.getDataRange().getValues();
+      var refHeader = refValues[0];
+      ensureCols_(sheet, refHeader, ["login_id", "bp_balance"]);
+      refValues = sheet.getDataRange().getValues();
+      refHeader = refValues[0];
+      var refIdx  = indexMap_(refHeader);
+      var refRows = refValues.slice(1);
+
+      for (var rr = 0; rr < refRows.length; rr++) {
+        if (str_(refRows[rr][refIdx["login_id"]]) === rlLoginId) {
+          var refCurBp = Number(sheet.getRange(rr + 2, refIdx["bp_balance"] + 1).getValue() || 0);
+          sheet.getRange(rr + 2, refIdx["bp_balance"] + 1).setValue(refCurBp + rlAmount);
+          appendWalletLedger_({ kind: "image_refund", login_id: rlLoginId, email: "", amount: rlAmount, memo: "refund lock:" + refundLockId });
+          break;
+        }
+      }
+    } catch(e) {
+      return json_({ ok: false, error: String(e) });
+    }
+    return json_({ ok: true });
+  }
+
+  // =========================================================
+  // image_log（画像生成履歴保存）
+  // =========================================================
+  if (action === "image_log") {
+    try {
+      var ss_il   = SpreadsheetApp.getActiveSpreadsheet();
+      var ilSheet = ss_il.getSheetByName("image_logs");
+      if (!ilSheet) {
+        ilSheet = ss_il.insertSheet("image_logs");
+        ilSheet.appendRow(["id", "user_id", "prompt", "image_url", "bp_used", "type", "meta_json", "created_at"]);
+      }
+      var ilId = "IMG-" + Date.now() + "-" + Math.floor(Math.random() * 10000);
+      ilSheet.appendRow([
+        ilId,
+        str_(body.id),
+        str_(body.prompt),
+        str_(body.image_url),
+        Number(body.bp_used || 0),
+        str_(body.type) || "generate",
+        str_(body.meta_json),
+        new Date().toISOString()
+      ]);
+      return json_({ ok: true, id: ilId });
+    } catch(e) {
+      return json_({ ok: false, error: String(e) });
+    }
+  }
+
+  // =========================================================
+  // image_history（画像生成履歴取得）
+  // =========================================================
+  if (action === "image_history") {
+    try {
+      var ss_ih   = SpreadsheetApp.getActiveSpreadsheet();
+      var ihSheet = ss_ih.getSheetByName("image_logs");
+      if (!ihSheet) return json_({ ok: true, items: [] });
+
+      var ihData = ihSheet.getDataRange().getValues();
+      if (ihData.length < 2) return json_({ ok: true, items: [] });
+
+      var ihIdx  = indexMap_(ihData[0]);
+      var ihUser = str_(body.id);
+      var ihItems = [];
+
+      for (var ii = 1; ii < ihData.length; ii++) {
+        if (str_(ihData[ii][ihIdx["user_id"]]) !== ihUser) continue;
+        ihItems.push({
+          id:         str_(ihData[ii][ihIdx["id"]]),
+          user_id:    ihUser,
+          prompt:     str_(ihData[ii][ihIdx["prompt"]]),
+          image_url:  str_(ihData[ii][ihIdx["image_url"]]),
+          bp_used:    Number(ihData[ii][ihIdx["bp_used"]] || 0),
+          type:       str_(ihData[ii][ihIdx["type"]]),
+          created_at: str_(ihData[ii][ihIdx["created_at"]]),
+        });
+      }
+
+      ihItems.sort(function(a, b) { return b.created_at > a.created_at ? 1 : -1; });
+      return json_({ ok: true, items: ihItems.slice(0, 50) });
+    } catch(e) {
+      return json_({ ok: false, error: String(e) });
+    }
+  }
+
+  // =========================================================
   // square_grant_bp（Square決済完了 → BP付与）
   // - Webhook から呼ばれる（adminKey 不要）
   // - square_payment_id で冪等制御（二重付与防止）
