@@ -240,6 +240,9 @@ export default function AppHomePage() {
   // 楽曲売却承認通知
   const [musicSellApproved, setMusicSellApproved] = useState<{ title: string; ep: number }[] | null>(null);
 
+  // EP獲得通知（CCアフィリエイト報酬）
+  const [epNotification, setEpNotification] = useState<{ amount: number } | null>(null);
+
   // BPガチャ
   const [showGacha, setShowGacha] = useState(false);
 
@@ -280,6 +283,26 @@ export default function AppHomePage() {
           const data = await res.json().catch(() => ({ ok: false }));
           if (data.ok && data.hasPending && data.amount > 0) {
             setBpGrantModal({ amount: data.amount });
+          }
+        } catch {
+          // 通知失敗はサイレントに無視
+        }
+      })();
+    }
+
+    // EP通知チェック（CCアフィリエイト報酬）
+    if (id && code) {
+      (async () => {
+        try {
+          const meRes = await fetch("/api/me", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            cache: "no-store",
+            body: JSON.stringify({ id, code }),
+          });
+          const meData = await meRes.json().catch(() => ({ ok: false }));
+          if (meData.ok && meData.me?.ep_notification > 0) {
+            setEpNotification({ amount: meData.me.ep_notification });
           }
         } catch {
           // 通知失敗はサイレントに無視
@@ -426,6 +449,37 @@ export default function AppHomePage() {
     <>
     {bpGrantModal && (
       <BPGrantModal amount={bpGrantModal.amount} onClose={handleBpModalClose} />
+    )}
+
+    {/* EP獲得通知モーダル（CCアフィリエイト報酬） */}
+    {epNotification && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+        <div className="w-full max-w-sm rounded-3xl border border-emerald-500/40 bg-zinc-900 p-8 text-center shadow-2xl">
+          <div className="mb-2 text-4xl">🎉</div>
+          <h2 className="mb-2 text-xl font-extrabold text-white">EP を獲得しました！</h2>
+          <p className="mb-6 text-3xl font-black text-emerald-400">
+            +{epNotification.amount.toLocaleString()} EP
+          </p>
+          <p className="mb-6 text-xs text-zinc-400">紹介アフィリエイト報酬として付与されました</p>
+          <button
+            onClick={async () => {
+              setEpNotification(null);
+              try {
+                const _id   = (auth as any)?.id || (auth as any)?.loginId || "";
+                const _code = getAuthSecret() || (auth as any)?.token || "";
+                await fetch("/api/ep-notification-clear", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ id: _id, code: _code }),
+                });
+              } catch {}
+            }}
+            className="w-full rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-extrabold text-white hover:bg-emerald-500"
+          >
+            確認
+          </button>
+        </div>
+      </div>
     )}
     {loginBonus && (
       <LoginBonusModal

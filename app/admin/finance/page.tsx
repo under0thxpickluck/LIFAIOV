@@ -6,8 +6,9 @@ import UsersTab from "./UsersTab";
 import AffiliateTab from "./AffiliateTab";
 import TreeTab from "./TreeTab";
 import MonthlyTab from "./MonthlyTab";
+import CcPendingTab from "./CcPendingTab";
 
-type Tab = "users" | "affiliate" | "tree" | "monthly";
+type Tab = "users" | "affiliate" | "tree" | "monthly" | "cc_pending";
 
 export default function FinancePage() {
   const router = useRouter();
@@ -40,10 +41,11 @@ export default function FinancePage() {
   }
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: "users",     label: "ユーザー詳細" },
-    { key: "affiliate", label: "アフィリエイト" },
-    { key: "tree",      label: "紹介ツリー" },
-    { key: "monthly",   label: "月次集計" },
+    { key: "users",      label: "ユーザー詳細" },
+    { key: "affiliate",  label: "アフィリエイト" },
+    { key: "tree",       label: "紹介ツリー" },
+    { key: "monthly",    label: "月次集計" },
+    { key: "cc_pending", label: "CC付与待ち" },
   ];
 
   return (
@@ -76,10 +78,11 @@ export default function FinancePage() {
           ))}
         </div>
 
-        {activeTab === "users"     && <UsersTab />}
-        {activeTab === "affiliate" && <AffiliateTab />}
-        {activeTab === "tree"      && <TreeTab />}
-        {activeTab === "monthly"   && <MonthlyTab />}
+        {activeTab === "users"      && <UsersTab />}
+        {activeTab === "affiliate"  && <AffiliateTab />}
+        {activeTab === "tree"       && <TreeTab />}
+        {activeTab === "monthly"    && <MonthlyTab />}
+        {activeTab === "cc_pending" && <CcPendingTab />}
       </div>
     </main>
   );
