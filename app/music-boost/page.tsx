@@ -183,7 +183,7 @@ export default function MusicBoostPage() {
         alert("決済ページの準備に失敗しました。時間をおいて再試行してください。");
         return;
       }
-      window.open(data.checkout_url, "_blank", "noopener,noreferrer");
+      window.location.href = data.checkout_url;
     } catch {
       alert("エラーが発生しました。再試行してください。");
     }

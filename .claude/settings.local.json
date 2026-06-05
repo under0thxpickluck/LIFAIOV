@@ -4,7 +4,21 @@
       "PowerShell(git clone *)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(git pull *)",
+      "Bash(xargs grep -l \"referral\\\\|ref_tree\")",
+      "Bash(xargs grep -l \"ref_name\\\\|refCode\\\\|ref_code\\\\|紹介\")",
+      "Bash(xargs grep -l \"href=\")",
+      "Bash(npx tsc *)",
+      "Bash(xargs grep -l \"dynamic\\\\|lazy\")",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(git -C C:/Users/unitu/lifaiov status)",
+      "Bash(git -C C:/Users/unitu/lifaiov diff --stat)",
+      "Bash(git *)",
+      "Bash(xargs grep -l \"finance\\\\|財務\")",
+      "Bash(grep -v \"^.*//.*delete\\\\|^.*//.*DELETE\")",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(npm run *)"
     ]
   }
 }

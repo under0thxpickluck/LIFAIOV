@@ -112,7 +112,7 @@ export default function MembershipPage() {
         console.error("[membership] create-checkout failed", data);
         return;
       }
-      window.open(data.checkout_url, "_blank", "noopener,noreferrer");
+      window.location.href = data.checkout_url;
     } catch (e) {
       console.error("[membership] create-checkout error", e);
       setMsg("エラーが発生しました。再試行してください。");

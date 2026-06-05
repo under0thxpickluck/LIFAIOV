@@ -7515,11 +7515,17 @@ function doPost(e) {
           "artist_name", "note",
           "agreed_terms_version", "agreed_at",
           "admin_memo",
-          "login_id", "payment_status", "payment_method", "paid_at"
+          "login_id", "payment_status", "payment_method", "paid_at",
+          "artist_name_kana", "artist_name_alpha",
+          "album_name", "album_name_kana", "album_name_alpha",
+          "song_titles", "artist_photo_url"
         ]);
       } else {
         var existingHeaders = narasuSheet.getRange(1, 1, 1, narasuSheet.getLastColumn()).getValues()[0].map(function(h) { return String(h); });
-        ["login_id", "payment_status", "payment_method", "paid_at"].forEach(function(col) {
+        ["login_id", "payment_status", "payment_method", "paid_at",
+         "artist_name_kana", "artist_name_alpha",
+         "album_name", "album_name_kana", "album_name_alpha",
+         "song_titles", "artist_photo_url"].forEach(function(col) {
           if (existingHeaders.indexOf(col) === -1) {
             narasuSheet.getRange(1, existingHeaders.length + 1).setValue(col);
             existingHeaders.push(col);
@@ -7546,7 +7552,14 @@ function doPost(e) {
         str_(body.login_id),
         "unpaid",
         "",
-        ""
+        "",
+        str_(body.artist_name_kana),
+        str_(body.artist_name_alpha),
+        str_(body.album_name),
+        str_(body.album_name_kana),
+        str_(body.album_name_alpha),
+        str_(body.song_titles),
+        str_(body.artist_photo_url)
       ]);
       Logger.log("[narasu_agency_submit] saved: " + requestId);
       return json_({ ok: true, requestId: requestId });

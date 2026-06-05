@@ -19,10 +19,10 @@ export type NarasuAgencyDraft = {
   lyricsText: string;
   jacketImageUrl: string;
   jacketNote: string;
+  artistPhotoUrl: string;
   artistName: string;
   artistNameKana: string;
   artistNameAlpha: string;
-  artistPhotoUrl: string;
   albumName: string;
   albumNameKana: string;
   albumNameAlpha: string;
