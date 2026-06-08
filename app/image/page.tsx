@@ -13,6 +13,7 @@ import ImageHistoryGrid from "@/components/image/ImageHistoryGrid";
 import ImageStylePicker from "@/components/image/ImageStylePicker";
 import ImageGenerateButton from "@/components/image/ImageGenerateButton";
 import ImageEditPanel from "@/components/image/ImageEditPanel";
+import ImageTutorialModal from "@/components/image/ImageTutorialModal";
 
 const MAX_SESSION = 10;
 const COOLDOWN_SEC = 20;
@@ -58,6 +59,7 @@ export default function ImagePage() {
 
   const [editResultUrl, setEditResultUrl] = useState<string | null>(null);
   const [editLoading, setEditLoading] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   const [sessionCount, setSessionCount] = useState(0);
   const [cooldownLeft, setCooldownLeft] = useState(0);
@@ -228,8 +230,16 @@ export default function ImagePage() {
             <h1 className="text-xl font-extrabold">AI 画像生成</h1>
             <p className="mt-1 text-xs text-[#A8B3CF]">会話しながらイメージを固めて画像を生成</p>
           </div>
-          <div className="rounded-full border border-white/10 bg-[#0d1a2e] px-4 py-1.5 text-xs font-bold text-[#EAF0FF]">
-            {balance} BP
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowTutorial(true)}
+              className="rounded-full border border-white/10 bg-[#0d1a2e] px-3 py-1.5 text-xs font-semibold text-[#A8B3CF] transition hover:bg-white/10 hover:text-[#EAF0FF]"
+            >
+              ？ 使い方
+            </button>
+            <div className="rounded-full border border-white/10 bg-[#0d1a2e] px-4 py-1.5 text-xs font-bold text-[#EAF0FF]">
+              {balance} BP
+            </div>
           </div>
         </div>
 
@@ -374,6 +384,7 @@ export default function ImagePage() {
           </div>
         )}
       </div>
+      <ImageTutorialModal open={showTutorial} onClose={() => setShowTutorial(false)} />
     </main>
   );
 }
