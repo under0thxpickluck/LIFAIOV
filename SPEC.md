@@ -7,6 +7,19 @@
 
 ---
 
+## ⚠️ 【絶対厳守】リポジトリ混合禁止
+
+> **これは LIFAIOV 専用リポジトリ（`lifaiov`）の仕様書です。`aisalon`（LIFAI 本家）と絶対に混合しないこと。**
+>
+> 何かを実装・移植する前に、必ずセクション 30「LIFAI本家 vs LIFAIOV 実装差分」を確認してから作業を開始すること。
+>
+> - OV 専用の変更（5000 メインフロー、`/login`→`/5000/login` リダイレクト、LINE URL 等）を本家に入れない
+> - 本家専用機能（Ultra Music Mode、`isUltraAdmin`、`lyricsOverride` 等）を OV に誤って追加しない
+> - 共通バグ修正は必ず両リポジトリに適用する
+> - 疑問があればコードを書く前に必ずユーザーに確認すること
+
+---
+
 ## 目次
 
 1. [プロジェクト概要](#1-プロジェクト概要)
@@ -38,6 +51,7 @@
 27. [管理者機能](#27-管理者機能)
 28. [セキュリティ設計](#28-セキュリティ設計)
 29. [データフロー図](#29-データフロー図)
+30. [LIFAI本家 vs LIFAIOV 実装差分](#30-lifai本家-vs-lifaiov-実装差分)
 
 ---
 
@@ -2372,3 +2386,157 @@ reward_ep  = floor(amount_jpy × rate_pct/100 × 4)  (ep_per_jpy)
 ---
 
 *この仕様書は `C:\Users\unitu\lifaiov` プロジェクトの全ファイルを解析して更新されました（2026-05-29）。*
+
+---
+
+## 30. LIFAI本家 vs LIFAIOV 実装差分
+
+> ⚠️ **実装・移植前に必読。このセクションを確認してからコードを書くこと。**
+
+---
+
+### 30-1. リポジトリ識別
+
+| 項目 | LIFAIOV（`lifaiov`） | LIFAI本家（`aisalon`） |
+|---|---|---|
+| 用途 | OV向けサブセット（5000プログラム特化） | メインサロン全機能 |
+| 購入フロー入口 | `/5000`（middleware で `/purchase` → `/5000` にリダイレクト） | `/purchase` → NOWPayments |
+| ログイン入口 | `/5000/login`（middleware で `/login` → リダイレクト） | `/login` |
+| LINE 問い合わせ URL | `https://lin.ee/TZcMW09`（ページにハードコード） | aisalon 設定に準拠 |
+| Ultra Music Mode | **なし** | **あり**（管理者限定） |
+
+---
+
+### 30-2. LIFAIOV（lifaiov）にしかない機能・挙動
+
+#### `/5000/*` — メイン購入フロー
+
+lifaiov では `/5000` が購入の入口。aisalon の `/5000` は「5000プログラム」という別サービスLP（役割が全く異なる）。
+
+#### `middleware.ts` — OV専用リダイレクト
+
+```typescript
+// lifaiov のみ存在するリダイレクトルール
+// /login         → /5000/login
+// /purchase      → /5000
+// /purchase/jam  → /5000
+```
+
+aisalon の `middleware.ts` にはこれらのリダイレクトが**一切存在しない**。
+
+#### `/admin/finance/*` — 財務ゲートウェイ（lifaiov 専用）
+
+lifaiov の管理画面には財務管理機能が含まれる（aisalon には存在しない）。
+
+#### LINE URL のハードコード
+
+lifaiov の以下のファイルに `https://lin.ee/TZcMW09` がハードコードされている:
+
+- `app/page.tsx` — お問い合わせボタン
+- `app/tokushoho/page.tsx` — 特定商取引法ページ
+- `app/privacy/page.tsx` — プライバシーポリシーページ
+
+aisalon ではこの URL は使用しない（異なる URL が使われている）。
+
+#### `app/page.tsx` — メインCTA
+
+lifaiov の「権利購入」リンク先は `/5000`。aisalon では `/purchase`。
+
+---
+
+### 30-3. 本家（aisalon）にしかない機能
+
+#### Ultra Music Mode
+
+aisalon の `app/music2/page.tsx` の第3モード。`ULTRA_ADMIN_LOGINS` に含まれる管理者のみアクセス可。**lifaiov には存在しない。移植・追加しないこと。**
+
+| 要素 | 詳細 |
+|---|---|
+| BP消費 | 300 BP（`BP_COSTS.music_ultra`） |
+| 歌詞持込 | `userLyrics` → `lyricsOverride` でGASをバイパスしてそのまま使用 |
+| ボーカルタイプ | 女性 / 男性 / 混声 / なし（ElevenLabs プロンプト制御） |
+| アクセス制御 | `ULTRA_ADMIN_LOGINS` env var（カンマ区切り loginId リスト） |
+
+**aisalon のみに存在するファイル差分:**
+
+| ファイル | aisalon専用の内容 |
+|---|---|
+| `app/music2/page.tsx` | Ultraタブ、`handleUltraStart`、ULTRA SETTINGS セクション、300BP表示 |
+| `app/lib/bp-config.ts` | `music_ultra: 300` |
+| `app/api/me/route.ts` | `isUltraAdmin`、`ep_notification` フィールド |
+| `app/api/song/start/route.ts` | `isUltra`, `userLyrics` パラメータ |
+| `app/api/song/approve-structure/route.ts` | `lyricsOverride` パラメータ + GAS永続化 |
+
+#### `ULTRA_ADMIN_LOGINS` 環境変数
+
+aisalon `.env.local` にのみ必要。lifaiov には**不要**。
+
+```env
+ULTRA_ADMIN_LOGINS=loginId1,loginId2
+```
+
+---
+
+### 30-4. 共通だが実装が異なるファイル
+
+#### `app/music2/page.tsx`
+
+| 要素 | lifaiov | aisalon |
+|---|---|---|
+| 生成モード数 | 2（Standard / Pro） | 3（Standard / Pro / **Ultra**） |
+| Ultraタブ UI | **なし** | あり |
+| BP表示（Step 3） | `isProSettingsActive ? 250 : 100` | `isUltraMode ? 300 : isProSettingsActive ? 250 : 100` |
+| 通常ボーカルタイプ表示条件 | `!isBgmMode && !isPro` | `!isBgmMode && !isUltraMode && !isPro` |
+
+#### `app/api/me/route.ts`
+
+| フィールド | lifaiov | aisalon |
+|---|---|---|
+| `isUltraAdmin` | **なし** | あり（`ULTRA_ADMIN_LOGINS` から算出） |
+| `ep_notification` | **なし** | あり |
+
+#### `app/api/song/start/route.ts`
+
+| パラメータ | lifaiov | aisalon |
+|---|---|---|
+| `isUltra` | **なし** | あり |
+| `userLyrics` | **なし** | あり |
+
+#### `app/api/song/approve-structure/route.ts`
+
+| 機能 | lifaiov | aisalon |
+|---|---|---|
+| `lyricsOverride` パラメータ | **なし** | あり（GAS永続化あり） |
+| `isManualLyrics` ASRガード | あり（同一実装） | あり（同一実装） |
+| `bpFinal` = `bpLocked` 修正 | あり（同一実装） | あり（同一実装） |
+
+#### `app/lib/bp-config.ts`
+
+| 定数 | lifaiov | aisalon |
+|---|---|---|
+| `music_ultra: 300` | **なし** | あり |
+
+#### `middleware.ts`
+
+| ルール | lifaiov | aisalon |
+|---|---|---|
+| `/admin/*` Basic Auth | あり | あり |
+| `/api/admin/*` Basic Auth | あり | あり |
+| `/5000/admin/*` Basic Auth | あり | あり |
+| `/api/5000/admin/*` Basic Auth | あり | あり |
+| `/login` → `/5000/login` リダイレクト | **あり** | **なし** |
+| `/purchase` → `/5000` リダイレクト | **あり** | **なし** |
+
+---
+
+### 30-5. 実装時チェックリスト
+
+何かを実装する前に以下を確認すること:
+
+- [ ] 作業リポジトリが `lifaiov`（OV）であることを確認した
+- [ ] 実装する機能が「OV専用」「本家専用」「共通」のどれか確認した
+- [ ] OV 専用の変更（5000フロー・リダイレクト・LINE URL `lin.ee/TZcMW09`）は lifaiov のみに適用した
+- [ ] Ultra Mode 関連（`isUltraAdmin`、`lyricsOverride`、`music_ultra` 等）は lifaiov に追加しない
+- [ ] 共通バグ修正（`isManualLyrics` ガード、`bpFinal`修正等）は両リポジトリに適用した
+- [ ] `middleware.ts` を変更する場合、lifaiov には OV 専用リダイレクトがあることを把握した
+- [ ] `app/api/me/route.ts` を変更する場合、lifaiov には `isUltraAdmin` がなく aisalon にあることを把握した
