@@ -67,9 +67,16 @@ async function generateAudioAttempt(
   }
 
   // ── Phase 1: ElevenLabs 音声生成 ────────────────────────────────────────────
+  console.log(`[Job ${jobId}][attempt${attemptNum}] singableLyrics from GAS: ${singableLyrics ? `${singableLyrics.length}chars → "${singableLyrics.slice(0, 80).replace(/\n/g, "\\n")}"` : "EMPTY/UNDEFINED ← 歌詞がGASから返ってきていない"}`);
+  console.log(`[Job ${jobId}][attempt${attemptNum}] prompt.vocalStyle: ${prompt.vocalStyle ?? "(none)"}, prompt.isPro: ${isPro}`);
+
   let audioBuffer: ArrayBuffer;
   try {
     const hasSingable = !!(singableLyrics && singableLyrics.trim().length > 0);
+    const vocalStyle = prompt.vocalStyle;
+    const vocalMode: "vocal" | "instrumental" =
+      vocalStyle === "ボーカルなし" ? "instrumental" : "vocal";
+
     const input: MusicGenerateInput = {
       prompt:            prompt.theme ?? prompt.genre ?? "",
       genre:             prompt.genre,
@@ -80,7 +87,8 @@ async function generateAudioAttempt(
       lyricsMode:        hasSingable ? "manual" : "auto",
       language:          prompt.language ?? "ja",
       durationTargetSec: isPro ? 180 : 150,
-      vocalMode:         "vocal",
+      vocalMode,
+      vocalStyle,
       structurePreset:   chooseStructurePreset(prompt.mood, isPro),
       moodTags:          prompt.moodTags ?? [],
       isPro,
@@ -263,15 +271,21 @@ async function runAsrAndQuality(
 
     console.log(`[merge][jobId=${jobId}] final_display source=${mergeResult.lyricsSource} len=${mergeResult.displayLyrics.length} preview=${mergeResult.displayLyrics.slice(0, 120)}`);
 
+    // manual歌詞の場合はユーザー提供歌詞を保持し、ASRでの上書きをしない
+    const isManualLyrics = job.lyricsSource === "manual";
+    if (isManualLyrics) {
+      console.log(`[Job ${jobId}][asr] lyricsSource=manual: skipping displayLyrics overwrite to preserve user lyrics`);
+    }
+
     await updateJob(jobId, {
       lyricsMatchScore:     compareResult.score,
       lyricsDiffJson:       compareResult.diffJson,
-      displayLyrics:        mergeResult.displayLyrics,
-      distributionLyrics:   mergeResult.distributionLyrics,
+      displayLyrics:        isManualLyrics ? (singable || mergeResult.displayLyrics) : mergeResult.displayLyrics,
+      distributionLyrics:   isManualLyrics ? (singable || mergeResult.distributionLyrics) : mergeResult.distributionLyrics,
       mergedLyrics:         mergeResult.mergedLyrics,
-      lyricsReviewRequired: gateResult.reviewRequired,
-      distributionReady:    gateResult.distributionReady,
-      lyricsSource:         mergeResult.lyricsSource,
+      lyricsReviewRequired: isManualLyrics ? false : gateResult.reviewRequired,
+      distributionReady:    isManualLyrics ? true  : gateResult.distributionReady,
+      lyricsSource:         isManualLyrics ? "manual" : mergeResult.lyricsSource,
       lyricsGateResult:     gateResult.gate,
       lyricsQualityScore:   qualityResult.lyricsQualityScore,
       repeatScore:          repeatResult.repeatScore,
@@ -429,7 +443,7 @@ async function runAudioPipeline(job: SongJob, apiKey: string): Promise<void> {
       status:      finalStatus,
       audioUrl:    usedFinalUrl,
       downloadUrl: usedFinalUrl,
-      bpFinal:     BP_COSTS.music_full,
+      bpFinal:     currentJob?.bpLocked ?? BP_COSTS.music_full,
       rightsLog:   updatedRightsLog,
     });
     console.log(`[Job ${jobId}] ${finalStatus} (gate=${finalGate}) with final: ${usedFinalUrl}`);
@@ -443,7 +457,7 @@ async function runAudioPipeline(job: SongJob, apiKey: string): Promise<void> {
       status:      finalStatus,
       audioUrl:    audioFinalUrl,
       downloadUrl: audioFinalUrl,
-      bpFinal:     BP_COSTS.music_full,
+      bpFinal:     currentJob?.bpLocked ?? BP_COSTS.music_full,
       rightsLog:   updatedRightsLog,
     });
     console.log(`[Job ${jobId}] ${finalStatus} (gate=${finalGate}) with raw fallback (${fallbackReason}): ${audioFinalUrl}`);

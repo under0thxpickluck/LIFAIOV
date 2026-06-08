@@ -577,7 +577,7 @@ export default function Music2Page() {
         body:    JSON.stringify({
           id, code, theme: theme.trim(), genre, mood: moodStr, isPro,
           bpmHint:     isPro && bpmHint                 ? bpmHint     : undefined,
-          vocalStyle:  isPro && vocalStyle               ? vocalStyle  : undefined,
+          vocalStyle:  vocalStyle                        || undefined,
           vocalMood:   isPro && vocalMood                ? vocalMood   : undefined,
           instruments: isPro && instruments.length > 0  ? instruments : undefined,
           duration:    isPro && duration                 ? duration    : undefined,
@@ -1093,6 +1093,26 @@ export default function Music2Page() {
                   {!isPro && (
                     <p className="mt-3 text-[10px] text-slate-400">シームレスループ対応BGM（約45秒生成、ブラウザでループ再生）</p>
                   )}
+                </div>
+              )}
+
+              {/* ボーカルタイプ（通常Songモード、非Proのみ。Proは下のPRO SETTINGSに含まれる） */}
+              {!isBgmMode && !isPro && (
+                <div className="mt-5">
+                  <label className="block text-xs font-bold text-slate-700">ボーカルタイプ</label>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {VOCAL_STYLES.map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        disabled={loading}
+                        onClick={() => setVocalStyle(vocalStyle === v ? "" : v)}
+                        className={[chipBase, vocalStyle === v ? chipActive : chipInactive, "disabled:cursor-not-allowed disabled:opacity-50"].join(" ")}
+                      >
+                        {v}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 

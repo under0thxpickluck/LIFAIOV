@@ -11,6 +11,7 @@ export type MusicGenerateInput = {
   language?: string
   durationTargetSec?: number
   vocalMode?: "vocal" | "instrumental"
+  vocalStyle?: string            // "女性ボーカル" | "男性ボーカル" | "混声" | "ボーカルなし"
   structurePreset?: string
   moodTags?: string[]
   genre?: string
@@ -35,6 +36,22 @@ export interface MusicProvider {
   generateMusic(input: MusicGenerateInput): Promise<MusicGenerateResult>
 }
 
+function getVocalPromptPart(vocalStyle?: string, language = "ja"): string {
+  switch (vocalStyle) {
+    case "男性ボーカル":
+      return "male vocalist, warm baritone voice, clear male singing, masculine tone, expressive delivery"
+    case "混声":
+      return "mixed vocals, male and female duet, harmonized singing, call and response"
+    case "ボーカルなし":
+      return ""
+    case "女性ボーカル":
+    default:
+      return language === "ja"
+        ? "vocal song, Asian female vocal, warm and natural voice, melodic singing style"
+        : "vocal song, human-like singing, warm and natural voice"
+  }
+}
+
 export function buildElevenLabsPrompt(input: MusicGenerateInput): string {
   const parts: string[] = []
 
@@ -43,11 +60,8 @@ export function buildElevenLabsPrompt(input: MusicGenerateInput): string {
   if (input.prompt) parts.push(input.prompt)
 
   if (input.vocalMode === "vocal") {
-    // 日本語: 言語名を直接書かず、アジア系ボーカルスタイルで指定
-    const vocalStyle = input.language === "ja"
-      ? "vocal song, Asian female vocal, warm and natural voice, melodic singing style"
-      : "vocal song, human-like singing, warm and natural voice"
-    parts.push(vocalStyle)
+    const vocalPart = getVocalPromptPart(input.vocalStyle, input.language)
+    if (vocalPart) parts.push(vocalPart)
   } else {
     parts.push("instrumental, no vocals")
   }
@@ -126,12 +140,13 @@ export function buildElevenLabsProPrompt(input: MusicGenerateInput): string {
   // テーマ
   if (input.prompt) parts.push(input.prompt)
 
-  // ボーカル（詳細指定）
-  parts.push(
-    "professional Japanese female vocalist, clear and expressive singing, " +
-    "warm timbre, precise intonation, emotional delivery with natural vibrato, " +
-    "studio vocal recording quality"
-  )
+  // ボーカル（vocalStyle に応じて切り替え）
+  if (input.vocalMode !== "instrumental") {
+    const vocalPart = getVocalPromptPart(input.vocalStyle, input.language)
+    if (vocalPart) {
+      parts.push(vocalPart + ", clear and expressive singing, precise intonation, studio vocal recording quality")
+    }
+  }
 
   // BPM・Key
   if (input.bpm) parts.push(`${input.bpm} BPM, precise tempo`)
@@ -211,9 +226,12 @@ export class ElevenLabsProvider implements MusicProvider {
     const durationSec = input.durationTargetSec ?? (input.isPro ? 180 : 165)
 
     console.log(`[ElevenLabs] Starting music generation`, {
-      promptLength: prompt.length,
+      promptLength:  prompt.length,
       durationSec,
-      vocalMode: input.vocalMode,
+      vocalMode:     input.vocalMode,
+      vocalStyle:    input.vocalStyle ?? "(none)",
+      lyricsLength:  input.lyrics?.length ?? 0,
+      lyricsPreview: input.lyrics ? `"${input.lyrics.slice(0, 60).replace(/\n/g, "\\n")}"` : "none (auto-generated)",
     })
 
     const res = await fetch("https://api.elevenlabs.io/v1/music?output_format=pcm_44100", {
