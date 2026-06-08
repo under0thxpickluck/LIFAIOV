@@ -89,7 +89,7 @@ export default function PrivacyPage() {
               <p>
                 公式LINE：
                 <a
-                  href="https://lin.ee/ERKwqcj"
+                  href="https://lin.ee/TZcMW09"
                   target="_blank"
                   rel="noreferrer"
                   className="ml-1 underline text-indigo-600 hover:text-indigo-500"

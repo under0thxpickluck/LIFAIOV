@@ -158,7 +158,7 @@ export default function HomePage() {
             {/* お問い合わせボタン */}
             <div className="sm:pl-4">
               <a
-                href="https://lin.ee/ERKwqcj"
+                href="https://lin.ee/TZcMW09"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 transition"
