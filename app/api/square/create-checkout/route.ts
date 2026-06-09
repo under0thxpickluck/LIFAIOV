@@ -55,7 +55,7 @@ export async function POST(req: Request) {
           quantity: "1",
           base_price_money: {
             amount: Number(price_cents),
-            currency: "USD",
+            currency: "JPY",
           },
         },
       ],

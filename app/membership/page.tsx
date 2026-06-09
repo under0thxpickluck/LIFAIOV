@@ -26,11 +26,11 @@ const PLAN_BP_CAP: Record<string, number> = {
 };
 
 const BP_PACKS = [
-  { id: "s",   label: "S",   price: 7.5,  bp: 500,   tag: null,      color: "border-white/10",    squareUrl: "https://square.link/u/psdQz6zG" },
-  { id: "m",   label: "M",   price: 15,   bp: 1200,  tag: null,      color: "border-white/10",    squareUrl: "https://square.link/u/Pqma4c0e" },
-  { id: "l",   label: "L",   price: 30,   bp: 2600,  tag: null,      color: "border-white/10",    squareUrl: "https://square.link/u/t9rI14uZ" },
-  { id: "xl",  label: "XL",  price: 75,   bp: 7000,  tag: "おすすめ",  color: "border-purple-500",  squareUrl: "https://square.link/u/V5rWWucX" },
-  { id: "xxl", label: "XXL", price: 150,  bp: 16000, tag: "最大効率", color: "border-yellow-500",  squareUrl: "https://square.link/u/xjZ3lkH4" },
+  { id: "s",   label: "S",   price: 1200,  bp: 500,   tag: null,      color: "border-white/10",    squareUrl: "https://square.link/u/psdQz6zG" },
+  { id: "m",   label: "M",   price: 2400,  bp: 1200,  tag: null,      color: "border-white/10",    squareUrl: "https://square.link/u/Pqma4c0e" },
+  { id: "l",   label: "L",   price: 4800,  bp: 2600,  tag: null,      color: "border-white/10",    squareUrl: "https://square.link/u/t9rI14uZ" },
+  { id: "xl",  label: "XL",  price: 12000, bp: 7000,  tag: "おすすめ",  color: "border-purple-500",  squareUrl: "https://square.link/u/V5rWWucX" },
+  { id: "xxl", label: "XXL", price: 24000, bp: 16000, tag: "最大効率", color: "border-yellow-500",  squareUrl: "https://square.link/u/xjZ3lkH4" },
 ];
 
 type MemberStatus = {
@@ -84,7 +84,7 @@ export default function MembershipPage() {
   }, [userId]);
 
   const handlePurchase = async (pack: typeof BP_PACKS[0]) => {
-    setMsg(`🔒 現在BPパック購入は準備中です（${pack.label}パック / $${pack.price}`);
+    setMsg(`🔒 現在BPパック購入は準備中です（${pack.label}パック / ¥${pack.price.toLocaleString()}`);
   };
 
   const handleSquarePurchase = async (pack: typeof BP_PACKS[0]) => {
@@ -102,7 +102,7 @@ export default function MembershipPage() {
           user_id: userId,
           pack_id: pack.id,
           bp_amount: pack.bp,
-          price_cents: Math.round(pack.price * 100), // $7.5 → 750 cents
+          price_cents: pack.price, // JPY amount (no cents conversion needed)
           label: `${pack.label}パック - ${pack.bp.toLocaleString()}BP`,
         }),
       });
@@ -249,7 +249,7 @@ export default function MembershipPage() {
                   <p className="text-sm text-white/60 mt-0.5">{pack.label}パック</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-lg">${pack.price}</p>
+                  <p className="font-bold text-lg">¥{pack.price.toLocaleString()}</p>
                   <button
                     onClick={() => handleSquarePurchase(pack)}
                     disabled={busy}
