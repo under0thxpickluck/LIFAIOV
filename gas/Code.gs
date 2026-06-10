@@ -12786,6 +12786,7 @@ function epSendToLfw_(key, body) {
       "deposit_id", "from_login_id", "lfw_address", "amount", "status", "created_at"
     ]);
 
+    var nowIso = new Date().toISOString();
     var depositId = "LFW-DEP-" + Utilities.getUuid().replace(/-/g, "").substring(0, 12).toUpperCase();
     depSheet.appendRow([
       depositId,
@@ -12793,8 +12794,24 @@ function epSendToLfw_(key, body) {
       lfwAddress,
       amount,
       "pending",
-      new Date().toISOString(),
+      nowIso,
     ]);
+
+    // gift_transactions にも記録（履歴ページに「贈った」として表示するため）
+    try {
+      var txSheet = giftGetSheet_(ss, "gift_transactions");
+      txSheet.appendRow([
+        depositId,
+        user.login_id,
+        lfwAddress,
+        amount,
+        nowIso,
+        "",
+        "completed",
+        "Lootify EP送金",
+        "",
+      ]);
+    } catch(e) {}
 
     return {
       ok: true,
