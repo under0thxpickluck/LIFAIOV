@@ -5,14 +5,14 @@ function clamp(n: number, min: number, max: number) {
 }
 
 export function calcImageCost(state: ImageChatState): ImagePreviewCost {
-  const base = 20;
-  const turn = (state.turns || 0) * 5;
-  const text = Math.ceil((state.textLength || 0) / 120) * 5;
-  const style = state.style ? 10 : 0;
-  const hq = state.hq ? 20 : 0;
-  const edit = state.edit ? 30 : 0;
+  const base = 60;
+  const turn = (state.turns || 0) * 15;
+  const text = Math.ceil((state.textLength || 0) / 120) * 15;
+  const style = state.style ? 30 : 0;
+  const hq = state.hq ? 60 : 0;
+  const edit = state.edit ? 90 : 0;
 
-  const totalBp = clamp(base + turn + text + style + hq + edit, 50, 150);
+  const totalBp = clamp(base + turn + text + style + hq + edit, 150, 450);
 
   return {
     totalBp,

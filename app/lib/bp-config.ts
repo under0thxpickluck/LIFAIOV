@@ -1,17 +1,17 @@
 export const BP_COSTS = {
   // 音楽生成
-  music_lyrics:     10,  // 歌詞生成
-  music_structure:   5,  // 構成生成
-  music_bgm:        80,  // BGM生成
-  music_bgm_pro:   150,  // BGM生成（Pro）
-  music_full:      100,  // フル生成（構成+音楽）
-  music_full_pro:  250,  // Pro設定使用時のフル生成
+  music_lyrics:     30,  // 歌詞生成
+  music_structure:  15,  // 構成生成
+  music_bgm:       240,  // BGM生成
+  music_bgm_pro:   450,  // BGM生成（Pro）
+  music_full:      300,  // フル生成（構成+音楽）
+  music_full_pro:  750,  // Pro設定使用時のフル生成
 
   // note記事生成
-  note_title:        3,  // タイトル生成
-  note_structure:    5,  // 構成生成
-  note_body:        15,  // 本文生成
-  note_full:       150,  // フル生成（企画〜本文 一括）
+  note_title:        6,  // タイトル生成
+  note_structure:   10,  // 構成生成
+  note_body:        30,  // 本文生成
+  note_full:       300,  // フル生成（企画〜本文 一括）
 
   // ワークフロー生成
   workflow_template: 20, // テンプレ生成
@@ -24,16 +24,16 @@ export const BP_COSTS = {
   app_full:         60,  // フル生成
 
   // AIチャット
-  chat_message:      2,  // リファ猫チャット1返信
+  chat_message:      6,  // リファ猫チャット1返信
 
   // 占い
   fortune_daily:     2,  // 今日占い
   fortune_match:     5,  // 相性占い
 
   // マーケット
-  market_list:      10,  // 出品
+  market_list:     100,  // 出品
   market_buy:        0,  // 購入
-  market_boost:     20,  // 広告ブースト
+  market_boost:    200,  // 広告ブースト
 } as const;
 
 export type BpCostKey = keyof typeof BP_COSTS;

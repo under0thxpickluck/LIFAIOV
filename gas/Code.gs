@@ -3017,12 +3017,12 @@ function handle_(key, body) {
     }
 
     const PRIZES  = [5,   10,  20,  40,   80,  150,  300,   600,   1000,  5000,  20000];
-    const WEIGHTS = [28,  24,  18,  12,   8,   5,    3,     0.80,  1.00,  0.18,  0.02 ];
+    const WEIGHTS = [28,  24,  18,  12,   8,   5,    0.80,  0.20,  0.10,  0.02,  0.002];
     const RARITY  = ["common","common","common","common","uncommon","uncommon","rare","epic","legendary","mythic","god"];
 
     function spinOnce(streakIn, countIn, forceGood) {
       if (countIn >= 100) {
-        const godP = [1000,5000,20000], godW = [70,25,5];
+        const godP = [1000,5000,20000], godW = [74,25,1];
         let r2 = Math.random()*100, c2 = 0, p = 1000;
         for (let g=0;g<godP.length;g++){c2+=godW[g];if(r2<c2){p=godP[g];break;}}
         return {prize_bp:p, rarity: p>=20000?"god":p>=5000?"mythic":"legendary"};

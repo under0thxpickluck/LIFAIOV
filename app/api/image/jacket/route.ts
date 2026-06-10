@@ -5,7 +5,7 @@ export const maxDuration = 60;
 
 const GAS_URL = process.env.GAS_WEBAPP_URL ?? "";
 const GAS_KEY = process.env.GAS_API_KEY ?? "";
-const JACKET_BP = Number(process.env.IMAGE_JACKET_BP ?? 100);
+const JACKET_BP = Number(process.env.IMAGE_JACKET_BP ?? 300);
 
 async function gasPost(action: string, body: Record<string, unknown>) {
   const url = `${GAS_URL}${GAS_URL.includes("?") ? "&" : "?"}key=${encodeURIComponent(GAS_KEY)}`;
