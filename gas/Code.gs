@@ -7604,6 +7604,8 @@ function doPost(e) {
       return json_({ ok: false, error: String(e) });
     }
   }
+    if (action === 'ep_send_to_lfw')    return json_(epSendToLfw_(key, body));
+    if (action === 'check_lfw_deposit') return json_(checkLfwDeposit_(key, body));
     return handle_(key, body);
   } catch (err) {
     return json_({ ok: false, error: String(err) });
@@ -12740,5 +12742,105 @@ function ensureAllAppliesColumns() {
 
   ensureCols_(sheet, header, ALL_COLUMNS);
   Logger.log("appliesカラム整備完了: " + sheet.getLastColumn() + "列");
+}
+
+// ============================================================
+// LFW Deposit System（LootifyとのEP連携）
+// ============================================================
+
+function epSendToLfw_(key, body) {
+  var secrets = getSecrets_();
+  if (key !== secrets.SECRET) return { ok: false, error: "unauthorized" };
+
+  var id = str_(body.id);
+  var code = str_(body.code);
+  if (!id || !code) return { ok: false, error: "missing_auth" };
+
+  var lfwAddress = str_(body.lfw_address);
+  var amount = num_(body.amount);
+
+  if (!lfwAddress || !/^LFW-[A-Z0-9]{6}$/.test(lfwAddress)) {
+    return { ok: false, error: "invalid_lfw_address" };
+  }
+  if (amount < 1) return { ok: false, error: "amount_must_be_positive" };
+
+  var user = mktAuth_(secrets.SECRET, id, code);
+  if (!user.ok) return { ok: false, error: "auth_failed", reason: user.reason };
+
+  var lock = LockService.getScriptLock();
+  try { lock.waitLock(8000); } catch(e) { return { ok: false, error: "lock_timeout" }; }
+
+  try {
+    var senderData = mktGetUserByLoginId_(user.login_id);
+    if (!senderData || senderData.ep_balance < amount) {
+      return { ok: false, error: "insufficient_ep", ep_balance: senderData ? senderData.ep_balance : 0 };
+    }
+
+    var debitResult = mktAdjustEp_(user.login_id, user.email, -amount, "lfw_send", "to=" + lfwAddress);
+    if (!debitResult || !debitResult.ok) {
+      return { ok: false, error: "ep_debit_failed" };
+    }
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var depSheet = getOrCreateSheetByName_(ss, "lfw_deposits", [
+      "deposit_id", "from_login_id", "lfw_address", "amount", "status", "created_at"
+    ]);
+
+    var depositId = "LFW-DEP-" + Utilities.getUuid().replace(/-/g, "").substring(0, 12).toUpperCase();
+    depSheet.appendRow([
+      depositId,
+      user.login_id,
+      lfwAddress,
+      amount,
+      "pending",
+      new Date().toISOString(),
+    ]);
+
+    return {
+      ok: true,
+      deposit_id: depositId,
+      lfw_address: lfwAddress,
+      amount: amount,
+      ep_balance: debitResult.new_balance,
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function checkLfwDeposit_(key, body) {
+  var secrets = getSecrets_();
+  if (key !== secrets.SECRET) return { ok: false, error: "unauthorized" };
+
+  var lfwAddress = str_(body.lfw_address);
+  if (!lfwAddress) return { ok: false, error: "missing_lfw_address" };
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var depSheet = ss.getSheetByName("lfw_deposits");
+  if (!depSheet) return { ok: true, deposits: [] };
+
+  var values = depSheet.getDataRange().getValues();
+  if (values.length < 2) return { ok: true, deposits: [] };
+
+  var header = values[0];
+  var idx = indexMap_(header);
+  var minAmount = num_(body.min_amount || 0);
+
+  var deposits = [];
+  for (var i = 1; i < values.length; i++) {
+    var row = values[i];
+    if (str_(row[idx["lfw_address"]]) !== lfwAddress) continue;
+    var dep = {
+      deposit_id: str_(row[idx["deposit_id"]]),
+      from_login_id: str_(row[idx["from_login_id"]]),
+      amount: num_(row[idx["amount"]]),
+      status: str_(row[idx["status"]]),
+      created_at: str_(row[idx["created_at"]]),
+    };
+    if (minAmount > 0 && dep.amount < minAmount) continue;
+    deposits.push(dep);
+  }
+
+  return { ok: true, deposits: deposits };
 }
 

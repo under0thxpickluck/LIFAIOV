@@ -6,6 +6,8 @@ import { getAuth, getAuthSecret } from "@/app/lib/auth";
 
 type Step = "input" | "confirm" | "done";
 
+const LFW_PATTERN = /^LFW-[A-Z0-9]{6}$/;
+
 export default function GiftSendPage() {
   const router = useRouter();
   const [myId, setMyId] = useState("");
@@ -22,6 +24,7 @@ export default function GiftSendPage() {
   const [error, setError] = useState("");
   const [resultGiftId, setResultGiftId] = useState("");
   const [resultExpiry, setResultExpiry] = useState("");
+
 
   useEffect(() => {
     const auth = getAuth();
@@ -53,27 +56,51 @@ export default function GiftSendPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/gift/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: myId, code: myCode, to_user: toUser.trim(), amount: Number(amount), note }),
-      });
-      const data = await res.json().catch(() => ({ ok: false }));
-      if (!data.ok) {
-        const errMap: Record<string, string> = {
-          cannot_send_to_self: "自分自身へは送れません",
-          insufficient_ep: `EP残高が不足しています（残高: ${data.ep_balance ?? "?"}EP）`,
-          exceeds_single_limit: `1回の上限は${(data.limit ?? 10000).toLocaleString()}EPです`,
-          exceeds_monthly_limit: `月間上限（${(data.limit ?? 50000).toLocaleString()}EP）を超えています（今月送信済み: ${(data.used ?? 0).toLocaleString()}EP）`,
-          to_user_not_found: "送信先のユーザーIDが見つかりません",
-          auth_failed: "認証エラーが発生しました",
-        };
-        setError(errMap[data.error] || data.error || "送信に失敗しました");
-        setStep("input");
-        return;
+      const destination = toUser.trim().toUpperCase();
+      const sendingToLfw = LFW_PATTERN.test(destination);
+
+      if (sendingToLfw) {
+        const res = await fetch("/api/ep/send-to-lfw", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: myId, code: myCode, lfw_address: destination, amount: Number(amount) }),
+        });
+        const data = await res.json().catch(() => ({ ok: false }));
+        if (!data.ok) {
+          const errMap: Record<string, string> = {
+            insufficient_ep: `EP残高が不足しています（残高: ${data.ep_balance ?? "?"}EP）`,
+            auth_failed: "認証エラーが発生しました",
+            invalid_lfw_address: "LFWアドレスの形式が正しくありません",
+          };
+          setError(errMap[data.error] || data.error || "送信に失敗しました");
+          setStep("input");
+          return;
+        }
+        setResultGiftId(data.deposit_id);
+        setResultExpiry("");
+      } else {
+        const res = await fetch("/api/gift/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: myId, code: myCode, to_user: toUser.trim(), amount: Number(amount), note }),
+        });
+        const data = await res.json().catch(() => ({ ok: false }));
+        if (!data.ok) {
+          const errMap: Record<string, string> = {
+            cannot_send_to_self: "自分自身へは送れません",
+            insufficient_ep: `EP残高が不足しています（残高: ${data.ep_balance ?? "?"}EP）`,
+            exceeds_single_limit: `1回の上限は${(data.limit ?? 10000).toLocaleString()}EPです`,
+            exceeds_monthly_limit: `月間上限（${(data.limit ?? 50000).toLocaleString()}EP）を超えています（今月送信済み: ${(data.used ?? 0).toLocaleString()}EP）`,
+            to_user_not_found: "送信先のユーザーIDが見つかりません",
+            auth_failed: "認証エラーが発生しました",
+          };
+          setError(errMap[data.error] || data.error || "送信に失敗しました");
+          setStep("input");
+          return;
+        }
+        setResultGiftId(data.gift_id);
+        setResultExpiry(data.expiry_date);
       }
-      setResultGiftId(data.gift_id);
-      setResultExpiry(data.expiry_date);
       setStep("done");
     } catch (e) {
       setError("通信エラーが発生しました");
@@ -109,7 +136,7 @@ export default function GiftSendPage() {
                 {Number(amount).toLocaleString()} GiftEP → {toUser}
               </p>
               <p style={{ fontSize: 11, color: "rgba(234,240,255,0.35)", marginBottom: 24 }}>
-                有効期限: {resultExpiry}
+                {resultExpiry ? `有効期限: ${resultExpiry}` : ""}
               </p>
               <Link href="/gift" style={{ display: "inline-block", borderRadius: 16,
                 background: "linear-gradient(90deg,#6366F1,#A78BFA)", padding: "12px 32px",
