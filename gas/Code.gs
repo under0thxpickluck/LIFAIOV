@@ -7606,6 +7606,7 @@ function doPost(e) {
   }
     if (action === 'ep_send_to_lfw')    return json_(epSendToLfw_(key, body));
     if (action === 'check_lfw_deposit') return json_(checkLfwDeposit_(key, body));
+    if (action === 'consume_lfw_deposits') return json_(consumeLfwDeposits_(key, body));
     return handle_(key, body);
   } catch (err) {
     return json_({ ok: false, error: String(err) });
@@ -12853,6 +12854,7 @@ function checkLfwDeposit_(key, body) {
       amount: num_(row[idx["amount"]]),
       status: str_(row[idx["status"]]),
       created_at: str_(row[idx["created_at"]]),
+      consumed_by: idx["consumed_by"] !== undefined ? str_(row[idx["consumed_by"]]) : "",
     };
     if (minAmount > 0 && dep.amount < minAmount) continue;
     deposits.push(dep);
@@ -12861,3 +12863,45 @@ function checkLfwDeposit_(key, body) {
   return { ok: true, deposits: deposits };
 }
 
+function consumeLfwDeposits_(key, body) {
+  var secrets = getSecrets_();
+  if (key !== secrets.SECRET) return { ok: false, error: "unauthorized" };
+
+  var lfwAddress = str_(body.lfw_address);
+  var consumedBy = str_(body.consumed_by);
+  var depositIds = Array.isArray(body.deposit_ids) ? body.deposit_ids.map(str_) : [];
+  if (!lfwAddress || !consumedBy || depositIds.length === 0) {
+    return { ok: false, error: "missing_fields" };
+  }
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var depSheet = ss.getSheetByName("lfw_deposits");
+    if (!depSheet) return { ok: false, error: "no_deposit_sheet" };
+
+    var values = depSheet.getDataRange().getValues();
+    if (values.length < 2) return { ok: false, error: "no_deposits" };
+
+    var header = values[0];
+    ensureCols_(depSheet, header, ["consumed_by", "consumed_at"]);
+    var idx = indexMap_(header);
+
+    var nowIso = new Date().toISOString();
+    var consumed = 0;
+    for (var i = 1; i < values.length; i++) {
+      var row = values[i];
+      if (str_(row[idx["lfw_address"]]) !== lfwAddress) continue;
+      if (depositIds.indexOf(str_(row[idx["deposit_id"]])) === -1) continue;
+      if (str_(row[idx["status"]]) !== "pending") continue;
+      depSheet.getRange(i + 1, idx["status"] + 1).setValue("consumed");
+      depSheet.getRange(i + 1, idx["consumed_by"] + 1).setValue(consumedBy);
+      depSheet.getRange(i + 1, idx["consumed_at"] + 1).setValue(nowIso);
+      consumed++;
+    }
+    return { ok: true, consumed: consumed };
+  } finally {
+    lock.releaseLock();
+  }
+}
