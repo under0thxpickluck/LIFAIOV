@@ -3754,63 +3754,6 @@ function handle_(key, body) {
   }
 
   // =========================================================
-  // ✅ user_reset_request（ユーザー自身：パスワード再設定メールを送る）
-  // - loginId または email を受け取り、approved ユーザーならリセットメールを送信
-  // - adminKey 不要（ユーザー自身が呼ぶ）
-  // - ユーザーが存在しない場合もエラー内容を返さない（列挙攻撃対策）
-  // =========================================================
-  if (action === "user_reset_request") {
-    const inputId = str_(body.id);      // loginId or email
-    if (!inputId) return json_({ ok: false, error: "missing_id" });
-
-    let values = sheet.getDataRange().getValues();
-    let header = values[0];
-
-    ensureCols_(sheet, header, [
-      "email", "status", "login_id",
-      "reset_token", "reset_expires", "reset_used_at", "reset_sent_at",
-    ]);
-
-    values = sheet.getDataRange().getValues();
-    header = values[0];
-    const idx = indexMap_(header);
-    const rows = values.slice(1);
-
-    let hitRowIndex = 0;
-    for (let i = 0; i < rows.length; i++) {
-      const r = rows[i];
-      const loginId = str_(r[idx["login_id"]]);
-      const email   = str_(r[idx["email"]]);
-      if (inputId === loginId || inputId === email) {
-        hitRowIndex = i + 2;
-        break;
-      }
-    }
-
-    // 存在しない・未承認でも同じレスポンスを返す（列挙対策）
-    if (!hitRowIndex) return json_({ ok: true });
-    const status = str_(sheet.getRange(hitRowIndex, idx["status"] + 1).getValue());
-    if (status !== "approved") return json_({ ok: true });
-
-    const loginId2 = str_(sheet.getRange(hitRowIndex, idx["login_id"] + 1).getValue());
-    const email2   = str_(sheet.getRange(hitRowIndex, idx["email"] + 1).getValue());
-    if (!loginId2 || !email2) return json_({ ok: true });
-
-    const token   = genResetToken_();
-    const expires = new Date(Date.now() + 72 * 60 * 60 * 1000);
-
-    sheet.getRange(hitRowIndex, idx["reset_token"]   + 1).setValue(token);
-    sheet.getRange(hitRowIndex, idx["reset_expires"]  + 1).setValue(expires);
-    sheet.getRange(hitRowIndex, idx["reset_used_at"]  + 1).setValue("");
-
-    const myRefCode2 = idx["my_ref_code"] !== undefined ? str_(sheet.getRange(hitRowIndex, idx["my_ref_code"] + 1).getValue()) : "";
-    sendResetMail_(email2, loginId2, token, myRefCode2);
-    sheet.getRange(hitRowIndex, idx["reset_sent_at"] + 1).setValue(new Date());
-
-    return json_({ ok: true });
-  }
-
-  // =========================================================
   // ✅ user_id_remind（ユーザー自身：loginID をメールで再送）
   // - メールアドレスを受け取り、approved ユーザーなら loginId をメールで送信
   // - adminKey 不要（ユーザー自身が呼ぶ）
@@ -3831,6 +3774,7 @@ function handle_(key, body) {
     const rows = values.slice(1);
 
     let hitLoginId = "";
+    let is5000_uir = false;
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
       const email  = str_(r[idx["email"]]);
@@ -3841,8 +3785,34 @@ function handle_(key, body) {
       }
     }
 
+    // メインで見つからなければ 5000 シートも検索
+    if (!hitLoginId) {
+      const ssId_uir = PropertiesService.getScriptProperties().getProperty("SPREADSHEET_5000_ID");
+      if (ssId_uir) {
+        const sheet5000_uir = SpreadsheetApp.openById(ssId_uir).getSheetByName("applies");
+        if (sheet5000_uir) {
+          const vals5_uir = sheet5000_uir.getDataRange().getValues();
+          const idx5_uir  = indexMap_(vals5_uir[0]);
+          if (idx5_uir["email"] !== undefined && idx5_uir["status"] !== undefined && idx5_uir["login_id"] !== undefined) {
+            for (let i = 1; i < vals5_uir.length; i++) {
+              const email  = str_(vals5_uir[i][idx5_uir["email"]]);
+              const status = str_(vals5_uir[i][idx5_uir["status"]]);
+              if (emailIn === email && status === "approved") {
+                hitLoginId = str_(vals5_uir[i][idx5_uir["login_id"]]);
+                is5000_uir = true;
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+
     // 存在しない場合も同じレスポンス（列挙対策）
     if (hitLoginId) {
+      const loginUrl_uir = is5000_uir
+        ? "https://lifaiov.vercel.app/5000/login"
+        : "https://lifaiov.vercel.app/login";
       const subject = "【LIFAI】ログインID のご案内";
       const mailBody =
         "ご登録のメールアドレスへ、ログインIDをお送りします。\n\n" +
@@ -3850,7 +3820,7 @@ function handle_(key, body) {
         hitLoginId +
         "\n\n" +
         "ログイン画面はこちら：\n" +
-        "https://lifaiov.vercel.app/5000/login\n\n" +
+        loginUrl_uir + "\n\n" +
         "LIFAI公式";
       MailApp.sendEmail({ to: emailIn, subject: subject, body: mailBody, name: "LIFAI公式" });
     }
@@ -5744,8 +5714,12 @@ function sendResetMail_(to, loginId, token, myRefCode, plan) {
   }
 
   const is5000 = plan === "5000";
-  const resetPath = "https://lifaiov.vercel.app/reset?plan=5000&token=" + encodeURIComponent(token);
-  const loginUrl = "https://lifaiov.vercel.app/5000/login";
+  const resetPath = is5000
+    ? "https://lifaiov.vercel.app/reset?plan=5000&token=" + encodeURIComponent(token)
+    : "https://lifaiov.vercel.app/reset?token=" + encodeURIComponent(token);
+  const loginUrl = is5000
+    ? "https://lifaiov.vercel.app/5000/login"
+    : "https://lifaiov.vercel.app/login";
   const url = resetPath;
   const subject = is5000 ? "【LIFAI】アカウント承認のご案内" : "【LIFAI】初回パスワード設定のご案内";
 
