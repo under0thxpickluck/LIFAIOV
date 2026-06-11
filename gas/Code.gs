@@ -12869,13 +12869,13 @@ function consumeLfwDeposits_(key, body) {
 
   var lfwAddress = str_(body.lfw_address);
   var consumedBy = str_(body.consumed_by);
-  var depositIds = Array.isArray(body.deposit_ids) ? body.deposit_ids.map(str_) : [];
+  var depositIds = Array.isArray(body.deposit_ids) ? body.deposit_ids.map(str_).filter(Boolean) : [];
   if (!lfwAddress || !consumedBy || depositIds.length === 0) {
     return { ok: false, error: "missing_fields" };
   }
 
   var lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  try { lock.waitLock(10000); } catch (e) { return { ok: false, error: "lock_timeout" }; }
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var depSheet = ss.getSheetByName("lfw_deposits");
@@ -12895,9 +12895,10 @@ function consumeLfwDeposits_(key, body) {
       if (str_(row[idx["lfw_address"]]) !== lfwAddress) continue;
       if (depositIds.indexOf(str_(row[idx["deposit_id"]])) === -1) continue;
       if (str_(row[idx["status"]]) !== "pending") continue;
-      depSheet.getRange(i + 1, idx["status"] + 1).setValue("consumed");
+      // status を最後に書く: 途中で落ちても status=pending のまま残り、リトライで安全に上書きされる
       depSheet.getRange(i + 1, idx["consumed_by"] + 1).setValue(consumedBy);
       depSheet.getRange(i + 1, idx["consumed_at"] + 1).setValue(nowIso);
+      depSheet.getRange(i + 1, idx["status"] + 1).setValue("consumed");
       consumed++;
     }
     return { ok: true, consumed: consumed };
