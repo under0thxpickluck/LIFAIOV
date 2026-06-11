@@ -80,6 +80,48 @@ export default function UsersTab() {
   const [query,    setQuery]    = useState("");
   const [selected, setSelected] = useState<AdminUser | null>(null);
   const [ledgerFilter, setLedgerFilter] = useState<"all" | "EP" | "BP" | "USD">("all");
+  const [resetSending, setResetSending] = useState(false);
+  const [resetMsg, setResetMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setResetMsg(null);
+  }, [selected]);
+
+  const onSendResetMail = async () => {
+    if (!selected) return;
+    const target = (selected.login_id || selected.email || "").trim();
+    if (!target) {
+      setResetMsg("❌ login_id もメールアドレスも未設定のため送信できません");
+      return;
+    }
+    if (!window.confirm(`${selected.email || target} 宛にパスワード再設定メールを送信します。よろしいですか？`)) {
+      return;
+    }
+    setResetSending(true);
+    setResetMsg(null);
+    try {
+      const r = await fetch("/api/admin/reset-resend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: target }),
+      });
+      const j = await r.json().catch(() => null);
+      if (j?.ok) {
+        setResetMsg("✅ 送信しました（リセットリンクは72時間有効）");
+      } else {
+        const reason =
+          j?.error === "not_found"     ? "該当ユーザーが見つかりません（メール表記揺れの可能性）"
+          : j?.error === "not_approved" ? "ステータスが approved ではないため送信できません"
+          : j?.error === "missing_login_or_email" ? "login_id またはメールアドレスが未設定です"
+          : String(j?.error ?? "unknown_error");
+        setResetMsg(`❌ 送信失敗: ${reason}`);
+      }
+    } catch (e: any) {
+      setResetMsg(`❌ 通信エラー: ${String(e?.message ?? e)}`);
+    } finally {
+      setResetSending(false);
+    }
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -207,6 +249,25 @@ export default function UsersTab() {
             <Row label="プラン"       value={selected.plan} />
             <Row label="ステータス"   value={selected.status} />
             <Row label="登録日時"     value={fmt(selected.created_at)} />
+          </section>
+
+          <section className="mb-4">
+            <p className="mb-2 text-xs font-bold text-zinc-400 uppercase tracking-wide">アカウント操作</p>
+            <button
+              onClick={onSendResetMail}
+              disabled={resetSending}
+              className="w-full rounded-lg bg-amber-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-amber-600 disabled:opacity-50"
+            >
+              {resetSending ? "送信中..." : "登録メールアドレスにパスワード再設定メールを送る"}
+            </button>
+            {resetMsg && (
+              <p className={clsx(
+                "mt-2 text-xs",
+                resetMsg.startsWith("✅") ? "text-emerald-400" : "text-red-400"
+              )}>
+                {resetMsg}
+              </p>
+            )}
           </section>
 
           <section className="mb-4">
