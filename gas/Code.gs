@@ -11419,6 +11419,12 @@ function handleGift_(key, body) {
 // ==============================
 
 function expireGiftEP() {
+  // gift_send / gift_use と同じロックを取り、バッチ中の残高書き換え競合を防ぐ
+  // 取れなければ何もしない（翌日のトリガーで再試行される）
+  const expireLock = LockService.getScriptLock();
+  try { expireLock.waitLock(30000); } catch(e) { Logger.log("expireGiftEP: lock_timeout, skipped"); return; }
+
+  try {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = getOrCreateSheet_(); // applies
   const values = getValuesSafe_(sheet);
@@ -11475,6 +11481,9 @@ function expireGiftEP() {
         txSheet.getRange(ri + 2, tIdx["status"] + 1).setValue("expired");
       }
     });
+  }
+  } finally {
+    expireLock.releaseLock();
   }
 }
 
@@ -12749,6 +12758,7 @@ function epSendToLfw_(key, body) {
     return { ok: false, error: "invalid_lfw_address" };
   }
   if (amount < 1) return { ok: false, error: "amount_must_be_positive" };
+  if (amount % 1 !== 0) return { ok: false, error: "amount_must_be_integer" };
 
   var user = mktAuth_(secrets.SECRET, id, code);
   if (!user.ok) return { ok: false, error: "auth_failed", reason: user.reason };
