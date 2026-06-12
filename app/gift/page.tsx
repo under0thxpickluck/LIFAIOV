@@ -5,8 +5,6 @@ import Link from "next/link";
 import { getAuth, getAuthSecret } from "@/app/lib/auth";
 import GiftEPTutorial, { useGiftEPTutorial } from "@/components/GiftEPTutorial";
 
-const GIFT_PASSWORD = "nagoya01@";
-
 type BalanceData = {
   balance: number;
   expiring_soon: number;
@@ -15,21 +13,14 @@ type BalanceData = {
 
 export default function GiftEPTopPage() {
   const router = useRouter();
-  const [authed, setAuthed] = useState(false);
-  const [pwInput, setPwInput] = useState("");
-  const [pwError, setPwError] = useState(false);
   const [myId, setMyId] = useState("");
   const [myCode, setMyCode] = useState("");
   const [data, setData] = useState<BalanceData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const { open: tutorialOpen, openTutorial, closeTutorial } = useGiftEPTutorial();
 
   useEffect(() => {
-    if (sessionStorage.getItem("gift_ep_authed") === "1") setAuthed(true);
-  }, []);
-
-  useEffect(() => {
-    if (!authed) return;
     const auth = getAuth();
     if (!auth) { router.replace("/login"); return; }
     const id = (auth as any)?.id || (auth as any)?.loginId || "";
@@ -44,42 +35,18 @@ export default function GiftEPTopPage() {
       cache: "no-store",
     })
       .then(r => r.json())
-      .catch(() => ({ ok: false }))
+      .catch(() => ({ ok: false, error: "network" }))
       .then((res: any) => {
-        if (res.ok) setData({ balance: res.balance, expiring_soon: res.expiring_soon, next_expiry_date: res.next_expiry_date });
+        if (res.ok) {
+          setData({ balance: res.balance, expiring_soon: res.expiring_soon, next_expiry_date: res.next_expiry_date });
+        } else {
+          setLoadError(res.error === "auth_failed"
+            ? "認証エラーが発生しました。再度ログインしてください。"
+            : "残高の取得に失敗しました。時間をおいて再度お試しください。");
+        }
       })
       .finally(() => setLoading(false));
-  }, [authed, router]);
-
-  const handleAuth = () => {
-    if (pwInput === GIFT_PASSWORD) { sessionStorage.setItem("gift_ep_authed", "1"); setAuthed(true); }
-    else setPwError(true);
-  };
-
-  if (!authed) return (
-    <div style={{ minHeight: "100vh", background: "#0B1220", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 16px" }}>
-      <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 24, padding: 32, width: "100%", maxWidth: 360 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 800, textAlign: "center", marginBottom: 24, color: "#EAF0FF" }}>🔒 GiftEP</h2>
-        <input
-          type="password"
-          value={pwInput}
-          onChange={e => { setPwInput(e.target.value); setPwError(false); }}
-          onKeyDown={e => { if (e.key === "Enter") handleAuth(); }}
-          placeholder="パスワードを入力"
-          style={{ width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 14, padding: "12px 16px", fontSize: 13, color: "#EAF0FF", outline: "none",
-            marginBottom: 10, boxSizing: "border-box" }}
-        />
-        {pwError && <p style={{ fontSize: 12, color: "#FCA5A5", textAlign: "center", marginBottom: 10 }}>パスワードが違います</p>}
-        <button
-          onClick={handleAuth}
-          style={{ width: "100%", padding: "13px", borderRadius: 14, background: "linear-gradient(90deg,#6366F1,#A78BFA)",
-            border: "none", fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer" }}>
-          入室する
-        </button>
-      </div>
-    </div>
-  );
+  }, [router]);
 
   return (
     <main style={{ minHeight: "100vh", background: "#0B1220", color: "#EAF0FF" }}>
@@ -121,6 +88,8 @@ export default function GiftEPTopPage() {
           borderRadius: 24, padding: 24, boxShadow: "0 8px 40px rgba(0,0,0,0.4)", marginBottom: 16 }}>
           {loading ? (
             <p style={{ fontSize: 13, color: "rgba(234,240,255,0.4)" }}>読み込み中…</p>
+          ) : loadError ? (
+            <p style={{ fontSize: 12, color: "#FCA5A5" }}>{loadError}</p>
           ) : (
             <>
               <p style={{ fontSize: 11, fontWeight: 700, color: "rgba(167,139,250,0.7)", marginBottom: 6 }}>

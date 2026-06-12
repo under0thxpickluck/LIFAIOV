@@ -113,9 +113,8 @@ export default function GiftHistoryPage() {
                   </p>
                   {tx.note && <p style={{ fontSize: 12, color: "rgba(234,240,255,0.65)", marginBottom: 4 }}>"{tx.note}"</p>}
                   <p style={{ fontSize: 10, color: "rgba(234,240,255,0.3)" }}>
-                    {new Date(tx.created_at).toLocaleString("ja-JP")}
-                    {" "}·{" "}
-                    {tx.status === "expired" ? "失効済" : `有効期限: ${tx.expiry_date}`}
+                    {isNaN(new Date(tx.created_at).getTime()) ? tx.created_at : new Date(tx.created_at).toLocaleString("ja-JP")}
+                    {tx.status === "expired" ? " · 失効済" : tx.expiry_date ? ` · 有効期限: ${tx.expiry_date}` : ""}
                   </p>
                 </div>
                 <p style={{ fontSize: 18, fontWeight: 800, color: statusColor(tx.status), flexShrink: 0 }}>

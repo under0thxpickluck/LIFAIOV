@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const STORAGE_KEY = "gift_ep_tutorial_seen";
 
@@ -114,8 +114,12 @@ const PAGES = [
 ];
 
 export function useGiftEPTutorial() {
-  const seen = typeof window !== "undefined" && localStorage.getItem(STORAGE_KEY) === "1";
-  const [open, setOpen] = useState(!seen);
+  // SSRとクライアントで初期描画を一致させるため、マウント後に未読判定して開く
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (localStorage.getItem(STORAGE_KEY) !== "1") setOpen(true);
+  }, []);
 
   const openTutorial = () => setOpen(true);
   const closeTutorial = () => {

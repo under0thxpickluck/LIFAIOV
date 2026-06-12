@@ -11189,6 +11189,7 @@ function handleGift_(key, body) {
     if (!toUser) return json_({ ok: false, error: "missing_to_user" });
     if (toUser === user.login_id) return json_({ ok: false, error: "cannot_send_to_self" });
     if (amount < 1) return json_({ ok: false, error: "amount_must_be_positive" });
+    if (amount % 1 !== 0) return json_({ ok: false, error: "amount_must_be_integer" });
     if (amount > GIFT_EP_MAX_SINGLE_) {
       return json_({ ok: false, error: "exceeds_single_limit", limit: GIFT_EP_MAX_SINGLE_ });
     }
@@ -11203,7 +11204,9 @@ function handleGift_(key, body) {
       const txSheet = giftGetSheet_(ss, "gift_transactions");
       const txValues = getValuesSafe_(txSheet);
       const nowDate = new Date();
-      const ym = nowDate.getFullYear() + "-" + String(nowDate.getMonth() + 1).padStart(2, "0");
+      // created_at セルは Sheets により Date 型へ自動変換されることがあるため
+      // dateStr_（JSTのYYYY-MM-DD）に正規化してから月を比較する
+      const ym = mktTodayJst_().slice(0, 7);
       let monthTotal = 0;
       if (txValues.length >= 2) {
         const tHeader = txValues[0];
@@ -11211,7 +11214,7 @@ function handleGift_(key, body) {
         txValues.slice(1).forEach(function(row) {
           if (str_(row[tIdx["from_user"]]) === user.login_id &&
               str_(row[tIdx["status"]]) === "completed" &&
-              str_(row[tIdx["created_at"]]).startsWith(ym)) {
+              dateStr_(row[tIdx["created_at"]]).startsWith(ym)) {
             monthTotal += num_(row[tIdx["amount"]]);
           }
         });
@@ -11310,13 +11313,16 @@ function handleGift_(key, body) {
         const fromUser = str_(row[tIdx["from_user"]]);
         const toUser   = str_(row[tIdx["to_user"]]);
         const status   = str_(row[tIdx["status"]]);
+        // created_at / expiry_date は Sheets により Date 型へ自動変換されることがある
+        const rawCreated = row[tIdx["created_at"]];
+        const rawExpiry  = row[tIdx["expiry_date"]];
         const record = {
           id:           str_(row[tIdx["id"]]),
           from_user:    fromUser,
           to_user:      toUser,
           amount:       num_(row[tIdx["amount"]]),
-          created_at:   str_(row[tIdx["created_at"]]),
-          expiry_date:  str_(row[tIdx["expiry_date"]]),
+          created_at:   (rawCreated instanceof Date) ? rawCreated.toISOString() : str_(rawCreated),
+          expiry_date:  rawExpiry ? dateStr_(rawExpiry) : "",
           status:       status,
           note:         str_(row[tIdx["note"]]),
         };
@@ -11365,6 +11371,7 @@ function handleGift_(key, body) {
       return json_({ ok: false, error: "feature_not_allowed", feature_type: featureType });
     }
     if (amount < 1) return json_({ ok: false, error: "amount_must_be_positive" });
+    if (amount % 1 !== 0) return json_({ ok: false, error: "amount_must_be_integer" });
 
     const lock = LockService.getScriptLock();
     try { lock.waitLock(8000); } catch(e) { return json_({ ok: false, error: "lock_timeout" }); }
@@ -11425,7 +11432,8 @@ function expireGiftEP() {
   const rows = getValuesSafe_(sheet).slice(1);
 
   for (var i = 0; i < rows.length; i++) {
-    const rawMap = sheet.getRange(i + 2, idx["gift_ep_expiry_map"] + 1).getValue();
+    // セル単位の getValue は5000行規模で6分制限を超えるため、読み込み済みの rows を使う
+    const rawMap = rows[i][idx["gift_ep_expiry_map"]];
     if (!rawMap) continue;
     let expiryMap = {};
     try { expiryMap = JSON.parse(String(rawMap)); } catch(e) { continue; }
@@ -11444,7 +11452,7 @@ function expireGiftEP() {
 
     if (changed) {
       const loginId = str_(rows[i][idx["login_id"]]);
-      const curBalance = num_(sheet.getRange(i + 2, idx["gift_ep_balance"] + 1).getValue());
+      const curBalance = num_(rows[i][idx["gift_ep_balance"]]);
       const newBalance = Math.max(0, curBalance - expiredTotal);
       sheet.getRange(i + 2, idx["gift_ep_balance"] + 1).setValue(newBalance);
       sheet.getRange(i + 2, idx["gift_ep_expiry_map"] + 1).setValue(JSON.stringify(expiryMap));
@@ -11453,13 +11461,16 @@ function expireGiftEP() {
   }
 
   // gift_transactionsのstatusをexpiredに更新
+  // expiry_date セルは Sheets により Date 型へ自動変換されることがあるため dateStr_ で正規化して比較
   const txSheet = giftGetSheet_(ss, "gift_transactions");
   const txValues = getValuesSafe_(txSheet);
   if (txValues.length >= 2) {
     const tHeader = txValues[0];
     const tIdx = indexMap_(tHeader);
     txValues.slice(1).forEach(function(row, ri) {
-      if (str_(row[tIdx["expiry_date"]]) < today &&
+      const rawExpiry = row[tIdx["expiry_date"]];
+      if (!rawExpiry) return; // LFW送金など期限なしの行はスキップ
+      if (dateStr_(rawExpiry) < today &&
           str_(row[tIdx["status"]]) === "completed") {
         txSheet.getRange(ri + 2, tIdx["status"] + 1).setValue("expired");
       }
