@@ -18,7 +18,9 @@
       "Bash(xargs grep -l \"finance\\\\|財務\")",
       "Bash(grep -v \"^.*//.*delete\\\\|^.*//.*DELETE\")",
       "Bash(node_modules/.bin/tsc --noEmit)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(grep *)",
+      "PowerShell(git pull *)"
     ]
   }
 }
