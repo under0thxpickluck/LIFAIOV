@@ -4597,7 +4597,7 @@ function handle_(key, body) {
         narasuSheet.appendRow([
           "request_id", "created_at", "status",
           "narasu_login_id", "narasu_password",
-          "audio_urls", "audio_titles", "lyrics_text",
+          "audio_urls", "audio_titles", "audio_lyrics", "lyrics_text",
           "jacket_image_url", "jacket_note",
           "artist_name", "artist_name_kana", "artist_name_alpha", "artist_photo_url",
           "album_name", "album_name_kana", "album_name_alpha",
@@ -4608,7 +4608,7 @@ function handle_(key, body) {
         ]);
       } else {
         var existingHeaders = narasuSheet.getRange(1, 1, 1, narasuSheet.getLastColumn()).getValues()[0].map(function(h) { return String(h); });
-        ["audio_titles", "artist_name_kana", "artist_name_alpha", "artist_photo_url",
+        ["audio_titles", "audio_lyrics", "artist_name_kana", "artist_name_alpha", "artist_photo_url",
          "album_name", "album_name_kana", "album_name_alpha",
          "login_id", "payment_status", "payment_method", "paid_at"].forEach(function(col) {
           if (existingHeaders.indexOf(col) === -1) {
@@ -4627,6 +4627,7 @@ function handle_(key, body) {
         str_(body.narasu_password),
         str_(body.audio_urls),
         str_(body.audio_titles),
+        str_(body.audio_lyrics),
         str_(body.lyrics_text),
         str_(body.jacket_image_url),
         str_(body.jacket_note),

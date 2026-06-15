@@ -36,6 +36,11 @@ export function validateDraft(draft: NarasuAgencyDraft): ValidationErrors {
       const missingTitle = filledUrls.find((e) => !e.title?.trim());
       if (missingTitle) {
         errors.audioUrls_items = "曲名をすべて入力してください";
+      } else {
+        const missingLyrics = filledUrls.find((e) => !e.lyrics?.trim());
+        if (missingLyrics) {
+          errors.audioUrls_items = "歌詞をすべての曲に入力してください";
+        }
       }
     }
   }

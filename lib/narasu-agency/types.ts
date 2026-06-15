@@ -10,6 +10,7 @@ export type AudioUrlEntry = {
   id: string;
   url: string;
   title: string;
+  lyrics: string;
 };
 
 export type NarasuAgencyDraft = {

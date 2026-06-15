@@ -10,7 +10,7 @@ import { NARASU_TERMS_VERSION } from "@/lib/narasu-agency/constants";
 import { getAuth } from "@/app/lib/auth";
 
 function newAudioEntry(): AudioUrlEntry {
-  return { id: crypto.randomUUID(), url: "", title: "" };
+  return { id: crypto.randomUUID(), url: "", title: "", lyrics: "" };
 }
 
 function emptyDraft(): NarasuAgencyDraft {
@@ -70,6 +70,14 @@ export default function NarasuFormPage() {
   function updateAudioTitle(id: string, title: string) {
     setDraft((prev) => {
       const next = { ...prev, audioUrls: prev.audioUrls.map((e) => e.id === id ? { ...e, title } : e) };
+      saveDraft(next);
+      return next;
+    });
+  }
+
+  function updateAudioLyrics(id: string, lyrics: string) {
+    setDraft((prev) => {
+      const next = { ...prev, audioUrls: prev.audioUrls.map((e) => e.id === id ? { ...e, lyrics } : e) };
       saveDraft(next);
       return next;
     });
@@ -248,6 +256,18 @@ export default function NarasuFormPage() {
                         <span className="text-xs text-slate-400 animate-pulse">取得中…</span>
                       )}
                     </div>
+                    <div>
+                      <p className="text-[11px] font-bold text-slate-500 mb-1">歌詞<span className="text-rose-500"> *</span></p>
+                      <p className="text-[11px] text-slate-400 mb-1 leading-relaxed">
+                        歌詞はLIFAI運営が簡易的に確認しますが、表現・言い回しの細かいチェックは対応範囲外です。<b>事前にご自身でご確認ください。</b>
+                      </p>
+                      <textarea
+                        value={entry.lyrics ?? ""}
+                        onChange={(e) => updateAudioLyrics(entry.id, e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 h-28 resize-none"
+                        placeholder="この曲の歌詞を入力してください（必須）"
+                      />
+                    </div>
                   </div>
                 ))}
                 <button
@@ -260,20 +280,6 @@ export default function NarasuFormPage() {
               </div>
               {errors.audioUrls && <p className={errorCls}>{errors.audioUrls}</p>}
               {errors.audioUrls_items && <p className={errorCls}>{errors.audioUrls_items}</p>}
-            </div>
-
-            {/* 歌詞 */}
-            <div>
-              <label className={labelCls}>歌詞 <span className="text-slate-400 font-normal">（任意）</span></label>
-              <p className="mt-0.5 text-[11px] text-slate-400 leading-relaxed">
-                歌詞の内容はLIFAI運営が簡易的に確認しますが、表現・言い回しの細かいチェックは対応範囲外です。<b>事前にご自身でご確認ください。</b>
-              </p>
-              <textarea
-                value={draft.lyricsText}
-                onChange={(e) => update("lyricsText", e.target.value)}
-                className={inputCls + " h-32 resize-none"}
-                placeholder="歌詞を入力（任意）"
-              />
             </div>
 
             {/* アーティスト名 */}

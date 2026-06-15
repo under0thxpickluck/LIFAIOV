@@ -77,6 +77,12 @@ export default function NarasuConfirmPage() {
                 <div key={e.id} className="mt-1">
                   <p className={valueCls}>{i + 1}. {e.url}</p>
                   {e.title && <p className="text-xs text-slate-500 mt-0.5 ml-3">曲名: {e.title}</p>}
+                  <p className="text-xs mt-0.5 ml-3">
+                    {e.lyrics?.trim()
+                      ? <span className="text-emerald-600">歌詞: あり（{e.lyrics.trim().length}文字）</span>
+                      : <span className="text-rose-500">歌詞: なし</span>
+                    }
+                  </p>
                 </div>
               ))}
             </div>
