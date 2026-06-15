@@ -11009,7 +11009,7 @@ function gachaDailyStatus_(body) {
 // ==============================
 
 var GIFT_EP_EXPIRY_DAYS_ = 30;
-var GIFT_EP_MAX_SINGLE_  = 10000;
+var GIFT_EP_MAX_SINGLE_  = 1000000;
 var GIFT_EP_MAX_MONTHLY_ = 50000;
 var GIFT_FEATURES_ALLOWED_ = ["musicboost", "workflow"];
 

@@ -93,7 +93,7 @@ export default function GiftSendPage() {
           const errMap: Record<string, string> = {
             cannot_send_to_self: "自分自身へは送れません",
             insufficient_ep: `EP残高が不足しています（残高: ${data.ep_balance ?? "?"}EP）`,
-            exceeds_single_limit: `1回の上限は${(data.limit ?? 10000).toLocaleString()}EPです`,
+            exceeds_single_limit: `1回の上限は${(data.limit ?? 1000000).toLocaleString()}EPです`,
             exceeds_monthly_limit: `月間上限（${(data.limit ?? 50000).toLocaleString()}EP）を超えています（今月送信済み: ${(data.used ?? 0).toLocaleString()}EP）`,
             to_user_not_found: "送信先のユーザーIDが見つかりません。IDをご確認ください（メールアドレスでは送れません）",
             auth_failed: "認証エラーが発生しました",
@@ -231,8 +231,8 @@ export default function GiftSendPage() {
                     placeholder="相手のloginId" style={inputStyle} />
                 </div>
                 <div>
-                  <label style={labelStyle}>GiftEP数量（1〜10,000）*</label>
-                  <input type="number" value={amount} min={1} max={10000} step={1}
+                  <label style={labelStyle}>GiftEP数量（1〜1,000,000）*</label>
+                  <input type="number" value={amount} min={1} max={1000000} step={1}
                     onChange={e => setAmount(e.target.value === "" ? "" : Number(e.target.value))}
                     style={inputStyle} />
                 </div>
@@ -248,7 +248,7 @@ export default function GiftSendPage() {
                     if (!toUser.trim()) { setError("送信先を入力してください"); return; }
                     if (!amount || Number(amount) < 1) { setError("1以上の数量を入力してください"); return; }
                     if (!Number.isInteger(Number(amount))) { setError("数量は整数で入力してください"); return; }
-                    if (Number(amount) > 10000) { setError("1回の上限は10,000 EPです"); return; }
+                    if (Number(amount) > 1000000) { setError("1回の上限は1,000,000 EPです"); return; }
                     setStep("confirm");
                   }}
                   style={{ borderRadius: 14, background: "linear-gradient(90deg,#6366F1,#A78BFA)",
