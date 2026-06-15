@@ -9,6 +9,8 @@ import type { NarasuAgencyDraft, AudioUrlEntry } from "@/lib/narasu-agency/types
 import { NARASU_TERMS_VERSION } from "@/lib/narasu-agency/constants";
 import { getAuth } from "@/app/lib/auth";
 
+const MAX_AUDIO_ENTRIES = 15;
+
 function newAudioEntry(): AudioUrlEntry {
   return { id: crypto.randomUUID(), url: "", title: "", lyrics: "" };
 }
@@ -117,6 +119,7 @@ export default function NarasuFormPage() {
 
   function addAudioUrl() {
     setDraft((prev) => {
+      if (prev.audioUrls.length >= MAX_AUDIO_ENTRIES) return prev;
       const next = { ...prev, audioUrls: [...prev.audioUrls, newAudioEntry()] };
       saveDraft(next);
       return next;
@@ -270,13 +273,17 @@ export default function NarasuFormPage() {
                     </div>
                   </div>
                 ))}
-                <button
-                  type="button"
-                  onClick={addAudioUrl}
-                  className="w-full rounded-2xl border border-dashed border-indigo-300 bg-white px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50"
-                >
-                  ＋ 音源URLを追加
-                </button>
+                {draft.audioUrls.length < MAX_AUDIO_ENTRIES ? (
+                  <button
+                    type="button"
+                    onClick={addAudioUrl}
+                    className="w-full rounded-2xl border border-dashed border-indigo-300 bg-white px-4 py-2.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50"
+                  >
+                    ＋ 音源URLを追加（{draft.audioUrls.length} / {MAX_AUDIO_ENTRIES}）
+                  </button>
+                ) : (
+                  <p className="text-center text-xs text-slate-400 py-2">上限（{MAX_AUDIO_ENTRIES}曲）に達しました</p>
+                )}
               </div>
               {errors.audioUrls && <p className={errorCls}>{errors.audioUrls}</p>}
               {errors.audioUrls_items && <p className={errorCls}>{errors.audioUrls_items}</p>}

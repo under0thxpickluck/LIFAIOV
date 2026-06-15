@@ -25,9 +25,12 @@ export function validateDraft(draft: NarasuAgencyDraft): ValidationErrors {
     errors.narasuPassword = "narasuパスワードを入力してください";
   }
 
+  const MAX_AUDIO = 15;
   const filledUrls = draft.audioUrls.filter((e) => e.url.trim());
   if (filledUrls.length === 0) {
     errors.audioUrls = "音源URLを1件以上入力してください";
+  } else if (filledUrls.length > MAX_AUDIO) {
+    errors.audioUrls = `音源URLは${MAX_AUDIO}曲までです（現在${filledUrls.length}曲）`;
   } else {
     const invalidUrl = filledUrls.find((e) => !isValidUrl(e.url.trim()));
     if (invalidUrl) {
