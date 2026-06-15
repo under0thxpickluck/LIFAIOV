@@ -89,7 +89,7 @@ export default function NarasuTermsPage() {
     const base = existing ?? {
       narasuLoginId: "",
       narasuPassword: "",
-      audioUrls: [{ id: crypto.randomUUID(), url: "", title: "" }],
+      audioUrls: [{ id: crypto.randomUUID(), url: "", title: "", lyrics: "" }],
       lyricsText: "",
       jacketImageUrl: "",
       jacketNote: "",
