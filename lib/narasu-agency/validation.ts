@@ -32,6 +32,11 @@ export function validateDraft(draft: NarasuAgencyDraft): ValidationErrors {
     const invalidUrl = filledUrls.find((e) => !isValidUrl(e.url.trim()));
     if (invalidUrl) {
       errors.audioUrls_items = "URL形式が正しくありません: " + invalidUrl.url;
+    } else {
+      const missingTitle = filledUrls.find((e) => !e.title?.trim());
+      if (missingTitle) {
+        errors.audioUrls_items = "曲名をすべて入力してください";
+      }
     }
   }
 
