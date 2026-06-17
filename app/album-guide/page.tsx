@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+export const metadata = { title: "アルバムの作り方 | LIFAI" };
+
 const STEPS = [
   {
     number: 1,
@@ -177,8 +179,8 @@ export default function AlbumGuidePage() {
 
               {/* コンテンツ */}
               <div className="space-y-4">
-                {step.body.map((section, i) => (
-                  <div key={i}>
+                {step.body.map((section) => (
+                  <div key={section.heading}>
                     <h3 className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">
                       {section.heading}
                     </h3>
@@ -187,8 +189,8 @@ export default function AlbumGuidePage() {
                     )}
                     {"list" in section && section.list && (
                       <ul className="space-y-1">
-                        {section.list.map((item, j) => (
-                          <li key={j} className="flex items-start gap-2 text-sm text-slate-700">
+                        {section.list.map((item) => (
+                          <li key={item} className="flex items-start gap-2 text-sm text-slate-700">
                             <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400" />
                             {item}
                           </li>
@@ -197,9 +199,9 @@ export default function AlbumGuidePage() {
                     )}
                     {"checklist" in section && section.checklist && (
                       <ul className="space-y-2">
-                        {section.checklist.map((item, j) => (
-                          <li key={j} className="flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                            <span className="mt-0.5 text-indigo-400">☐</span>
+                        {section.checklist.map((item) => (
+                          <li key={item.label} className="flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                            <span aria-hidden="true" className="mt-0.5 text-indigo-400">☐</span>
                             <div>
                               <span className="text-sm font-semibold text-slate-800">{item.label}</span>
                               <span className="ml-2 text-xs text-slate-400">{item.note}</span>
