@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 import os from "os";
 import path from "path";
 import fs from "fs";
-import { getJob, updateJob, type SongJob, type JobStatus } from "../_jobStore";
+import { getJob, updateJob, refundBpToUser, type SongJob, type JobStatus } from "../_jobStore";
 import { BP_COSTS } from "@/app/lib/bp-config";
 import {
   ElevenLabsProvider,
@@ -327,7 +327,10 @@ async function runAudioPipeline(job: SongJob, apiKey: string): Promise<void> {
   await updateJob(jobId, { status: "generating_audio", stage: "generating" });
 
   const attempt1 = await generateAudioAttempt(job, apiKey, { attemptNum: 1, maxChorusRepeats: 2 });
-  if (!attempt1.audioAvailable) return; // ElevenLabs 失敗 → already set status=failed
+  if (!attempt1.audioAvailable) {
+    await refundBpToUser(job.userId ?? "", job.bpLocked ?? 0, "音楽生成失敗（ElevenLabs音声生成エラー）");
+    return;
+  }
 
   const audioForAsr1 = attempt1.finalUrl ?? attempt1.rawUrl ?? null;
   let quality1: QualityCheckResult = { gate: null, lyricsQualityScore: 0, repeatScore: 0, qualityUnavailable: true };
@@ -497,6 +500,7 @@ export async function POST(req: Request) {
   if (!apiKey) {
     console.error("[ElevenLabs] ELEVENLABS_API_KEY is not set");
     await updateJob(String(jobId), { status: "failed", error: "elevenlabs_api_key_missing" });
+    await refundBpToUser(job.userId ?? "", job.bpLocked ?? 0, "音楽生成失敗（ElevenLabs APIキー未設定）");
     return NextResponse.json({
       ok:      false,
       error:   "elevenlabs_api_key_missing",

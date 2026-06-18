@@ -1,6 +1,6 @@
 // app/api/song/cancel/route.ts
 import { NextResponse } from "next/server";
-import { getJob, updateJob } from "../_jobStore";
+import { getJob, updateJob, refundBpToUser } from "../_jobStore";
 import { BP_COSTS } from "@/app/lib/bp-config";
 
 export const runtime = "nodejs";
@@ -57,6 +57,10 @@ export async function POST(req: Request) {
 
   const bpRefunded = getBpRefund(job.status);
   await updateJob(String(jobId), { status: "cancelled" });
+
+  if (bpRefunded > 0 && job.userId) {
+    await refundBpToUser(job.userId, bpRefunded, `キャンセル返還（${job.status}）`);
+  }
 
   return NextResponse.json({ ok: true, status: "cancelled", bpRefunded });
 }

@@ -796,6 +796,7 @@ function handle_(key, body) {
       "ref_path",
       "affiliate_granted_at",
       "my_ref_code",
+      "gacha_rate_preset",
     ]);
 
     values = sheet.getDataRange().getValues();
@@ -854,6 +855,7 @@ function handle_(key, body) {
       ref_path:            r[idx["ref_path"]]            ?? "",
       affiliate_granted_at: r[idx["affiliate_granted_at"]] ?? "",
       my_ref_code:         r[idx["my_ref_code"]]         ?? "",
+      gacha_rate_preset:   r[idx["gacha_rate_preset"]]   ?? "normal",
     }));
 
     return json_({ ok: true, items: items });
@@ -2028,6 +2030,147 @@ function handle_(key, body) {
   }
 
   // =========================================================
+  // refund_bp（BP返還：音楽生成失敗・キャンセル時）
+  // =========================================================
+  if (action === "refund_bp") {
+    if (str_(body.adminKey) !== ADMIN_SECRET) {
+      return json_({ ok: false, error: "admin_unauthorized" });
+    }
+
+    const loginId = str_(body.loginId);
+    const amount  = Number(body.amount);
+    const memo    = str_(body.memo) || "BP返還";
+
+    if (!loginId) return json_({ ok: false, error: "loginId_required" });
+    if (!Number.isFinite(amount) || amount <= 0) return json_({ ok: false, error: "invalid_amount" });
+
+    let values = sheet.getDataRange().getValues();
+    let header = values[0];
+
+    ensureCols_(sheet, header, ["login_id", "email", "bp_balance"]);
+
+    values = sheet.getDataRange().getValues();
+    header = values[0];
+
+    const idx  = indexMap_(header);
+    const rows = values.slice(1);
+
+    let hitRowIndex = 0;
+    let hitEmail    = "";
+
+    for (let i = 0; i < rows.length; i++) {
+      if (str_(rows[i][idx["login_id"]]) === loginId) {
+        hitRowIndex = i + 2;
+        hitEmail    = str_(rows[i][idx["email"]]);
+        break;
+      }
+    }
+
+    if (!hitRowIndex) return json_({ ok: false, error: "not_found" });
+
+    const currentBp = Number(sheet.getRange(hitRowIndex, idx["bp_balance"] + 1).getValue() || 0);
+    const newBp = currentBp + amount;
+    sheet.getRange(hitRowIndex, idx["bp_balance"] + 1).setValue(newBp);
+
+    appendWalletLedger_({
+      kind:     "music_refund_bp",
+      login_id: loginId,
+      email:    hitEmail,
+      amount:   amount,
+      memo:     memo,
+    });
+
+    return json_({ ok: true, bp_balance: newBp });
+  }
+
+  // =========================================================
+  // admin_notify_user（管理者→ユーザー個別メール送信）
+  // =========================================================
+  if (action === "admin_notify_user") {
+    if (str_(body.adminKey) !== ADMIN_SECRET) {
+      return json_({ ok: false, error: "admin_unauthorized" });
+    }
+
+    const loginId = str_(body.loginId);
+    const subject = str_(body.subject);
+    const message = str_(body.message);
+
+    if (!loginId || !subject || !message) {
+      return json_({ ok: false, error: "missing_params" });
+    }
+
+    let values = sheet.getDataRange().getValues();
+    let header = values[0];
+
+    ensureCols_(sheet, header, ["login_id", "email"]);
+
+    values = sheet.getDataRange().getValues();
+    header = values[0];
+
+    const idx  = indexMap_(header);
+    const rows = values.slice(1);
+
+    let hitEmail = "";
+    for (let i = 0; i < rows.length; i++) {
+      if (str_(rows[i][idx["login_id"]]) === loginId) {
+        hitEmail = str_(rows[i][idx["email"]]);
+        break;
+      }
+    }
+
+    if (!hitEmail) return json_({ ok: false, error: "user_not_found" });
+
+    MailApp.sendEmail({
+      to:      hitEmail,
+      subject: subject,
+      body:    message,
+    });
+
+    return json_({ ok: true });
+  }
+
+  // =========================================================
+  // admin_set_gacha_preset（ガチャ確率プリセット設定）
+  // =========================================================
+  if (action === "admin_set_gacha_preset") {
+    if (str_(body.adminKey) !== ADMIN_SECRET) {
+      return json_({ ok: false, error: "admin_unauthorized" });
+    }
+
+    const loginId = str_(body.loginId);
+    const preset  = str_(body.preset);
+    const VALID   = ["normal", "lucky", "super_lucky"];
+
+    if (!loginId) return json_({ ok: false, error: "loginId_required" });
+    if (!VALID.includes(preset)) return json_({ ok: false, error: "invalid_preset" });
+
+    let values = sheet.getDataRange().getValues();
+    let header = values[0];
+
+    ensureCols_(sheet, header, ["login_id", "gacha_rate_preset"]);
+
+    values = sheet.getDataRange().getValues();
+    header = values[0];
+
+    const idx  = indexMap_(header);
+    const rows = values.slice(1);
+
+    let hitRowIndex = 0;
+    for (let i = 0; i < rows.length; i++) {
+      if (str_(rows[i][idx["login_id"]]) === loginId) {
+        hitRowIndex = i + 2;
+        break;
+      }
+    }
+
+    if (!hitRowIndex) return json_({ ok: false, error: "not_found" });
+
+    sheet.getRange(hitRowIndex, idx["gacha_rate_preset"] + 1).setValue(preset);
+
+    return json_({ ok: true });
+  }
+
+  // =========================================================
   // bp_lock（画像生成前BP仮ロック）
   // - loginId でユーザーを特定し bp_balance を即時減算
   // - image_locks シートにロック記録を残す
@@ -2988,7 +3131,7 @@ function handle_(key, body) {
 
     let values = sheet.getDataRange().getValues();
     let header = values[0];
-    ensureCols_(sheet, header, ["login_id","email","bp_balance","gacha_count","gacha_streak","gacha_fragments"]);
+    ensureCols_(sheet, header, ["login_id","email","bp_balance","gacha_count","gacha_streak","gacha_fragments","gacha_rate_preset"]);
     values = sheet.getDataRange().getValues();
     header = values[0];
     const idx  = indexMap_(header);
@@ -3016,8 +3159,17 @@ function handle_(key, body) {
       return json_({ ok: false, reason: "insufficient_bp", bp_balance: currentBp });
     }
 
+    const ratePreset = str_(sheet.getRange(hitRowIndex, idx["gacha_rate_preset"] + 1).getValue()) || "normal";
+
     const PRIZES  = [5,   10,  20,  40,   80,  150,  300,   600,   1000,  5000,  20000];
-    const WEIGHTS = [28,  24,  18,  12,   8,   5,    0.80,  0.20,  0.10,  0.02,  0.002];
+    let   WEIGHTS;
+    if (ratePreset === "super_lucky") {
+      WEIGHTS = [14,  12,   9,   6,   4,   5,    1.60,  0.40,  0.20,  0.04,  0.004];
+    } else if (ratePreset === "lucky") {
+      WEIGHTS = [21,  18,  13,   9,   6,   5,    1.20,  0.30,  0.15,  0.03,  0.003];
+    } else {
+      WEIGHTS = [28,  24,  18,  12,   8,   5,    0.80,  0.20,  0.10,  0.02,  0.002];
+    }
     const RARITY  = ["common","common","common","common","uncommon","uncommon","rare","epic","legendary","mythic","god"];
 
     function spinOnce(streakIn, countIn, forceGood) {

@@ -145,3 +145,20 @@ export async function updateJob(
 export async function listUserJobs(_userId: string): Promise<SongJob[]> {
   return [];
 }
+
+export async function refundBpToUser(loginId: string, amount: number, memo: string): Promise<void> {
+  if (!loginId || amount <= 0) return;
+  const adminKey = process.env.GAS_ADMIN_KEY;
+  if (!adminKey) {
+    console.error(`[refundBpToUser] GAS_ADMIN_KEY not set — skipping refund for ${loginId}`);
+    return;
+  }
+  try {
+    const res = await callGas("refund_bp", { adminKey, loginId, amount, memo });
+    if (!res.ok) {
+      console.error(`[refundBpToUser] failed for ${loginId}: ${JSON.stringify(res)}`);
+    }
+  } catch (e) {
+    console.error(`[refundBpToUser] error for ${loginId}: ${e}`);
+  }
+}

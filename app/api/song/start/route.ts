@@ -2,7 +2,7 @@
 // 歌詞ステップなし。直接 structure_ready まで生成して返す。
 // master_lyrics / singable_lyrics も同時生成・保存。
 import { NextResponse } from "next/server";
-import { createJob, updateJob, getJob } from "../_jobStore";
+import { createJob, updateJob, getJob, refundBpToUser } from "../_jobStore";
 import { BP_COSTS } from "@/app/lib/bp-config";
 import { buildSingableLyrics } from "@/lib/music/lyrics-singable";
 import { extractAnchorWords } from "@/lib/music/lyrics-anchor";
@@ -235,8 +235,8 @@ export async function POST(req: Request) {
   const openaiKey = process.env.OPENAI_API_KEY;
   if (!openaiKey) {
     await updateJob(jobId, { status: "failed", error: "openai_key_missing" });
-    const failedJob = await getJob(jobId);
-    return NextResponse.json({ ok: true, jobId, status: failedJob?.status ?? "failed", structureData: null });
+    await refundBpToUser(String(id), bpCost, "音楽生成失敗（OpenAI APIキー未設定）");
+    return NextResponse.json({ ok: false, error: "openai_key_missing" }, { status: 500 });
   }
 
   // 構成 + master_lyrics を同時生成
@@ -244,6 +244,10 @@ export async function POST(req: Request) {
     jobId, String(theme), String(genre), String(mood), openaiKey,
     { isPro: !!isPro, bpmHint: bpmHint ? Number(bpmHint) : undefined, vocalStyle, vocalMood, language }
   );
+  if (!generated) {
+    await refundBpToUser(String(id), bpCost, "音楽生成失敗（構成・歌詞生成エラー）");
+    return NextResponse.json({ ok: false, error: "structure_generation_failed" }, { status: 500 });
+  }
 
   // singable_lyrics を生成（失敗してもmaster_lyricsで続行）
   if (generated?.masterLyrics) {
