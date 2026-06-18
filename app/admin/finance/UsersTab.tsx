@@ -73,6 +73,30 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
+const MAIL_TEMPLATES: { label: string; subject: string; body: string }[] = [
+  { label: "（テンプレート選択）", subject: "", body: "" },
+  {
+    label: "narasu申請 差し戻し",
+    subject: "【AI SALON】narasu申請の差し戻しについて",
+    body: "○○様\n\nnarasu申請をご提出いただきありがとうございます。\n申請内容を確認いたしましたところ、下記の点に不備がございましたため、差し戻しとさせていただきます。\n\n【差し戻し理由】\n・\n\nお手数ですが内容をご確認のうえ、再度ご申請いただけますと幸いです。\nご不明点はいつでもご連絡ください。\n\nAI SALON 運営チーム",
+  },
+  {
+    label: "重要お知らせ（汎用）",
+    subject: "【AI SALON】重要なお知らせ",
+    body: "○○様\n\nいつもAI SALONをご利用いただきありがとうございます。\n\n【お知らせ内容】\n\n\nご不明点はいつでもご連絡ください。\n\nAI SALON 運営チーム",
+  },
+  {
+    label: "メンテナンス予告",
+    subject: "【AI SALON】メンテナンスのお知らせ",
+    body: "○○様\n\nいつもAI SALONをご利用いただきありがとうございます。\n\n下記日程でメンテナンスを実施いたします。\n\n■日時：\n■内容：\n\nメンテナンス中はサービスをご利用いただけません。ご不便をおかけして申し訳ございません。\n\nAI SALON 運営チーム",
+  },
+  {
+    label: "アカウント注意",
+    subject: "【AI SALON】アカウントに関するご連絡",
+    body: "○○様\n\nいつもAI SALONをご利用いただきありがとうございます。\n\nお客様のアカウントについて確認が必要な事項がございますのでご連絡いたします。\n\n【内容】\n\n\nご不明な点がございましたら、お気軽にお問い合わせください。\n\nAI SALON 運営チーム",
+  },
+];
+
 export default function UsersTab() {
   const [users,    setUsers]    = useState<AdminUser[]>([]);
   const [ledger,   setLedger]   = useState<LedgerItem[]>([]);
@@ -90,6 +114,7 @@ export default function UsersTab() {
   const [gachaPreset, setGachaPreset] = useState("normal");
   const [gachaPresetSending, setGachaPresetSending] = useState(false);
   const [gachaPresetMsg, setGachaPresetMsg] = useState<string | null>(null);
+  const [templateIdx,    setTemplateIdx]    = useState(0);
 
   useEffect(() => {
     setResetMsg(null);
@@ -98,6 +123,7 @@ export default function UsersTab() {
     setNotifyMsg(null);
     setGachaPreset(selected?.gacha_rate_preset ?? "normal");
     setGachaPresetMsg(null);
+    setTemplateIdx(0);
   }, [selected]);
 
   const onSendResetMail = async () => {
@@ -158,6 +184,7 @@ export default function UsersTab() {
         setNotifyMsg("✅ 送信しました");
         setNotifySubject("");
         setNotifyMessage("");
+        setTemplateIdx(0);
       } else {
         setNotifyMsg(`❌ 送信失敗: ${String(j?.error ?? "unknown_error")}`);
       }
@@ -338,6 +365,22 @@ export default function UsersTab() {
             )}
             <div className="mt-4">
               <p className="mb-1 text-xs text-zinc-400">個別お知らせ送信</p>
+              <select
+                value={templateIdx}
+                onChange={e => {
+                  const i = Number(e.target.value);
+                  setTemplateIdx(i);
+                  if (i > 0) {
+                    setNotifySubject(MAIL_TEMPLATES[i].subject);
+                    setNotifyMessage(MAIL_TEMPLATES[i].body);
+                  }
+                }}
+                className="mb-2 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-white focus:border-amber-500 focus:outline-none"
+              >
+                {MAIL_TEMPLATES.map((t, i) => (
+                  <option key={i} value={i}>{t.label}</option>
+                ))}
+              </select>
               <input
                 type="text"
                 placeholder="件名"
@@ -379,6 +422,8 @@ export default function UsersTab() {
                   <option value="normal">normal（通常）</option>
                   <option value="lucky">lucky（高レア2倍）</option>
                   <option value="super_lucky">super_lucky（最高優遇）</option>
+                  <option value="low">low（低確）</option>
+                  <option value="super_low">super_low（かなり低格）</option>
                 </select>
                 <button
                   onClick={onApplyGachaPreset}

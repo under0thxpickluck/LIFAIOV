@@ -2139,7 +2139,7 @@ function handle_(key, body) {
 
     const loginId = str_(body.loginId);
     const preset  = str_(body.preset);
-    const VALID   = ["normal", "lucky", "super_lucky"];
+    const VALID   = ["normal", "lucky", "super_lucky", "low", "super_low"];
 
     if (!loginId) return json_({ ok: false, error: "loginId_required" });
     if (!VALID.includes(preset)) return json_({ ok: false, error: "invalid_preset" });
@@ -3167,6 +3167,10 @@ function handle_(key, body) {
       WEIGHTS = [14,  12,   9,   6,   4,   5,    1.60,  0.40,  0.20,  0.04,  0.004];
     } else if (ratePreset === "lucky") {
       WEIGHTS = [21,  18,  13,   9,   6,   5,    1.20,  0.30,  0.15,  0.03,  0.003];
+    } else if (ratePreset === "low") {
+      WEIGHTS = [34,  28,  22,  15,  10,   4,    0.35,  0.09,  0.04,  0.009, 0.001];
+    } else if (ratePreset === "super_low") {
+      WEIGHTS = [42,  34,  26,  18,  12,   3.5,  0.12,  0.03,  0.015, 0.003, 0.0003];
     } else {
       WEIGHTS = [28,  24,  18,  12,   8,   5,    0.80,  0.20,  0.10,  0.02,  0.002];
     }

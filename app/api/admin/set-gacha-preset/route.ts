@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-const VALID_PRESETS = ["normal", "lucky", "super_lucky"] as const;
+const VALID_PRESETS = ["normal", "lucky", "super_lucky", "low", "super_low"] as const;
 type GachaPreset = typeof VALID_PRESETS[number];
 
 export async function POST(req: Request) {
