@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Zoom背景 — LIFAI</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+    background: #0a0a14;
+  }
+
+  /* 背景グラデーション */
+  .bg {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 900px 700px at 10% 50%, rgba(109,40,217,0.25), transparent),
+      radial-gradient(ellipse 600px 500px at 85% 20%, rgba(37,99,235,0.2), transparent),
+      radial-gradient(ellipse 500px 400px at 70% 80%, rgba(16,185,129,0.1), transparent),
+      linear-gradient(180deg, #08080f 0%, #0f0f1a 50%, #08080f 100%);
+  }
+
+  /* 格子パターン */
+  .grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  /* 光の粒子 */
+  .particles {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(167,139,250,0.6);
+    animation: float linear infinite;
+  }
+  @keyframes float {
+    0% { transform: translateY(100%) scale(0); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 0.5; }
+    100% { transform: translateY(-200px) scale(1); opacity: 0; }
+  }
+
+  /* メインコンテンツエリア */
+  .content {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 80px 120px;
+  }
+
+  /* 左：ロゴ + タイトル */
+  .left {
+    flex: 1;
+  }
+
+  .logo {
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: rgba(167,139,250,0.7);
+    text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+
+  .main-title {
+    font-size: 72px;
+    font-weight: 900;
+    line-height: 1.1;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, #ffffff 30%, #a78bfa 70%, #60a5fa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .sub-title {
+    font-size: 22px;
+    color: rgba(255,255,255,0.45);
+    font-weight: 500;
+    line-height: 1.7;
+  }
+
+  .badges {
+    display: flex;
+    gap: 10px;
+    margin-top: 32px;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid;
+  }
+
+  .badge-purple { background: rgba(124,58,237,0.2); color: #c4b5fd; border-color: rgba(167,139,250,0.3); }
+  .badge-blue   { background: rgba(37,99,235,0.2);  color: #93c5fd; border-color: rgba(96,165,250,0.3); }
+  .badge-green  { background: rgba(16,185,129,0.2); color: #6ee7b7; border-color: rgba(52,211,153,0.3); }
+
+  /* 右：ビジュアル要素 */
+  .right {
+    width: 520px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 16px;
+  }
+
+  .feature-card {
+    width: 380px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    backdrop-filter: blur(10px);
+  }
+
+  .feature-card:nth-child(1) { border-color: rgba(124,58,237,0.3); }
+  .feature-card:nth-child(2) { border-color: rgba(37,99,235,0.3); }
+  .feature-card:nth-child(3) { border-color: rgba(16,185,129,0.3); }
+  .feature-card:nth-child(4) { border-color: rgba(245,158,11,0.3); }
+
+  .feature-icon {
+    width: 52px; height: 52px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+  }
+
+  .icon-purple { background: rgba(124,58,237,0.3); }
+  .icon-blue   { background: rgba(37,99,235,0.3); }
+  .icon-green  { background: rgba(16,185,129,0.3); }
+  .icon-yellow { background: rgba(245,158,11,0.3); }
+
+  .feature-text h3 {
+    font-size: 15px;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 3px;
+  }
+  .feature-text p {
+    font-size: 12px;
+    color: rgba(255,255,255,0.45);
+    line-height: 1.5;
+  }
+
+  /* デコレーション円 */
+  .deco-circle {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(167,139,250,0.15);
+    animation: spin linear infinite;
+  }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  .deco-1 {
+    width: 400px; height: 400px;
+    top: -100px; right: 300px;
+    animation-duration: 30s;
+  }
+  .deco-2 {
+    width: 600px; height: 600px;
+    top: -200px; right: 200px;
+    animation-duration: 45s;
+    animation-direction: reverse;
+    border-color: rgba(96,165,250,0.08);
+  }
+
+  /* 音符アニメーション */
+  .music-notes {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .note {
+    position: absolute;
+    font-size: 20px;
+    opacity: 0;
+    animation: noteFloat 6s ease-in-out infinite;
+  }
+  @keyframes noteFloat {
+    0% { opacity: 0; transform: translateY(0) rotate(0deg); }
+    20% { opacity: 0.3; }
+    80% { opacity: 0.3; }
+    100% { opacity: 0; transform: translateY(-120px) rotate(20deg); }
+  }
+
+  /* 区切り線 */
+  .divider {
+    position: absolute;
+    left: 0; bottom: 60px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    padding: 0 120px;
+    gap: 16px;
+  }
+  .divider-line { flex: 1; height: 1px; background: rgba(255,255,255,0.06); }
+  .divider-text { font-size: 12px; color: rgba(255,255,255,0.2); font-weight: 600; letter-spacing: 2px; }
+
+  /* 波形ビジュアル */
+  .waveform {
+    position: absolute;
+    bottom: 90px;
+    left: 120px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 30px;
+  }
+  .wave-bar {
+    width: 3px;
+    background: rgba(167,139,250,0.3);
+    border-radius: 2px;
+    animation: wave 1.5s ease-in-out infinite;
+  }
+  @keyframes wave {
+    0%, 100% { transform: scaleY(1); }
+    50% { transform: scaleY(3); }
+  }
+</style>
+</head>
+<body>
+
+<!-- 背景レイヤー -->
+<div class="bg"></div>
+<div class="grid"></div>
+
+<!-- デコレーション円 -->
+<div class="deco-circle deco-1"></div>
+<div class="deco-circle deco-2"></div>
+
+<!-- 音符 -->
+<div class="music-notes">
+  <span class="note" style="left:15%; top:20%; animation-delay:0s;">🎵</span>
+  <span class="note" style="left:25%; top:60%; animation-delay:1.5s;">♪</span>
+  <span class="note" style="left:45%; top:40%; animation-delay:3s;">🎶</span>
+  <span class="note" style="left:60%; top:70%; animation-delay:0.8s;">♫</span>
+  <span class="note" style="left:80%; top:30%; animation-delay:2.2s;">🎵</span>
+</div>
+
+<!-- メインコンテンツ -->
+<div class="content">
+  <div class="left">
+    <div class="logo">LIFAI — Music Feature Seminar</div>
+    <div class="main-title">音楽機能<br>完全ガイド</div>
+    <div class="sub-title">
+      音楽生成 × アルバム制作<br>
+      × Music Boost
+    </div>
+    <div class="badges">
+      <span class="badge badge-purple">🎵 BGM生成</span>
+      <span class="badge badge-blue">💿 アルバム</span>
+      <span class="badge badge-green">🚀 Music Boost</span>
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="feature-card">
+      <div class="feature-icon icon-purple">🎵</div>
+      <div class="feature-text">
+        <h3>BGM生成</h3>
+        <p>AIで3〜4分の楽曲を生成<br>Standard / Pro モード</p>
+      </div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon icon-blue">💿</div>
+      <div class="feature-text">
+        <h3>アルバム制作</h3>
+        <p>Spotify・Apple Musicに配信<br>narasu代行申請対応</p>
+      </div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon icon-green">🚀</div>
+      <div class="feature-text">
+        <h3>Music Boost</h3>
+        <p>店舗・施設BGMネットワークで<br>楽曲の認知を拡大</p>
+      </div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon icon-yellow">🎤</div>
+      <div class="feature-text">
+        <h3>世界に届ける</h3>
+        <p>生成した楽曲の著作権は<br>あなたのものです</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 波形ビジュアル -->
+<div class="waveform" id="waveform"></div>
+
+<!-- 区切り線 -->
+<div class="divider">
+  <div class="divider-line"></div>
+  <div class="divider-text">LIFAI — AI Music Community</div>
+  <div class="divider-line"></div>
+</div>
+
+<script>
+  // 波形生成
+  const wf = document.getElementById('waveform');
+  for (let i = 0; i < 60; i++) {
+    const bar = document.createElement('div');
+    bar.className = 'wave-bar';
+    const h = 8 + Math.random() * 22;
+    bar.style.height = h + 'px';
+    bar.style.animationDelay = (Math.random() * 1.5) + 's';
+    bar.style.animationDuration = (1 + Math.random() * 0.8) + 's';
+    bar.style.opacity = (0.2 + Math.random() * 0.4).toString();
+    wf.appendChild(bar);
+  }
+</script>
+</body>
+</html>

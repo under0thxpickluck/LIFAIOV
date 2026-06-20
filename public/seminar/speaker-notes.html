@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>発表者ノート — LIFAI音楽機能ガイド</title>
+<style>
+  body {
+    font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px 24px;
+    background: #f8fafc;
+    color: #1e293b;
+    line-height: 1.8;
+  }
+  h1 { font-size: 24px; font-weight: 900; margin-bottom: 8px; color: #0f172a; }
+  .meta { color: #64748b; font-size: 13px; margin-bottom: 48px; }
+  .slide-note {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 24px 28px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .slide-note h2 {
+    font-size: 15px;
+    font-weight: 800;
+    color: #4f46e5;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .slide-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px; height: 26px;
+    background: #4f46e5;
+    color: white;
+    font-size: 11px;
+    font-weight: 800;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .time {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    background: #f1f5f9;
+    color: #64748b;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: auto;
+  }
+  .slide-note p { font-size: 14px; color: #475569; margin: 8px 0; }
+  .slide-note ul { font-size: 14px; color: #475569; padding-left: 20px; }
+  .slide-note li { margin-bottom: 4px; }
+  .tip {
+    background: #f0fdf4;
+    border-left: 3px solid #10b981;
+    padding: 10px 14px;
+    border-radius: 0 8px 8px 0;
+    font-size: 13px;
+    color: #166534;
+    margin-top: 12px;
+  }
+  .warn {
+    background: #fefce8;
+    border-left: 3px solid #eab308;
+    padding: 10px 14px;
+    border-radius: 0 8px 8px 0;
+    font-size: 13px;
+    color: #713f12;
+    margin-top: 12px;
+  }
+  .section-header {
+    font-size: 18px;
+    font-weight: 900;
+    color: #6d28d9;
+    margin: 40px 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #ede9fe;
+  }
+  .toc { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 24px; margin-bottom: 40px; }
+  .toc h2 { font-size: 14px; font-weight: 700; color: #475569; margin-bottom: 12px; }
+  .toc ol { font-size: 13px; color: #64748b; padding-left: 20px; }
+  .toc li { margin-bottom: 4px; }
+  @media print {
+    body { padding: 20px; }
+    .slide-note { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<h1>🎤 発表者ノート</h1>
+<p class="meta">LIFAI 音楽機能 完全ガイド — 所要時間：約60分 | 対象：一般ユーザー</p>
+
+<div class="toc">
+  <h2>目次（タイムライン）</h2>
+  <ol>
+    <li>オープニング（スライド1〜2）— 5分</li>
+    <li>第1章 音楽生成（スライド3〜9）— 15分</li>
+    <li>第2章 アルバムとは（スライド10〜13）— 10分</li>
+    <li>第3章 アルバムの作り方（スライド14〜21）— 20分</li>
+    <li>第4章 Music Boost（スライド22〜29）— 15分</li>
+    <li>まとめ・Q&A（スライド30〜31）— 5分</li>
+  </ol>
+</div>
+
+<!-- ──────────────────────────────────────────── -->
+<div class="section-header">オープニング（約5分）</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">1</span> タイトルスライド <span class="time">2分</span></h2>
+  <p>「本日はLIFAIの音楽機能について、一から丁寧にご説明します。大きく4つのテーマに分けてお話しします。」</p>
+  <p>参加者の自己紹介や音楽経験の確認をするとよい（「音楽を生成したことがある方は？」など）。</p>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">2</span> アジェンダ <span class="time">3分</span></h2>
+  <p>「今日は（1）楽曲を作る方法、（2）その楽曲をまとめてアルバムにする方法、（3）アルバムを実際にリリースする手順、（4）Music Boostで楽曲の露出を増やす方法、この4つをお伝えします。」</p>
+  <div class="tip">💡 「全部覚えなくてOKです。このスライドのURLを共有するので、後で見返してください」と伝えると参加者がリラックスできます。</div>
+</div>
+
+<!-- ──────────────────────────────────────────── -->
+<div class="section-header">第1章 音楽生成（約15分）</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">3</span> 第1章セクション区切り <span class="time">30秒</span></h2>
+  <p>「それでは最初のテーマ、音楽生成について始めます。」</p>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">4</span> BGM生成とは？ <span class="time">3分</span></h2>
+  <p>「LIFAIでは、AIを使って本格的な楽曲を生成できます。モードは2種類あります。」</p>
+  <ul>
+    <li>STANDARDは日本語を入力するだけ。全員が使えます</li>
+    <li>PROはより細かい設定ができますが、Core/Infraプランの方限定です</li>
+  </ul>
+  <p>「生成した楽曲は約3分の完成品として届きます。A（Verse）→サビ（Chorus）→B（Bridge）の3パートが順番に生成・結合されます。」</p>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">5</span> STANDARDモードの使い方 <span class="time">4分</span></h2>
+  <p>「STANDARDモードは4ステップで完成です。実際のアプリを見ながら説明します。」</p>
+  <ul>
+    <li>ジャンルのボタンを1つ選ぶ</li>
+    <li>BPMは「ミディアム」が最もバランスよく使いやすい</li>
+    <li>プロンプトは日本語で自由に入力。タグボタンで追加も可</li>
+    <li>最後に「生成する」を押す。3〜4分待つ間はページを閉じない！</li>
+  </ul>
+  <div class="warn">⚠️ この「ページを閉じない」が最も大事な注意点です。必ず強調してください。</div>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">6</span> PROモードの追加設定 <span class="time">3分</span></h2>
+  <p>「PROモードはCore/Infraプランの方が使えます。STANDARDに加えて3つの追加設定があります。」</p>
+  <ul>
+    <li>ボーカルスタイル：女性・男性・混声・ボーカルなし</li>
+    <li>波形タイプ：音の「質感」を変える。迷ったらオーガニックが自然な仕上がり</li>
+    <li>ヒューマナイズ：機械的すぎる演奏に「揺れ・生っぽさ」を加える</li>
+  </ul>
+  <div class="tip">💡 「生成した楽曲をSNSでアーティスト名とセットで発信すると知名度アップに直結します。楽曲リリースとSNS運用はセットで考えましょう」</div>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">7</span> 生成の流れ（内部処理） <span class="time">2分</span></h2>
+  <p>「内部的にこういう順序で生成しています。知らなくてもいいですが、なぜ3〜4分かかるかが分かります。」</p>
+  <p>「A→サビ→Bメロと3パートをそれぞれ生成して最後に結合するので、時間がかかります。」</p>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">8</span> 音楽生成の注意点 <span class="time">4分</span></h2>
+  <p>「これが一番重要です。4つの注意点を確認しましょう。」</p>
+  <ul>
+    <li>❶ <strong>ページを閉じない</strong>：ブラウザが状態確認しているので、閉じると音源が届かない</li>
+    <li>❷ <strong>1回ずつ待つ</strong>：連続生成するとエラーになる</li>
+    <li>❸ <strong>著作権はあなたのもの</strong>：LIFAIで作った楽曲は自由に使える</li>
+    <li>❹ <strong>エラーは「もう一度試す」で解決</strong>：繰り返し失敗なら公式LINEへ</li>
+  </ul>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">9</span> エラーコード一覧 <span class="time">2分</span></h2>
+  <p>「エラーコードが出ても怖くありません。表の通りに対処すれば大丈夫です。」</p>
+  <p>「一番よく出るのはMUSIC-001。数分待って再試行するだけで解決することがほとんどです。」</p>
+  <div class="tip">💡 「エラーを見て諦めてしまう人が多いですが、ほとんどは一時的な混雑です。5分後に再試行してみてください」</div>
+</div>
+
+<!-- ──────────────────────────────────────────── -->
+<div class="section-header">第2章 アルバムとは（約10分）</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">10</span> 第2章セクション区切り <span class="time">30秒</span></h2>
+  <p>「次のテーマです。生成した楽曲をどうするか、『アルバム』について説明します。」</p>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">11</span> アルバムの種類 <span class="time">3分</span></h2>
+  <p>「音楽リリースには3つの形があります。初めての方にはシングルをお勧めします。」</p>
+  <ul>
+    <li>シングル：1〜2曲。一番手軽に始められる</li>
+    <li>EP（ミニアルバム）：3〜5曲。ある程度の世界観を見せられる</li>
+    <li>アルバム：6〜15曲。本格的な作品として位置づけられる</li>
+  </ul>
+  <p>「まずはシングルで慣れて、徐々にEP・アルバムにチャレンジしましょう。」</p>
+  <div class="warn">⚠️ <strong>1アルバムは最大15曲まで</strong>です。15曲を超える場合はアルバムを分けてリリースするよう案内してください。</div>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">12</span> 配信サービスとは？ <span class="time">3分</span></h2>
+  <p>「LIFAIで使える配信サービスは主に2つです。」</p>
+  <ul>
+    <li><strong>narasu</strong>：日本発。LIFAIが代行申請を対応しているので一番おすすめ</li>
+    <li><strong>TuneCore</strong>：世界150以上のサービスに配信できる老舗。年間約1,500円の費用がかかる</li>
+  </ul>
+  <p>「どちらもSpotify・Apple Musicに配信できます。まずはnarasuを使ってみましょう。」</p>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">13</span> なぜアルバムをリリースするの？ <span class="time">4分</span></h2>
+  <p>「配信することには大きなメリットがあります。」</p>
+  <ul>
+    <li>世界中に届く：SpotifyやApple Musicで全世界のリスナーに届く</li>
+    <li>再生されるたびに収益が発生する（ロイヤリティ）</li>
+    <li>SNSでSpotifyリンクをシェアできる</li>
+    <li>Music Boostで曲数が多いほど効果が上がる（後で説明します）</li>
+  </ul>
+  <div class="tip">💡 「趣味で作った曲でも、世界のプラットフォームに並ぶことができます。それ自体がモチベーションになりますよね」</div>
+</div>
+
+<!-- ──────────────────────────────────────────── -->
+<div class="section-header">第3章 アルバムの作り方（約20分）</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">14</span> 第3章セクション区切り <span class="time">30秒</span></h2>
+  <p>「それでは実際のアルバム制作手順を見ていきましょう。5つのステップです。」</p>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">15</span> 5ステップ全体フロー <span class="time">2分</span></h2>
+  <p>「5つのステップを一覧で確認します。この後、それぞれ詳しく説明します。」</p>
+  <p>「最初の2ステップが意外と悩むポイントです。アーティスト名とアルバム名を先に決めてしまうと後がスムーズです。」</p>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">16</span> Step 1: アーティスト名 <span class="time">3分</span></h2>
+  <p>「narasuへの申請には日本語・カタカナ・英語の3表記が必要です。」</p>
+  <ul>
+    <li>実名でも活動名でもOK</li>
+    <li>英語はローマ字表記でも可</li>
+    <li>Google検索で同名アーティストがいないか確認する</li>
+    <li>一度使い始めると変更が難しいので慎重に！</li>
+  </ul>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">17</span> Step 2: アルバム名 <span class="time">3分</span></h2>
+  <p>「アルバム名には3つのパターンがあります。悩んだらシングルはタイトル＝アルバム名でOKです。」</p>
+  <ul>
+    <li>テーマ型：曲の世界観をタイトルにする。「夜明けの詩」など</li>
+    <li>感情型：聴いた時の気持ちをタイトルにする。「静寂」など</li>
+    <li>造語型：新しい言葉を作る。記憶に残りやすい</li>
+  </ul>
+  <div class="warn">⚠️ アルバム名も3表記（日本語・カタカナ・英語）が必要です。</div>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">18</span> Step 3: 収録曲を揃える <span class="time">3分</span></h2>
+  <p>「LIFAIで楽曲を生成して、音源URLを取得します。」</p>
+  <ul>
+    <li>生成後に表示される「WAVを保存」ボタンからダウンロード</li>
+    <li>音源URLをフォームにコピー＆ペースト</li>
+    <li>楽曲タイトルもアルバム世界観と合わせると統一感が出る</li>
+  </ul>
+  <p>「シングルなら1曲でOKです。まず1曲作って申請しましょう！」</p>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">19</span> Step 4: ジャケット画像 <span class="time">4分</span></h2>
+  <p>「ジャケット画像は<strong>3000×3000px以上</strong>が必須です。小さいと審査で落ちます。」</p>
+  <ul>
+    <li>無料ツール：Canvaがおすすめ。「アルバムカバー」で検索するとテンプレートが出る</li>
+    <li>Canvaのキャンバスサイズを3000×3000pxに設定してデザインする</li>
+    <li>著作権フリーの素材のみ使用すること</li>
+    <li>完成したらGoogleドライブにアップして共有リンクを取得</li>
+  </ul>
+  <div class="tip">💡 「Canvaで『アルバムカバー』を検索すると無料テンプレートが大量に出てきます。5分で作れますよ！」</div>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">20</span> Step 5: チェックリスト <span class="time">2分</span></h2>
+  <p>「12項目のチェックリストを全部揃えたら申請OKです。」</p>
+  <p>「特に忘れがちなのが：narasuアカウントのID/PW、ジャケット画像URL、アーティスト名の3表記です。」</p>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">21</span> narasu代行申請 <span class="time">3分</span></h2>
+  <p>「LIFAIの代行申請サービスを使うと、ご自身でnarasuを操作しなくても申請が完了します。」</p>
+  <ul>
+    <li>アプリ内の「narasu代行申請」から利用</li>
+    <li>規約に同意→フォーム入力→LIFAIが代行申請</li>
+    <li>narasuアカウントのPWは代行完了後に変更することを推奨</li>
+  </ul>
+  <div class="warn">⚠️ 申請受付が一時停止中の場合があります。その場合はアプリ内でご案内します。</div>
+</div>
+
+<!-- ──────────────────────────────────────────── -->
+<div class="section-header">第4章 Music Boost（約15分）</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">22</span> 第4章セクション区切り <span class="time">30秒</span></h2>
+  <p>「最後のテーマです。Music Boostという、楽曲の露出を増やす仕組みについてご説明します。」</p>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">23</span> Music Boostとは？ <span class="time">3分</span></h2>
+  <p>「Music Boostを一言で言うと、<strong>企業向け音楽配信ネットワークに楽曲を掲載する月額広告サービス</strong>です。」</p>
+  <p>「カフェ・美容室・オフィス・ショップなど、店舗や施設のBGMとして流れる仕組みです。」</p>
+  <p>「広告 × 音楽配信 × 空間演出、というイメージです。」</p>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">24</span> Music Boostで得られるもの <span class="time">3分</span></h2>
+  <p>「6つのメリットがあります。中でも重要なのは『認知拡大』と『企業案件の優先度アップ』です。」</p>
+  <p>「このサービスは再生数を増やすツールではありません。あくまで『多くの場所で耳に届ける』ための広告です。この違いを理解してください。」</p>
+  <div class="warn">⚠️ 収益保証ではない点を必ず強調してください。期待値の管理が重要です。</div>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">25</span> プラン一覧 <span class="time">3分</span></h2>
+  <p>「プランはStarterから Legendまで10種類。ブースト率（2%〜45%）と枠数・月額が違います。」</p>
+  <ul>
+    <li>Starter：$9/月、2%、10枠（8曲以上配信が推奨）</li>
+    <li>Basic：$59/月、10%、50枠（30曲以上推奨）</li>
+    <li>Pro：$149/月、20%、100枠（75曲以上推奨）</li>
+    <li>Legend：$1,000/月、45%、225枠（500曲以上推奨）</li>
+  </ul>
+  <p>「枠数には上限があります。満枠だと新規契約できないので早めの検討がおすすめです。」</p>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">26</span> プランの選び方 <span class="time">2分</span></h2>
+  <p>「配信曲数に応じてプランを選ぶのがポイントです。」</p>
+  <ul>
+    <li>初めて：Starter（$9）から試す。リスクが低い</li>
+    <li>中級：30曲以上になったらBasic〜Growthに移行</li>
+    <li>上級：75曲以上でPro以上を検討</li>
+  </ul>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">27</span> Music Boostの使い方 <span class="time">3分</span></h2>
+  <p>「実際の使い方は4ステップです。アプリ内の /music-boost にアクセスします。」</p>
+  <ul>
+    <li>プランを選んでタップ</li>
+    <li>EPまたはクレジットカードで支払い</li>
+    <li>楽曲情報（アーティスト名・アルバム名）を登録</li>
+    <li>運営に即時反映される</li>
+  </ul>
+  <p>「EPは1ドル＝100EPです。換金はできません。」</p>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">28</span> 楽曲登録の方法 <span class="time">2分</span></h2>
+  <p>「契約後は楽曲情報を登録できます。アーティスト名が必須、アルバム名は任意です。」</p>
+  <p>「登録・編集・削除はいつでも可能です。契約期間中は何度でも変更できます。」</p>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">29</span> Music Boost注意事項 <span class="time">2分</span></h2>
+  <p>「最後に注意事項を確認しましょう。」</p>
+  <ul>
+    <li>不正利用は厳禁（アカウント停止）</li>
+    <li>EPは換金不可</li>
+    <li>有効期間は30日。自動更新なし</li>
+    <li>収益・効果の保証なし</li>
+  </ul>
+</div>
+
+<!-- ──────────────────────────────────────────── -->
+<div class="section-header">まとめ・Q&A（約5分）</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">30</span> まとめ <span class="time">3分</span></h2>
+  <p>「4章をまとめます。」</p>
+  <ul>
+    <li>音楽生成：3〜4分かかる。ページを閉じない。エラーは再試行でOK</li>
+    <li>アルバム：シングルから始めよう。narasuがおすすめ</li>
+    <li>アルバムの作り方：5ステップ。アーティスト名は3表記必要</li>
+    <li>Music Boost：認知拡大の広告サービス。まずStarterから</li>
+  </ul>
+  <div class="tip">💡 「今日の内容はスライドのURLから何度でも見返せます。まずは1曲作ってみることから始めてください！」</div>
+</div>
+
+<div class="slide-note">
+  <h2><span class="slide-num">31</span> Q&A <span class="time">5分+</span></h2>
+  <p>「ご質問はありますか？」</p>
+  <p><strong>よくある質問と回答例：</strong></p>
+  <ul>
+    <li>Q：生成した音楽を販売できますか？<br>→ A：著作権はご自身のものなので販売できます。配信・商業利用も可能です。</li>
+    <li>Q：Music Boostはどのくらいで効果が出ますか？<br>→ A：効果の出方は様々です。認知拡大を目的としているため、短期的な数値変化より長期的なブランド構築を意識してください。</li>
+    <li>Q：PROモードはいつ使えますか？<br>→ A：Core/Infraプランの方が対象です。プランの詳細はトップページでご確認ください。</li>
+    <li>Q：生成に失敗した場合、料金はかかりますか？<br>→ A：生成は何回試みても無制限です（プランの機能として含まれます）。</li>
+  </ul>
+</div>
+
+<div style="margin-top: 48px; padding: 20px; background: #f0fdf4; border-radius: 12px; font-size: 13px; color: #166534;">
+  <strong>発表終了後のアクション：</strong><br>
+  このファイルのURLを参加者にシェアしてください。<br>
+  スライドURL：<code>/seminar/index.html</code><br>
+  発表者ノートURL：<code>/seminar/speaker-notes.html</code>
+</div>
+
+</body>
+</html>

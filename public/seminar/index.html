@@ -1,0 +1,1627 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LIFAI 音楽機能 完全ガイド</title>
+<style>
+  :root {
+    --purple: #7c3aed;
+    --blue: #2563eb;
+    --indigo: #4f46e5;
+    --bg-dark: #0f0f1a;
+    --bg-card: #1a1a2e;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --accent: #a78bfa;
+    --green: #10b981;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+    background: #000;
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  .slideshow {
+    width: 100%;
+    height: 100%;
+    position: relative;
+  }
+
+  .slide {
+    display: none;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0; left: 0;
+    padding: 60px 80px;
+    overflow: hidden;
+  }
+
+  .slide.active { display: flex; flex-direction: column; }
+
+  /* ──── テーマ別 背景 ──── */
+  .slide-title {
+    background: linear-gradient(135deg, #0f0f1a 0%, #1e1040 50%, #0f0f1a 100%);
+    justify-content: center; align-items: center; text-align: center;
+  }
+  .slide-agenda {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  }
+  .slide-music {
+    background: linear-gradient(135deg, #0f0f1a 0%, #1a1040 100%);
+  }
+  .slide-album {
+    background: linear-gradient(135deg, #0f1a0f 0%, #102040 100%);
+  }
+  .slide-boost {
+    background: linear-gradient(135deg, #1a0f0f 0%, #1a1040 100%);
+  }
+  .slide-section {
+    background: linear-gradient(135deg, #0f0f1a 0%, #1e1040 100%);
+    justify-content: center; align-items: center; text-align: center;
+  }
+  .slide-end {
+    background: linear-gradient(135deg, #0f0f1a 0%, #1e1040 100%);
+    justify-content: center; align-items: center; text-align: center;
+  }
+
+  /* ──── テキストスタイル ──── */
+  .chapter-badge {
+    display: inline-block;
+    background: rgba(124, 58, 237, 0.3);
+    border: 1px solid rgba(167, 139, 250, 0.5);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 4px 14px;
+    border-radius: 20px;
+    margin-bottom: 16px;
+  }
+
+  h1.display {
+    font-size: 52px;
+    font-weight: 900;
+    line-height: 1.15;
+    background: linear-gradient(135deg, #fff 30%, var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 20px;
+  }
+
+  h2.slide-title-h {
+    font-size: 36px;
+    font-weight: 800;
+    margin-bottom: 12px;
+    color: #fff;
+  }
+
+  h3.section-label {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  .subtitle {
+    font-size: 18px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .slide-header {
+    margin-bottom: 32px;
+  }
+
+  .slide-header h2 {
+    font-size: 30px;
+    font-weight: 800;
+    color: #fff;
+  }
+
+  .slide-header .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--accent);
+    background: rgba(124,58,237,0.2);
+    border: 1px solid rgba(167,139,250,0.3);
+    padding: 3px 10px;
+    border-radius: 12px;
+    margin-bottom: 8px;
+  }
+
+  /* ──── カード ──── */
+  .cards {
+    display: grid;
+    gap: 16px;
+  }
+  .cards-2 { grid-template-columns: 1fr 1fr; }
+  .cards-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+  .card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 20px 22px;
+  }
+
+  .card.purple { border-color: rgba(124,58,237,0.4); background: rgba(124,58,237,0.08); }
+  .card.blue   { border-color: rgba(37,99,235,0.4);  background: rgba(37,99,235,0.08); }
+  .card.green  { border-color: rgba(16,185,129,0.4); background: rgba(16,185,129,0.08); }
+  .card.yellow { border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.08); }
+  .card.red    { border-color: rgba(239,68,68,0.4);  background: rgba(239,68,68,0.08); }
+
+  .card-icon { font-size: 28px; margin-bottom: 10px; }
+  .card h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; color: #fff; }
+  .card p, .card li { font-size: 13px; color: var(--muted); line-height: 1.7; }
+  .card ul { padding-left: 16px; }
+  .card li { margin-bottom: 2px; }
+
+  /* ──── リスト ──── */
+  .step-list { display: flex; flex-direction: column; gap: 12px; }
+
+  .step-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 14px 18px;
+  }
+
+  .step-num {
+    min-width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--purple);
+    border-radius: 50%;
+    font-size: 14px;
+    font-weight: 800;
+    color: #fff;
+    flex-shrink: 0;
+  }
+
+  .step-body h4 { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 2px; }
+  .step-body p  { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+  /* ──── バッジ ──── */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+  .badge-purple { background: rgba(124,58,237,0.3); color: #c4b5fd; border: 1px solid rgba(167,139,250,0.3); }
+  .badge-green  { background: rgba(16,185,129,0.2); color: #6ee7b7; border: 1px solid rgba(16,185,129,0.3); }
+  .badge-yellow { background: rgba(245,158,11,0.2); color: #fcd34d; border: 1px solid rgba(245,158,11,0.3); }
+  .badge-red    { background: rgba(239,68,68,0.2);  color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+  .badge-blue   { background: rgba(37,99,235,0.2);  color: #93c5fd; border: 1px solid rgba(37,99,235,0.3); }
+
+  /* ──── 警告ボックス ──── */
+  .alert {
+    border-radius: 12px;
+    padding: 16px 20px;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .alert-yellow { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); color: #fde68a; }
+  .alert-red    { background: rgba(239,68,68,0.1);  border: 1px solid rgba(239,68,68,0.3);  color: #fca5a5; }
+  .alert-green  { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: #a7f3d0; }
+  .alert-blue   { background: rgba(37,99,235,0.1);  border: 1px solid rgba(37,99,235,0.3);  color: #bfdbfe; }
+
+  /* ──── テーブル ──── */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: rgba(124,58,237,0.3); color: #e9d5ff; font-weight: 700; padding: 10px 14px; text-align: left; }
+  td { padding: 9px 14px; color: var(--muted); border-bottom: 1px solid rgba(255,255,255,0.06); }
+  tr:hover td { background: rgba(255,255,255,0.03); }
+
+  /* ──── セクション区切りスライド ──── */
+  .section-number {
+    font-size: 100px;
+    font-weight: 900;
+    opacity: 0.1;
+    line-height: 1;
+    margin-bottom: -20px;
+    color: var(--accent);
+  }
+  .section-title {
+    font-size: 44px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #fff 40%, var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .section-sub {
+    font-size: 16px;
+    color: var(--muted);
+    margin-top: 12px;
+  }
+
+  /* ──── ナビゲーション ──── */
+  .nav {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    backdrop-filter: blur(12px);
+    border-radius: 40px;
+    padding: 8px 20px;
+    z-index: 100;
+  }
+
+  .nav button {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 8px;
+    transition: all 0.15s;
+  }
+  .nav button:hover { color: #fff; background: rgba(255,255,255,0.1); }
+  .nav button:disabled { opacity: 0.2; cursor: not-allowed; }
+
+  .slide-counter {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 600;
+    min-width: 60px;
+    text-align: center;
+  }
+
+  /* ──── プログレスバー ──── */
+  .progress-bar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--purple), var(--blue));
+    transition: width 0.3s;
+    z-index: 200;
+  }
+
+  /* ──── キーボードヒント ──── */
+  .hint {
+    position: fixed;
+    top: 20px;
+    right: 24px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.2);
+  }
+
+  /* ──── タイムライン ──── */
+  .timeline {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin-top: 8px;
+  }
+  .tl-item {
+    flex: 1;
+    text-align: center;
+    position: relative;
+    padding: 14px 10px 10px;
+  }
+  .tl-item::before {
+    content: '';
+    position: absolute;
+    top: 24px; left: 50%;
+    width: 100%; height: 2px;
+    background: rgba(167,139,250,0.3);
+  }
+  .tl-item:last-child::before { display: none; }
+  .tl-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin: 0 auto 8px;
+    position: relative;
+    z-index: 1;
+    box-shadow: 0 0 0 3px rgba(167,139,250,0.2);
+  }
+  .tl-label { font-size: 11px; color: var(--muted); line-height: 1.5; }
+  .tl-time { font-size: 10px; color: var(--accent); font-weight: 700; margin-top: 4px; }
+
+  /* ──── 大きなアイコン ──── */
+  .big-icon {
+    font-size: 80px;
+    margin-bottom: 20px;
+  }
+
+  /* ──── チェックリスト ──── */
+  .checklist { display: flex; flex-direction: column; gap: 10px; }
+  .check-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .check-box {
+    width: 20px; height: 20px;
+    border-radius: 5px;
+    border: 2px solid rgba(167,139,250,0.4);
+    flex-shrink: 0;
+  }
+
+  /* ──── ツーコラム ──── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+  /* ──── 強調テキスト ──── */
+  .em { color: var(--accent); font-weight: 700; }
+  .em-green { color: #6ee7b7; font-weight: 700; }
+  .em-yellow { color: #fcd34d; font-weight: 700; }
+  .em-red { color: #fca5a5; font-weight: 700; }
+
+  /* ──── 区切り線 ──── */
+  .divider { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 20px 0; }
+
+  /* ──── ロゴ ──── */
+  .lifai-logo {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: var(--muted);
+    position: absolute;
+    top: 20px;
+    left: 30px;
+    opacity: 0.5;
+  }
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+<div class="hint">← → キーで移動 | スペースで次へ</div>
+
+<div class="slideshow">
+
+<!-- ══════════════════════════════════════════════════
+     スライド 1 / タイトル
+══════════════════════════════════════════════════ -->
+<div class="slide slide-title active">
+  <div class="big-icon">🎵</div>
+  <h1 class="display">LIFAI 音楽機能<br>完全ガイド</h1>
+  <p class="subtitle">音楽生成 × アルバム × Music Boost<br>一般ユーザー向けセミナー資料</p>
+  <div style="margin-top: 40px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+    <span class="badge badge-purple">🎵 BGM生成</span>
+    <span class="badge badge-blue">💿 アルバム制作</span>
+    <span class="badge badge-green">🚀 Music Boost</span>
+  </div>
+  <p style="margin-top: 40px; font-size: 12px; color: var(--muted); opacity: 0.6;">所要時間：約60分</p>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 2 / アジェンダ
+══════════════════════════════════════════════════ -->
+<div class="slide slide-agenda">
+  <div class="slide-header">
+    <div class="tag">AGENDA</div>
+    <h2>今日の内容</h2>
+  </div>
+  <div class="cards cards-2" style="gap: 16px;">
+    <div class="card purple">
+      <div class="card-icon">🎵</div>
+      <h3>第1章 — 音楽生成（約15分）</h3>
+      <ul>
+        <li>BGM生成機能とは</li>
+        <li>STANDARDモードの使い方</li>
+        <li>PROモードの使い方</li>
+        <li>注意点・よくあるエラー</li>
+      </ul>
+    </div>
+    <div class="card blue">
+      <div class="card-icon">💿</div>
+      <h3>第2章 — アルバムとは（約10分）</h3>
+      <ul>
+        <li>シングル / EP / アルバムの違い</li>
+        <li>音楽配信サービスとは</li>
+        <li>なぜアルバムを作るのか</li>
+      </ul>
+    </div>
+    <div class="card green">
+      <div class="card-icon">📋</div>
+      <h3>第3章 — アルバムの作り方（約20分）</h3>
+      <ul>
+        <li>5ステップで完成</li>
+        <li>ジャケット作成のコツ</li>
+        <li>narasu代行申請について</li>
+      </ul>
+    </div>
+    <div class="card yellow">
+      <div class="card-icon">🚀</div>
+      <h3>第4章 — Music Boost（約15分）</h3>
+      <ul>
+        <li>Music Boostとは何か</li>
+        <li>どこで楽曲が流れるのか</li>
+        <li>プラン選びの考え方</li>
+        <li>登録の手順</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 3 / 第1章セクション区切り
+══════════════════════════════════════════════════ -->
+<div class="slide slide-section">
+  <div class="section-number">01</div>
+  <div class="section-title">音楽生成</div>
+  <div class="section-sub">AIで楽曲を作る仕組みと注意点</div>
+  <div style="margin-top: 24px; display: flex; gap: 10px; justify-content: center;">
+    <span class="badge badge-purple">STANDARD</span>
+    <span class="badge badge-blue">PRO</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 4 / BGM生成とは
+══════════════════════════════════════════════════ -->
+<div class="slide slide-music">
+  <div class="slide-header">
+    <div class="tag">CHAPTER 01</div>
+    <h2>🎵 BGM生成とは？</h2>
+  </div>
+  <div class="cards cards-2" style="margin-bottom: 20px;">
+    <div class="card purple" style="padding: 24px;">
+      <div style="font-size: 40px; margin-bottom: 12px;">🎵</div>
+      <h3 style="font-size: 18px; margin-bottom: 8px;">STANDARD</h3>
+      <p style="margin-bottom: 12px;">日本語でテーマを入力するだけ。<br>自動で英語に変換して生成。</p>
+      <span class="badge badge-green">全プラン利用可能</span>
+    </div>
+    <div class="card blue" style="padding: 24px;">
+      <div style="font-size: 40px; margin-bottom: 12px;">🎛️</div>
+      <h3 style="font-size: 18px; margin-bottom: 8px;">PRO</h3>
+      <p style="margin-bottom: 12px;">BPM・波形・ボーカルスタイルを<br>細かく設定して高品質な楽曲を生成。</p>
+      <span class="badge badge-yellow">Core / Infra プラン限定</span>
+    </div>
+  </div>
+  <div class="alert alert-blue">
+    💡 生成される楽曲は約3分の完成品。Verse（Aメロ）→ Chorus（サビ）→ Bridge（Bメロ）の順に生成・結合されます。
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 5 / STANDARDモード操作手順
+══════════════════════════════════════════════════ -->
+<div class="slide slide-music">
+  <div class="slide-header">
+    <div class="tag">STANDARD MODE</div>
+    <h2>STANDARDモードの使い方</h2>
+  </div>
+  <div class="step-list">
+    <div class="step-item">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>ジャンルを選ぶ</h4>
+        <p>ポップ / ロック / ジャズ / クラシック / EDM / ヒップホップ / R&B / アニメ / ローファイ / シネマティックから1つ選択</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>BPMを選ぶ</h4>
+        <p>スロー(60-80) / ミディアム(90-110) / アップテンポ(120-140) / 激速(150+) から選択</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>テーマ・ムードを入力</h4>
+        <p>「さわやかな朝の音楽」「集中できるジャズ」「激しいロック」など自由に入力。タグボタンでワンタップ追加も可能。</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h4>「生成する」ボタンを押す</h4>
+        <p>生成開始。完成まで約3〜4分かかります。ページを閉じないようにご注意ください。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 6 / PROモード
+══════════════════════════════════════════════════ -->
+<div class="slide slide-music">
+  <div class="slide-header">
+    <div class="tag">PRO MODE</div>
+    <h2>🎛️ PROモードの追加設定</h2>
+  </div>
+  <div class="three-col" style="gap: 14px;">
+    <div class="card blue">
+      <div class="card-icon">🎤</div>
+      <h3>ボーカルスタイル</h3>
+      <ul>
+        <li>女性ボーカル</li>
+        <li>男性ボーカル</li>
+        <li>混声</li>
+        <li>ボーカルなし</li>
+      </ul>
+    </div>
+    <div class="card purple">
+      <div class="card-icon">🌊</div>
+      <h3>波形タイプ</h3>
+      <ul>
+        <li>サイン波（なめらか）</li>
+        <li>矩形波（ファミコン風）</li>
+        <li>三角波（柔らか）</li>
+        <li>ノコギリ波（ギター風）</li>
+        <li>オーガニック（自然な音）</li>
+      </ul>
+    </div>
+    <div class="card green">
+      <div class="card-icon">🎸</div>
+      <h3>楽器・ヒューマナイズ</h3>
+      <ul>
+        <li>ピアノ / ギター</li>
+        <li>ストリングス / シンセ</li>
+        <li>ドラム / ベース</li>
+        <li>ヒューマナイズ強度で<br>「ライブ感」を調整</li>
+      </ul>
+    </div>
+  </div>
+  <div style="margin-top: 16px;" class="alert alert-yellow">
+    ⚠️ PROモードは <span class="em-yellow">Core / Infra プラン</span> 専用です。それ以外のプランはSTANDARDをご利用ください。
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 7 / 生成の仕組み（内部処理）
+══════════════════════════════════════════════════ -->
+<div class="slide slide-music">
+  <div class="slide-header">
+    <div class="tag">HOW IT WORKS</div>
+    <h2>生成の流れ（内部処理）</h2>
+  </div>
+  <div class="timeline" style="margin-bottom: 28px;">
+    <div class="tl-item">
+      <div class="tl-dot"></div>
+      <div class="tl-label">入力受付<br>日本語→英語変換</div>
+      <div class="tl-time">即時</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot"></div>
+      <div class="tl-label">Verse生成<br>（Aメロ）</div>
+      <div class="tl-time">〜1分</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot"></div>
+      <div class="tl-label">Chorus生成<br>（サビ）</div>
+      <div class="tl-time">〜2分</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot"></div>
+      <div class="tl-label">Bridge生成<br>（Bメロ）</div>
+      <div class="tl-time">〜3分</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot" style="background: var(--green); box-shadow: 0 0 0 3px rgba(16,185,129,0.3);"></div>
+      <div class="tl-label">結合・完成<br>約3分の楽曲</div>
+      <div class="tl-time" style="color: var(--green);">3〜4分</div>
+    </div>
+  </div>
+  <div class="cards cards-2">
+    <div class="card yellow">
+      <h3>⏱ 生成時間の目安</h3>
+      <p>通常：<span class="em-yellow">3〜4分</span><br>混雑時：最大 <span class="em-yellow">7分</span><br>タイムアウトで失敗扱いになる場合があります</p>
+    </div>
+    <div class="card green">
+      <h3>✅ 完成後にできること</h3>
+      <ul>
+        <li>WAVファイルで保存・シェア</li>
+        <li>歌詞の確認・編集・保存</li>
+        <li>自分でリリース（narasu等）</li>
+        <li>LIFAIマーケットで売却（準備中）</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 8 / 音楽生成の注意点
+══════════════════════════════════════════════════ -->
+<div class="slide slide-music">
+  <div class="slide-header">
+    <div class="tag">IMPORTANT</div>
+    <h2>⚠️ 音楽生成の注意点</h2>
+  </div>
+  <div class="step-list">
+    <div class="step-item" style="border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.05);">
+      <div class="step-num" style="background: var(--red);">!</div>
+      <div class="step-body">
+        <h4>生成中はページを閉じないこと</h4>
+        <p>ポーリング（状態確認）はブラウザが行っています。ページを閉じると結果が受け取れず、生成しても音源が届きません。</p>
+      </div>
+    </div>
+    <div class="step-item" style="border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.05);">
+      <div class="step-num" style="background: var(--yellow); color: #000;">!</div>
+      <div class="step-body">
+        <h4>生成は1回ずつ待つこと</h4>
+        <p>複数の生成を同時に行うと「込み合っています」エラーが出ることがあります。前の生成が終わってから次を開始してください。</p>
+      </div>
+    </div>
+    <div class="step-item" style="border-color: rgba(124,58,237,0.3); background: rgba(124,58,237,0.05);">
+      <div class="step-num">!</div>
+      <div class="step-body">
+        <h4>著作権は自分に帰属する</h4>
+        <p>LIFAIで生成した楽曲の著作権・原盤権は生成したご自身に帰属します。配信・販売・商業利用が可能です。</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num" style="background: var(--green);">i</div>
+      <div class="step-body">
+        <h4>エラーが出たときは？</h4>
+        <p>MUSIC-001〜003のエラーコードが表示されたら、しばらく待ってから「もう一度試す」をクリック。解決しない場合は公式LINEへ。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 9 / エラー解説
+══════════════════════════════════════════════════ -->
+<div class="slide slide-music">
+  <div class="slide-header">
+    <div class="tag">ERROR CODES</div>
+    <h2>エラーコード一覧と対処法</h2>
+  </div>
+  <table style="margin-bottom: 20px;">
+    <thead>
+      <tr>
+        <th>エラーコード</th>
+        <th>意味</th>
+        <th>対処法</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="badge badge-red">MUSIC-001</span></td>
+        <td>生成失敗（AI側のエラー）</td>
+        <td>数分待ってから再試行</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-yellow">MUSIC-003</span></td>
+        <td>通信エラー / タイムアウト</td>
+        <td>ネット接続を確認して再試行</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-blue">込み合っています</span></td>
+        <td>同時生成の上限超過</td>
+        <td>5〜10分後に再試行</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-purple">時間がかかっています</span></td>
+        <td>7分経過でタイムアウト</td>
+        <td>再試行 or 公式LINEへ連絡</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="alert alert-green">
+    ✅ ほとんどのエラーは <strong>「もう一度試す」で解決</strong> します。繰り返し失敗する場合のみ運営にお問い合わせください。
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 10 / 第2章セクション区切り
+══════════════════════════════════════════════════ -->
+<div class="slide slide-section">
+  <div class="section-number">02</div>
+  <div class="section-title">アルバムとは</div>
+  <div class="section-sub">楽曲をまとめて世界に届ける方法</div>
+  <div style="margin-top: 24px; display: flex; gap: 10px; justify-content: center;">
+    <span class="badge badge-green">Narasu</span>
+    <span class="badge badge-blue">TuneCore</span>
+    <span class="badge badge-purple">Spotify / Apple Music</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 11 / アルバムの種類
+══════════════════════════════════════════════════ -->
+<div class="slide slide-album">
+  <div class="slide-header">
+    <div class="tag">CHAPTER 02</div>
+    <h2>💿 アルバムの「種類」</h2>
+  </div>
+  <div class="three-col" style="margin-bottom: 20px;">
+    <div class="card green" style="text-align: center; padding: 28px 16px;">
+      <div style="font-size: 48px; margin-bottom: 12px;">🎵</div>
+      <h3 style="font-size: 20px; margin-bottom: 8px;">シングル</h3>
+      <div style="font-size: 32px; font-weight: 900; color: #6ee7b7; margin-bottom: 8px;">1〜2曲</div>
+      <p>最初のリリースに最適。<br>手軽に始められる。</p>
+    </div>
+    <div class="card blue" style="text-align: center; padding: 28px 16px;">
+      <div style="font-size: 48px; margin-bottom: 12px;">💿</div>
+      <h3 style="font-size: 20px; margin-bottom: 8px;">EP（ミニアルバム）</h3>
+      <div style="font-size: 32px; font-weight: 900; color: #93c5fd; margin-bottom: 8px;">3〜5曲</div>
+      <p>ある程度まとまった<br>世界観を伝えられる。</p>
+    </div>
+    <div class="card purple" style="text-align: center; padding: 28px 16px;">
+      <div style="font-size: 48px; margin-bottom: 12px;">📀</div>
+      <h3 style="font-size: 20px; margin-bottom: 8px;">アルバム</h3>
+      <div style="font-size: 32px; font-weight: 900; color: #c4b5fd; margin-bottom: 8px;">6〜15曲</div>
+      <p>ひとつの作品として<br>完成度が高い形。</p>
+    </div>
+  </div>
+  <div class="alert alert-red" style="margin-bottom: 12px;">
+    ⚠️ <strong>1アルバムあたり最大15曲まで</strong>。15曲を超える場合はアルバムを分けてリリースしてください。
+  </div>
+  <div class="alert alert-blue">
+    💡 <strong>初めてのリリースはシングルがおすすめ</strong>。LIFAIで楽曲を生成してすぐ申請できます。慣れてきたらEP・アルバムにチャレンジしましょう。
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 12 / 配信サービスとは
+══════════════════════════════════════════════════ -->
+<div class="slide slide-album">
+  <div class="slide-header">
+    <div class="tag">DISTRIBUTION</div>
+    <h2>音楽配信サービスとは？</h2>
+  </div>
+  <div class="cards cards-2" style="margin-bottom: 20px;">
+    <div class="card green" style="padding: 24px;">
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+        <span style="font-size: 28px;">🎵</span>
+        <h3 style="font-size: 18px;">Narasu（ならす）</h3>
+        <span class="badge badge-yellow">おすすめ</span>
+      </div>
+      <p style="margin-bottom: 10px;">日本発の音楽配信サービス。初心者でも簡単にリリースできます。LIFAIでは <strong>代行申請サービス</strong> も提供。</p>
+      <ul style="font-size: 12px; color: var(--muted);">
+        <li>日本語UIで使いやすい</li>
+        <li>代行申請でラクに開始</li>
+        <li>Spotify / Apple Musicにも配信</li>
+      </ul>
+    </div>
+    <div class="card blue" style="padding: 24px;">
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+        <span style="font-size: 28px;">🌍</span>
+        <h3 style="font-size: 18px;">TuneCore</h3>
+      </div>
+      <p style="margin-bottom: 10px;">世界150以上の配信先に楽曲を届けられる老舗サービス。年間登録料が必要です。</p>
+      <ul style="font-size: 12px; color: var(--muted);">
+        <li>Spotify / Apple Music等に配信</li>
+        <li>シングル：約1,500円/年</li>
+        <li>審査後 約1週間で配信開始</li>
+      </ul>
+    </div>
+  </div>
+  <div class="alert alert-yellow">
+    ⚠️ 配信された楽曲は世界中の人に聞かれる可能性があります。著作権・原盤権はご自身が持っていることをご確認ください。
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 13 / なぜアルバムを作るのか
+══════════════════════════════════════════════════ -->
+<div class="slide slide-album">
+  <div class="slide-header">
+    <div class="tag">WHY RELEASE?</div>
+    <h2>なぜアルバムをリリースするの？</h2>
+  </div>
+  <div class="three-col" style="gap: 14px; margin-bottom: 20px;">
+    <div class="card" style="text-align: center;">
+      <div class="card-icon">🌏</div>
+      <h3>世界に届く</h3>
+      <p>SpotifyやApple Musicで世界中のリスナーに楽曲が届きます</p>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div class="card-icon">💰</div>
+      <h3>収益が生まれる</h3>
+      <p>再生されるたびにストリーミング収益（ロイヤリティ）が発生します</p>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div class="card-icon">🏆</div>
+      <h3>アーティストとして</h3>
+      <p>「Music Boost」で紹介できる実績が増えます。曲数が多いほどブーストの効果も高まります</p>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div class="card-icon">📱</div>
+      <h3>SNS運用で知名度アップ</h3>
+      <p>配信後のSpotifyリンクをSNSで発信すると認知が広がります。アーティストとしての活動を発信し続けることがファン獲得の近道です</p>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div class="card-icon">📈</div>
+      <h3>実績を積む</h3>
+      <p>リリース曲数が増えるほど、Music Boostの推奨プランが上がり、より多くの人に届けられます</p>
+    </div>
+    <div class="card" style="text-align: center;">
+      <div class="card-icon">🎨</div>
+      <h3>クリエイティブな喜び</h3>
+      <p>自分だけの楽曲が世界のプラットフォームに並ぶという達成感</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 14 / 第3章セクション区切り
+══════════════════════════════════════════════════ -->
+<div class="slide slide-section">
+  <div class="section-number">03</div>
+  <div class="section-title">アルバムの作り方</div>
+  <div class="section-sub">5つのステップで完成させる</div>
+  <div style="margin-top: 24px; display: flex; gap: 10px; justify-content: center;">
+    <span class="badge badge-purple">Step 1〜5</span>
+    <span class="badge badge-green">narasu代行申請</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 15 / 全体フロー
+══════════════════════════════════════════════════ -->
+<div class="slide slide-album">
+  <div class="slide-header">
+    <div class="tag">CHAPTER 03</div>
+    <h2>📋 アルバム完成までの5ステップ</h2>
+  </div>
+  <div class="step-list">
+    <div class="step-item">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>🎤 アーティスト名を決める</h4>
+        <p>日本語・カタカナ・英語の3表記が必要です</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>💿 アルバム名を決める</h4>
+        <p>テーマ型・感情型・造語型などのパターンがあります</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>🎵 収録曲を揃える</h4>
+        <p>LIFAIで楽曲を生成し、音源URLを取得します</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h4>🎨 ジャケット画像を作る</h4>
+        <p>3000×3000px以上の正方形画像をCanvaなどで作成します</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <h4>✅ 申請前の最終チェック ＆ narasu代行フォームに提出</h4>
+        <p>全項目を確認後、LIFAIの代行申請フォームから送信します</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 16 / Step 1 アーティスト名
+══════════════════════════════════════════════════ -->
+<div class="slide slide-album">
+  <div class="slide-header">
+    <div class="tag">STEP 1</div>
+    <h2>🎤 アーティスト名を決める</h2>
+  </div>
+  <div class="cards cards-2" style="margin-bottom: 16px;">
+    <div class="card purple">
+      <h3>3つの表記が必要</h3>
+      <div class="step-list" style="margin-top: 12px; gap: 8px;">
+        <div class="step-item" style="padding: 10px 14px;">
+          <div class="step-num" style="background: #6d28d9; font-size: 11px; width: 36px; border-radius: 8px;">日本語</div>
+          <div class="step-body"><p>例：山田 太郎</p></div>
+        </div>
+        <div class="step-item" style="padding: 10px 14px;">
+          <div class="step-num" style="background: #6d28d9; font-size: 11px; width: 36px; border-radius: 8px;">カナ</div>
+          <div class="step-body"><p>例：ヤマダ タロウ</p></div>
+        </div>
+        <div class="step-item" style="padding: 10px 14px;">
+          <div class="step-num" style="background: #6d28d9; font-size: 11px; width: 36px; border-radius: 8px;">英語</div>
+          <div class="step-body"><p>例：Taro Yamada</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="card green">
+      <h3>ポイント</h3>
+      <ul style="margin-top: 10px; font-size: 13px; color: var(--muted); line-height: 2;">
+        <li>同名の既存アーティストがいないか<br>Google検索で確認する</li>
+        <li>Narasuで検索して重複確認</li>
+        <li>覚えてもらいやすい名前がベスト</li>
+        <li>ペンネームや活動名でもOK</li>
+        <li>一度決めたら変更が難しいので<br>慎重に決める</li>
+        <li><span class="em">SNS（X・Instagram等）でこのアーティスト名を使って発信</span>すると知名度アップに直結</li>
+      </ul>
+    </div>
+  </div>
+  <div class="alert alert-blue">
+    💡 英語表記はローマ字でも可。例：「空音（くうね）」→「Kune Sorane」
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 17 / Step 2 アルバム名
+══════════════════════════════════════════════════ -->
+<div class="slide slide-album">
+  <div class="slide-header">
+    <div class="tag">STEP 2</div>
+    <h2>💿 アルバム名を決める</h2>
+  </div>
+  <div class="three-col" style="margin-bottom: 16px;">
+    <div class="card">
+      <div class="card-icon">🌅</div>
+      <h3>テーマ型</h3>
+      <p>曲のテーマや世界観をそのまま表す。</p>
+      <hr class="divider">
+      <p style="color: var(--accent); font-size: 12px;">例：「夜明けの詩」「DAWN」「星空ドライブ」</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">💭</div>
+      <h3>感情型</h3>
+      <p>聴いた時に感じてほしい感情をタイトルにする。</p>
+      <hr class="divider">
+      <p style="color: var(--accent); font-size: 12px;">例：「静寂」「Silence」「儚さ」</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">✨</div>
+      <h3>造語型</h3>
+      <p>独自の言葉を作る。記憶に残りやすい。</p>
+      <hr class="divider">
+      <p style="color: var(--accent); font-size: 12px;">例：「ルミネシア」「Luminecia」「ソラリス」</p>
+    </div>
+  </div>
+  <div class="alert alert-blue" style="margin-bottom: 12px;">
+    💡 <strong>シングルの場合</strong>はアルバム名 ＝ 楽曲タイトルで OK。例えば「夜明け」という曲のシングルリリースなら、アルバム名も「夜明け」とするのが一般的です。
+  </div>
+  <div class="alert alert-yellow">
+    ⚠️ アルバム名もアーティスト名と同じく <strong>日本語・カタカナ・英語</strong> の3表記が必要です。
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 18 / Step 3 収録曲を揃える
+══════════════════════════════════════════════════ -->
+<div class="slide slide-album">
+  <div class="slide-header">
+    <div class="tag">STEP 3</div>
+    <h2>🎵 収録曲を揃える</h2>
+  </div>
+  <div class="two-col" style="margin-bottom: 16px; align-items: start;">
+    <div>
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-num">①</div>
+          <div class="step-body">
+            <h4>LIFAIで楽曲を生成</h4>
+            <p>/music ページでBGMを生成します</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">②</div>
+          <div class="step-body">
+            <h4>完成後に「WAVを保存」</h4>
+            <p>生成完了後に表示されるボタンからWAVをダウンロードします</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">③</div>
+          <div class="step-body">
+            <h4>音源URLを取得</h4>
+            <p>narasu代行フォームに貼り付ける音源URLをコピーします</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">④</div>
+          <div class="step-body">
+            <h4>楽曲タイトルを決める</h4>
+            <p>アルバム名と世界観を統一したタイトルをつけるとまとまりが出ます</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card yellow" style="margin-bottom: 12px;">
+        <h3>🎵 楽曲タイトルのコツ</h3>
+        <ul style="margin-top: 8px; font-size: 12px; line-height: 2;">
+          <li>シンプルな1〜4文字が覚えてもらいやすい</li>
+          <li>アルバムの世界観と一致させる</li>
+          <li>英語タイトルは印象的になりやすい</li>
+          <li>数字や記号を使ったユニークな表現も◎</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>📊 収録曲数の目安</h3>
+        <table style="margin-top: 8px;">
+          <tr><td style="color: #6ee7b7;">シングル</td><td>1〜2曲</td></tr>
+          <tr><td style="color: #93c5fd;">EP</td><td>3〜5曲</td></tr>
+          <tr><td style="color: #c4b5fd;">アルバム</td><td>6〜<span style="color:#fca5a5; font-weight:700;">15曲（上限）</span></td></tr>
+        </table>
+        <p style="font-size: 11px; color: var(--muted); margin-top: 8px;">⚠️ 1アルバム最大15曲まで</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 19 / Step 4 ジャケット作成
+══════════════════════════════════════════════════ -->
+<div class="slide slide-album">
+  <div class="slide-header">
+    <div class="tag">STEP 4</div>
+    <h2>🎨 ジャケット画像を作る</h2>
+  </div>
+  <div class="two-col" style="align-items: start;">
+    <div>
+      <div class="card red" style="margin-bottom: 14px;">
+        <h3>📐 必須規格</h3>
+        <ul style="margin-top: 8px; line-height: 2.2; font-size: 13px;">
+          <li><span class="em-red">3000 × 3000px 以上</span>（正方形）</li>
+          <li>形式：JPGまたはPNG</li>
+          <li>サイズ不足は審査で弾かれることがある</li>
+        </ul>
+      </div>
+      <div class="card green">
+        <h3>🔧 おすすめ無料ツール</h3>
+        <ul style="margin-top: 8px; line-height: 2.2; font-size: 13px;">
+          <li><strong>Canva</strong>（canva.com）<br><span style="font-size:11px; color: var(--muted);">「アルバムカバー」で検索。テンプレート豊富</span></li>
+          <li><strong>Adobe Express</strong>（adobe.com/express）<br><span style="font-size:11px; color: var(--muted);">高品質な仕上がり。操作もシンプル</span></li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom: 14px;">
+        <h3>🎨 デザインのポイント</h3>
+        <ul style="margin-top: 8px; line-height: 2.2; font-size: 13px;">
+          <li>文字は<span class="em">小さな画面でも読めるサイズ</span>に</li>
+          <li>著作権フリーの素材のみ使用する<br><span style="font-size:11px; color: var(--muted);">（Canvaの有料素材は商業利用可）</span></li>
+          <li>完成したらGoogleドライブ等にアップ</li>
+          <li>共有リンクをフォームに貼り付ける</li>
+        </ul>
+      </div>
+      <div class="alert alert-yellow">
+        ⚠️ 他のアーティストの写真・キャラクター・ロゴなど著作権が必要な素材は使用不可
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 20 / Step 5 チェックリスト
+══════════════════════════════════════════════════ -->
+<div class="slide slide-album">
+  <div class="slide-header">
+    <div class="tag">STEP 5</div>
+    <h2>✅ 申請前の最終チェックリスト</h2>
+  </div>
+  <div class="two-col">
+    <div class="checklist">
+      <div class="check-item"><div class="check-box"></div>narasuアカウントID（事前登録が必要）</div>
+      <div class="check-item"><div class="check-box"></div>narasuパスワード（代行完了後に変更推奨）</div>
+      <div class="check-item"><div class="check-box"></div>楽曲URL（1曲以上）</div>
+      <div class="check-item"><div class="check-box"></div>各楽曲のタイトル</div>
+      <div class="check-item"><div class="check-box"></div>歌詞テキスト（任意）</div>
+      <div class="check-item"><div class="check-box"></div>ジャケット画像URL（3000×3000px以上）</div>
+    </div>
+    <div class="checklist">
+      <div class="check-item"><div class="check-box"></div>アーティスト名（日本語）</div>
+      <div class="check-item"><div class="check-box"></div>アーティスト名（カタカナ）</div>
+      <div class="check-item"><div class="check-box"></div>アーティスト名（英語）</div>
+      <div class="check-item"><div class="check-box"></div>アルバム名（日本語）</div>
+      <div class="check-item"><div class="check-box"></div>アルバム名（カタカナ）</div>
+      <div class="check-item"><div class="check-box"></div>アルバム名（英語）</div>
+    </div>
+  </div>
+  <div class="alert alert-yellow" style="margin-top: 16px;">
+    ⚠️ 申請する楽曲の著作権・原盤権は<strong>ご自身が保有している</strong>ことをご確認ください。narasuによる審査結果は保証されません。
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 21 / narasu代行申請について
+══════════════════════════════════════════════════ -->
+<div class="slide slide-album">
+  <div class="slide-header">
+    <div class="tag">NARASU AGENCY</div>
+    <h2>LIFAIのnarasu代行申請とは？</h2>
+  </div>
+  <div class="two-col" style="align-items: start; margin-bottom: 16px;">
+    <div class="card green" style="padding: 24px;">
+      <h3 style="font-size: 18px; margin-bottom: 14px;">🙌 代行の流れ</h3>
+      <div class="step-list" style="gap: 8px;">
+        <div class="step-item" style="padding: 10px 14px;">
+          <div class="step-num" style="background: var(--green); font-size: 12px;">1</div>
+          <div class="step-body"><h4>規約に同意</h4></div>
+        </div>
+        <div class="step-item" style="padding: 10px 14px;">
+          <div class="step-num" style="background: var(--green); font-size: 12px;">2</div>
+          <div class="step-body"><h4>フォームに必要情報を入力</h4></div>
+        </div>
+        <div class="step-item" style="padding: 10px 14px;">
+          <div class="step-num" style="background: var(--green); font-size: 12px;">3</div>
+          <div class="step-body"><h4>LIFAIが代わりにnarauに申請</h4></div>
+        </div>
+        <div class="step-item" style="padding: 10px 14px;">
+          <div class="step-num" style="background: var(--green); font-size: 12px;">4</div>
+          <div class="step-body"><h4>審査後に配信開始</h4></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card yellow" style="margin-bottom: 14px;">
+        <h3>⚠️ ご注意</h3>
+        <ul style="margin-top: 8px; line-height: 2.2; font-size: 13px;">
+          <li>narasuアカウント情報（ID/PW）が必要</li>
+          <li>代行業務完了後にPW変更を推奨</li>
+          <li>審査結果は保証されません</li>
+          <li>申請状況により一時停止の場合あり</li>
+        </ul>
+      </div>
+      <div class="alert alert-blue">
+        💡 代行申請はLIFAIアプリ内「narasu代行申請」から利用できます。
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 22 / 第4章セクション区切り
+══════════════════════════════════════════════════ -->
+<div class="slide slide-section">
+  <div class="section-number">04</div>
+  <div class="section-title">Music Boost</div>
+  <div class="section-sub">あなたの楽曲を「空間」に届ける</div>
+  <div style="margin-top: 24px; display: flex; gap: 10px; justify-content: center;">
+    <span class="badge badge-purple">🚀 認知拡大</span>
+    <span class="badge badge-blue">🏪 店舗・施設BGM</span>
+    <span class="badge badge-green">✨ ブランド向上</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 23 / Music Boostとは
+══════════════════════════════════════════════════ -->
+<div class="slide slide-boost">
+  <div class="slide-header">
+    <div class="tag">CHAPTER 04</div>
+    <h2>🚀 Music Boostとは？</h2>
+  </div>
+  <div class="two-col" style="margin-bottom: 20px; align-items: start;">
+    <div class="card purple" style="padding: 28px;">
+      <div style="font-size: 44px; margin-bottom: 16px;">🚀</div>
+      <h3 style="font-size: 20px; margin-bottom: 12px;">一言で言うと</h3>
+      <p style="font-size: 15px; line-height: 1.8; color: #e9d5ff;">
+        あなたの楽曲を<strong>企業向け音楽配信ネットワーク</strong>に掲載し、
+        店舗・オフィス・施設などで実際に流せる<strong>月額広告サービス</strong>
+      </p>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom: 12px;">
+        <h3>🏪 どこで流れるの？</h3>
+        <div style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; color: var(--muted);">
+          <div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 20px;">☕</span> カフェ</div>
+          <div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 20px;">💇</span> 美容室</div>
+          <div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 20px;">🏢</span> オフィス</div>
+          <div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 20px;">🛍️</span> ショップ</div>
+          <div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 20px;">🏥</span> 施設・病院</div>
+          <div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 20px;">🍽️</span> レストラン</div>
+        </div>
+      </div>
+      <div class="alert alert-blue">
+        💡 <strong>日常の空間</strong>で自然に再生されるため、リスナーに違和感なく届きます
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 24 / Music Boostで得られるもの
+══════════════════════════════════════════════════ -->
+<div class="slide slide-boost">
+  <div class="slide-header">
+    <div class="tag">BENEFITS</div>
+    <h2>✨ Music Boostで得られるもの</h2>
+  </div>
+  <div class="three-col" style="margin-bottom: 20px;">
+    <div class="card purple">
+      <div class="card-icon">📣</div>
+      <h3>認知の拡大</h3>
+      <p>多くの人に楽曲の存在を知ってもらえます</p>
+    </div>
+    <div class="card blue">
+      <div class="card-icon">💎</div>
+      <h3>ブランド価値の向上</h3>
+      <p>プロらしさ・信頼感がアップします</p>
+    </div>
+    <div class="card green">
+      <div class="card-icon">🤝</div>
+      <h3>新しいファンとの接点</h3>
+      <p>偶然の出会いから新規ファンが生まれます</p>
+    </div>
+    <div class="card yellow">
+      <div class="card-icon">🔀</div>
+      <h3>露出経路の増加</h3>
+      <p>SNS以外の音楽導線が生まれます</p>
+    </div>
+    <div class="card red">
+      <div class="card-icon">⭐</div>
+      <h3>企業案件の優先度UP</h3>
+      <p>ブースト率が高いほど企業案件での優先度が上がります</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🎯</div>
+      <h3>ターゲットへの到達</h3>
+      <p>場所・環境に合った楽曲が選ばれるため、合ったリスナーに届きます</p>
+    </div>
+  </div>
+  <div class="alert alert-red">
+    ⚠️ <strong>重要：これは再生数を増やすツールではありません</strong>。Music Boostは「自然な環境でリスナーに楽曲を届ける」広告サービスです。
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 25 / プラン一覧
+══════════════════════════════════════════════════ -->
+<div class="slide slide-boost">
+  <div class="slide-header">
+    <div class="tag">PLANS</div>
+    <h2>💳 プラン一覧（月額）</h2>
+  </div>
+  <table style="margin-bottom: 16px;">
+    <thead>
+      <tr>
+        <th>プラン</th>
+        <th>ブースト率</th>
+        <th>使用枠数</th>
+        <th>月額</th>
+        <th>推奨条件</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Starter</td><td><span class="badge badge-green">2%</span></td><td>10枠</td><td>$9</td><td>8曲以上配信済み</td></tr>
+      <tr><td>Light</td><td><span class="badge badge-green">5%</span></td><td>25枠</td><td>$29</td><td>16曲以上配信済み</td></tr>
+      <tr><td>Basic</td><td><span class="badge badge-blue">10%</span></td><td>50枠</td><td>$59</td><td>30曲以上配信済み</td></tr>
+      <tr><td>Growth</td><td><span class="badge badge-blue">15%</span></td><td>75枠</td><td>$99</td><td>50曲以上配信済み</td></tr>
+      <tr><td>Pro</td><td><span class="badge badge-purple">20%</span></td><td>100枠</td><td>$149</td><td>75曲以上配信済み</td></tr>
+      <tr><td>Premium</td><td><span class="badge badge-purple">30%</span></td><td>150枠</td><td>$299</td><td>150曲以上配信済み</td></tr>
+      <tr><td>Legend</td><td><span class="badge badge-yellow">45%</span></td><td>225枠</td><td>$1,000</td><td>500曲以上配信済み</td></tr>
+    </tbody>
+  </table>
+  <div class="alert alert-yellow">
+    ⚠️ 枠数には上限があります。満枠の場合は新規契約・変更ができません。空き状況はアプリ内でご確認ください。
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 26 / プランの選び方
+══════════════════════════════════════════════════ -->
+<div class="slide slide-boost">
+  <div class="slide-header">
+    <div class="tag">HOW TO CHOOSE</div>
+    <h2>どのプランを選ぶべき？</h2>
+  </div>
+  <div class="step-list" style="margin-bottom: 16px;">
+    <div class="step-item">
+      <div class="step-num" style="background: var(--green); font-size: 12px; width: 80px; border-radius: 8px;">初めての方</div>
+      <div class="step-body">
+        <h4>まずは Starter（$9/月）から始めよう</h4>
+        <p>配信曲数が8曲以上になったらStarterプランで効果を試してみましょう。少ない枠数でコストを抑えながら体験できます。</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num" style="background: var(--blue); font-size: 12px; width: 80px; border-radius: 8px;">中級者</div>
+      <div class="step-body">
+        <h4>Basic / Growth（$59〜99/月）で本格化</h4>
+        <p>30曲以上リリースしたら、より広い枠で多くのチャンスを掴めます。企業案件の採用率も上がります。</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num" style="background: var(--purple); font-size: 12px; width: 80px; border-radius: 8px;">上級者</div>
+      <div class="step-body">
+        <h4>Pro以上（$149〜）で最大限の露出</h4>
+        <p>75曲以上の実績があればPro以上で大きな優先度を獲得。ブランド構築に本気で取り組む方向け。</p>
+      </div>
+    </div>
+  </div>
+  <div class="alert alert-blue">
+    💡 ブースト率は「優先される確率」に関係します。高いほど採用されやすくなりますが、楽曲の品質も重要です。
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 27 / Music Boost 使い方
+══════════════════════════════════════════════════ -->
+<div class="slide slide-boost">
+  <div class="slide-header">
+    <div class="tag">HOW TO USE</div>
+    <h2>🚀 Music Boostの使い方</h2>
+  </div>
+  <div class="two-col" style="align-items: start; margin-bottom: 16px;">
+    <div>
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h4>トップページから「Music Boost」を開く</h4>
+            <p>/music-boost にアクセス</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h4>プランを選択</h4>
+            <p>一覧から希望のプランをタップして展開</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h4>決済方法を選ぶ</h4>
+            <p>EPで支払う（EP所持が必要）<br>または クレジットカードで購入</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <h4>楽曲情報を登録する</h4>
+            <p>アーティスト名とアルバム名を入力して追加。いつでも変更・追加可能</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card green" style="margin-bottom: 14px;">
+        <h3>💰 支払い方法</h3>
+        <ul style="margin-top: 10px; line-height: 2.2; font-size: 13px;">
+          <li><strong>EP（エクスペリエンスポイント）</strong><br>
+            <span style="font-size: 11px; color: var(--muted);">1ドル = 100 EP として換算。換金不可。</span></li>
+          <li><strong>クレジットカード（Square）</strong><br>
+            <span style="font-size: 11px; color: var(--muted);">Squareの決済ページへ遷移して支払い</span></li>
+        </ul>
+      </div>
+      <div class="alert alert-yellow">
+        ⚠️ 有効期間は <strong>30日間</strong>。期限後は自動更新されません。更新が必要な場合は再度お申し込みください。
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 28 / Music Boost 楽曲登録
+══════════════════════════════════════════════════ -->
+<div class="slide slide-boost">
+  <div class="slide-header">
+    <div class="tag">TRACK REGISTRATION</div>
+    <h2>🎵 配信楽曲の登録方法</h2>
+  </div>
+  <div class="two-col" style="margin-bottom: 20px; align-items: start;">
+    <div>
+      <div class="card" style="margin-bottom: 14px;">
+        <h3>📝 登録できる情報</h3>
+        <ul style="margin-top: 10px; line-height: 2.2; font-size: 13px;">
+          <li><strong>アーティスト名</strong>（必須）<br><span style="font-size: 11px; color: var(--muted);">例：山田太郎</span></li>
+          <li><strong>アルバム名</strong>（任意）<br><span style="font-size: 11px; color: var(--muted);">例：夜明けのメロディ</span></li>
+        </ul>
+      </div>
+      <div class="alert alert-green">
+        ✅ 登録した楽曲は運営に即時反映されます。契約期間中は何度でも変更・追加・削除が可能です。
+      </div>
+    </div>
+    <div>
+      <div class="step-list" style="gap: 8px;">
+        <div class="step-item">
+          <div class="step-num" style="background: var(--green); font-size: 12px;">追加</div>
+          <div class="step-body">
+            <h4>アーティスト名を入力 → 「＋追加する」</h4>
+            <p>アルバム名は任意入力</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num" style="background: var(--blue); font-size: 12px;">編集</div>
+          <div class="step-body">
+            <h4>楽曲ごとに「編集」ボタンで修正</h4>
+            <p>インラインで編集後「保存」</p>
+          </div>
+        </div>
+        <div class="step-item">
+          <div class="step-num" style="background: var(--red); font-size: 12px;">削除</div>
+          <div class="step-body">
+            <h4>不要な楽曲は「削除」ボタンで除去</h4>
+            <p>即時反映されます</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 29 / Music Boost 注意事項
+══════════════════════════════════════════════════ -->
+<div class="slide slide-boost">
+  <div class="slide-header">
+    <div class="tag">IMPORTANT NOTES</div>
+    <h2>⚠️ Music Boostの注意事項</h2>
+  </div>
+  <div class="cards cards-2" style="margin-bottom: 16px;">
+    <div class="card red">
+      <div class="card-icon">🚫</div>
+      <h3>やってはいけないこと</h3>
+      <ul>
+        <li>不正利用（アカウント停止の対象）</li>
+        <li>他者の楽曲を自分名義で登録</li>
+        <li>著作権侵害のある楽曲を登録</li>
+        <li>複数アカウントで枠を独占</li>
+      </ul>
+    </div>
+    <div class="card yellow">
+      <div class="card-icon">📋</div>
+      <h3>利用上の制限</h3>
+      <ul>
+        <li>EPは換金不可</li>
+        <li>ブースト率・枠数は予告なく変更の可能性あり</li>
+        <li>期限後は自動更新されない</li>
+        <li>満枠の場合は新規契約不可</li>
+        <li>運営の判断で報酬・優先度を調整することがある</li>
+      </ul>
+    </div>
+  </div>
+  <div class="alert alert-red">
+    ⚠️ Music Boostは<strong>収益・利益を保証するサービスではありません</strong>。認知拡大を目的とした広告サービスです。効果は保証されません。
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 30 / まとめ
+══════════════════════════════════════════════════ -->
+<div class="slide slide-section">
+  <div class="section-number" style="font-size: 80px;">📝</div>
+  <div class="section-title" style="font-size: 36px;">まとめ</div>
+  <div class="cards cards-2" style="margin-top: 32px; text-align: left; max-width: 760px;">
+    <div class="card purple">
+      <h3>🎵 音楽生成</h3>
+      <ul style="margin-top: 8px; font-size: 12px; line-height: 2;">
+        <li>生成は3〜4分。ページを閉じない</li>
+        <li>STANDARDは全員利用可能</li>
+        <li>PROはCore/Infraプラン限定</li>
+        <li>エラーは「もう一度試す」で大抵解決</li>
+      </ul>
+    </div>
+    <div class="card blue">
+      <h3>💿 アルバム</h3>
+      <ul style="margin-top: 8px; font-size: 12px; line-height: 2;">
+        <li>まずはシングル（1〜2曲）から</li>
+        <li>アーティスト名・アルバム名は3表記必要</li>
+        <li>ジャケットは3000×3000px以上</li>
+        <li>narasu代行申請が使える</li>
+      </ul>
+    </div>
+    <div class="card green">
+      <h3>📋 アルバムの作り方</h3>
+      <ul style="margin-top: 8px; font-size: 12px; line-height: 2;">
+        <li>Step1: アーティスト名決め</li>
+        <li>Step2: アルバム名決め</li>
+        <li>Step3: 収録曲を揃える</li>
+        <li>Step4: ジャケット作成（Canva）</li>
+        <li>Step5: 最終チェック＆申請</li>
+      </ul>
+    </div>
+    <div class="card yellow">
+      <h3>🚀 Music Boost</h3>
+      <ul style="margin-top: 8px; font-size: 12px; line-height: 2;">
+        <li>店舗・施設BGMに楽曲を掲載する広告サービス</li>
+        <li>再生数を増やすツールではない</li>
+        <li>まずはStarterプランから試す</li>
+        <li>有効期間30日、自動更新なし</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     スライド 31 / Q&A
+══════════════════════════════════════════════════ -->
+<div class="slide slide-end">
+  <div class="big-icon">🙋</div>
+  <h1 class="display" style="font-size: 56px;">Q & A</h1>
+  <p class="subtitle" style="font-size: 20px;">ご質問はありますか？</p>
+  <div style="margin-top: 40px; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+    <div class="card" style="min-width: 200px; text-align: center; padding: 20px 28px;">
+      <div style="font-size: 28px; margin-bottom: 8px;">💬</div>
+      <p style="font-size: 13px; color: var(--muted);">Discord<br>コミュニティで質問</p>
+    </div>
+    <div class="card" style="min-width: 200px; text-align: center; padding: 20px 28px;">
+      <div style="font-size: 28px; margin-bottom: 8px;">📱</div>
+      <p style="font-size: 13px; color: var(--muted);">公式LINE<br>お問い合わせ</p>
+    </div>
+    <div class="card" style="min-width: 200px; text-align: center; padding: 20px 28px;">
+      <div style="font-size: 28px; margin-bottom: 8px;">🎵</div>
+      <p style="font-size: 13px; color: var(--muted);">LIFAI アプリ<br>実際に試してみよう</p>
+    </div>
+  </div>
+  <p style="margin-top: 48px; font-size: 12px; color: rgba(255,255,255,0.2);">© LIFAI — All Rights Reserved</p>
+</div>
+
+</div><!-- /slideshow -->
+
+<!-- ナビゲーション -->
+<div class="nav">
+  <button id="prevBtn" onclick="changeSlide(-1)" disabled>◀</button>
+  <span class="slide-counter" id="counter">1 / 31</span>
+  <button id="nextBtn" onclick="changeSlide(1)">▶</button>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  let current = 0;
+  const total = slides.length;
+
+  function updateUI() {
+    slides.forEach((s, i) => s.classList.toggle('active', i === current));
+    document.getElementById('counter').textContent = `${current + 1} / ${total}`;
+    document.getElementById('prevBtn').disabled = current === 0;
+    document.getElementById('nextBtn').disabled = current === total - 1;
+    const pct = ((current) / (total - 1)) * 100;
+    document.getElementById('progressBar').style.width = pct + '%';
+  }
+
+  function changeSlide(dir) {
+    const next = current + dir;
+    if (next >= 0 && next < total) {
+      current = next;
+      updateUI();
+    }
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+      e.preventDefault();
+      changeSlide(1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      changeSlide(-1);
+    }
+  });
+
+  // タッチスワイプ対応
+  let touchStartX = 0;
+  document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; });
+  document.addEventListener('touchend', e => {
+    const diff = touchStartX - e.changedTouches[0].screenX;
+    if (Math.abs(diff) > 50) changeSlide(diff > 0 ? 1 : -1);
+  });
+
+  updateUI();
+</script>
+</body>
+</html>
