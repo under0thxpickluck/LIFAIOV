@@ -20,7 +20,26 @@
       "Bash(node_modules/.bin/tsc --noEmit)",
       "Bash(npm run *)",
       "Bash(grep *)",
-      "PowerShell(git pull *)"
+      "PowerShell(git pull *)",
+      "PowerShell(git stash *)",
+      "PowerShell(Copy-Item *)",
+      "PowerShell(git *)",
+      "PowerShell(\\(Get-Content app\\\\admin\\\\page.tsx | Measure-Object -Line\\).Lines)",
+      "PowerShell(npm run *)",
+      "PowerShell(node_modules\\\\.bin\\\\tsc --noEmit)",
+      "PowerShell(node --check gas\\\\Code.gs; if \\($?\\) { \"SYNTAX OK\" })",
+      "Bash(python -c \"import PyPDF2\")",
+      "Bash(pdftotext -v)",
+      "Bash(pdftotext -enc UTF-8 \"マニュアル②.pdf\" manual2.txt)",
+      "Bash(pdfinfo \"マニュアル②.pdf\")",
+      "Bash(pdftoppm -png -r 10 \"マニュアル②.pdf\" /tmp/probe)",
+      "Bash(ls /tmp/probe*)",
+      "Bash(which pdftoppm *)",
+      "Bash(grep -c \"/Type[[:space:]]*/Page[^s]\" \"マニュアル②.pdf\")",
+      "Bash(python -c \"import sys; print\\(sys.version\\)\")",
+      "Bash(python -m pip list)",
+      "Bash(mkdir -p /tmp/m2)",
+      "Bash(python -)"
     ]
   }
 }
