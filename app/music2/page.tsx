@@ -28,7 +28,7 @@ const MOODS = [
   "ファンタジー", "リラックス",
 ];
 
-const PRO_PLANS = ["500", "1000"];
+const PRO_PLANS = ["2000", "3000", "5000"];
 
 const BPM_OPTIONS = [
   { label: "スロー (60-80)",      value: 70  },

@@ -5,12 +5,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getAuth, getAuthSecret } from "../lib/auth";
 
-const PRO_PLANS = ["500", "1000"];
+const PRO_PLANS = ["2000", "3000", "5000"];
 
 export default function MusicPage() {
   const router = useRouter();
   const [plan, setPlan] = useState<string | null>(null);
-  const [approvedFallback, setApprovedFallback] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,11 +17,6 @@ export default function MusicPage() {
     if (!auth) {
       router.replace("/login");
       return;
-    }
-
-    // status=approved の場合はフォールバックとして PRO 表示を許可（暫定対応）
-    if ((auth as any)?.status === "approved") {
-      setApprovedFallback(true);
     }
 
     // localStorage にキャッシュされた plan があれば先に反映
@@ -64,7 +58,7 @@ export default function MusicPage() {
     })();
   }, [router]);
 
-  const isPro = approvedFallback || (plan !== null && PRO_PLANS.includes(plan));
+  const isPro = plan !== null && PRO_PLANS.includes(plan);
 
   if (loading) {
     return (

@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getAuth, getAuthSecret, setAuth } from "../../lib/auth";
 
-const PRO_PLANS = ["500", "1000"];
+const PRO_PLANS = ["2000", "3000", "5000"];
 
 type GenStatus = "idle" | "generating" | "succeeded" | "failed";
 
