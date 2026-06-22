@@ -1,7 +1,9 @@
 "use client";
 
-// components/BPGrantModal.tsx
 import { useEffect, useState } from "react";
+import AnimatedModal from "./animations/AnimatedModal";
+import { CountUpNumber } from "./animations/CountUpNumber";
+import { RewardBurst } from "./animations/RewardBurst";
 
 type Props = {
   amount: number;
@@ -9,37 +11,21 @@ type Props = {
 };
 
 export default function BPGrantModal({ amount, onClose }: Props) {
-  const [visible, setVisible] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    // マウント後に少し遅らせてフェードイン
-    const t = setTimeout(() => setVisible(true), 30);
+    const t = setTimeout(() => setOpen(true), 30);
     return () => clearTimeout(t);
   }, []);
 
   const handleClose = () => {
-    setVisible(false);
+    setOpen(false);
     setTimeout(onClose, 300);
   };
 
   return (
-    <div
-      onClick={handleClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 9999,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "rgba(0,0,0,0.55)",
-        opacity: visible ? 1 : 0,
-        transition: "opacity 0.3s ease",
-        cursor: "pointer",
-      }}
-    >
+    <AnimatedModal open={open} onBackdropClick={handleClose}>
       <div
-        onClick={(e) => e.stopPropagation()}
         style={{
           background: "white",
           borderRadius: "28px",
@@ -47,13 +33,13 @@ export default function BPGrantModal({ amount, onClose }: Props) {
           textAlign: "center",
           boxShadow: "0 32px 80px rgba(2,6,23,0.22)",
           maxWidth: "340px",
-          width: "90%",
-          transform: visible ? "scale(1) translateY(0)" : "scale(0.88) translateY(24px)",
-          transition: "transform 0.35s cubic-bezier(0.34,1.56,0.64,1)",
-          cursor: "default",
+          width: "90vw",
+          position: "relative",
+          overflow: "hidden",
         }}
       >
-        {/* 画像 */}
+        <RewardBurst count={12} colors={["#6366f1", "#8b5cf6", "#a78bfa", "#c084fc"]} />
+
         <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px" }}>
           <img
             src="/getBP.png"
@@ -62,8 +48,7 @@ export default function BPGrantModal({ amount, onClose }: Props) {
           />
         </div>
 
-        {/* BP獲得テキスト */}
-        <p
+        <div
           style={{
             fontSize: "32px",
             fontWeight: 900,
@@ -74,14 +59,15 @@ export default function BPGrantModal({ amount, onClose }: Props) {
             margin: 0,
           }}
         >
-          +{amount} BP 獲得！
-        </p>
+          <CountUpNumber to={amount} prefix="+" suffix=" BP 獲得！" duration={1.0} />
+        </div>
 
         <p style={{ marginTop: "8px", fontSize: "14px", color: "#64748b", fontWeight: 600 }}>
           売却BPが付与されました
         </p>
 
         <button
+          type="button"
           onClick={handleClose}
           style={{
             marginTop: "24px",
@@ -99,6 +85,6 @@ export default function BPGrantModal({ amount, onClose }: Props) {
           閉じる
         </button>
       </div>
-    </div>
+    </AnimatedModal>
   );
 }
