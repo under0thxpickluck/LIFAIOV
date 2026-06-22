@@ -5786,14 +5786,16 @@ function getStakingPoolForMonth_(targetMonth) {
   };
 }
 
-// staking_config 未設定時のデフォルト（＝従来のハードコード値）
+// staking_config 未設定時のデフォルト
+// multiplier は「最大レート（プールが空＝消費率0のときのレート）」を表す。
+// 確定レート = (1 − 消費率) × 最大レート（下限レートで底支え）。
 function stakingDefaultMultiplier_(days) {
-  var m = { 30: 1.0, 60: 2.5, 90: 5.0 };
-  return m[days] === undefined ? 1.0 : m[days];
+  var m = { 30: 0.02, 60: 0.05, 90: 0.10 }; // 30日2% / 60日5% / 90日10%
+  return m[days] === undefined ? 0.02 : m[days];
 }
 function stakingDefaultFloor_(days) {
-  var f = { 30: 0.03, 60: 0.075, 90: 0.15 };
-  return f[days] === undefined ? 0.03 : f[days];
+  var f = { 30: 0, 60: 0, 90: 0 }; // 満杯時は0%に近づく
+  return f[days] === undefined ? 0 : f[days];
 }
 
 // 倍率・下限レート設定シート
@@ -5828,15 +5830,19 @@ function getStakingConfig_() {
   return { multipliers: multipliers, floors: floors };
 }
 
-// 動的レート計算（プールベース・期間倍率・下限保証）
+// 動的レート計算（消費率ベース・最大レート・下限保証）
+// 確定レート = (1 − 総ステーク÷プール) × 最大レート。プールが埋まるほど下限へ向けて下がる。
+// （cfg.multipliers[days] は「最大レート」を表す。命名は後方互換のため multiplier のまま）
 // config（{multipliers, floors}）を渡せば再読込を避けられる。省略時は内部で読む。
 function calcStakeRate_(pool, totalStaked, days, config) {
   var cfg        = config || getStakingConfig_();
   var multiplier = cfg.multipliers[days] === undefined ? stakingDefaultMultiplier_(days) : cfg.multipliers[days];
   var floor      = cfg.floors[days]      === undefined ? stakingDefaultFloor_(days)      : cfg.floors[days];
-  if (!pool || !totalStaked) return floor;
-  var baseRate   = Math.min(pool / totalStaked, 1.0);
-  var periodRate = baseRate * multiplier;
+  if (!pool) return floor; // プール未設定なら下限レートのみ
+  // 消費率（総ステーク÷プール）が上がるほど基本レートを下げる
+  var consumption = totalStaked / pool;
+  var baseRate    = Math.max(0, 1 - consumption);
+  var periodRate  = baseRate * multiplier;
   return Math.max(periodRate, floor);
 }
 

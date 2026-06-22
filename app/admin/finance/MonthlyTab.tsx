@@ -337,7 +337,7 @@ function StakingPoolSection() {
       const m: Record<number, string> = { 30: "", 60: "", 90: "" };
       const f: Record<number, string> = { 30: "", 60: "", 90: "" };
       [30, 60, 90].forEach(d => {
-        m[d] = String(stats.multipliers?.[d] ?? "");
+        m[d] = String((stats.multipliers?.[d] ?? 0) * 100); // 最大レート（%表示）
         f[d] = String((stats.floors?.[d] ?? 0) * 100);
       });
       setMult(m);
@@ -349,9 +349,10 @@ function StakingPoolSection() {
   const saveConfig = async () => {
     setCfgSaving(true); setCfgMsg(null);
     try {
+      // multiplier は「最大レート」。入力は % なので小数へ変換して保存
       const config: Record<string, { multiplier: number; floor: number }> = {};
       [30, 60, 90].forEach(d => {
-        config[d] = { multiplier: Number(mult[d]), floor: Number(floorPct[d]) / 100 };
+        config[d] = { multiplier: Number(mult[d]) / 100, floor: Number(floorPct[d]) / 100 };
       });
       const res  = await fetch("/api/admin/staking-config", {
         method: "POST",
@@ -360,7 +361,7 @@ function StakingPoolSection() {
       });
       const data = await res.json();
       if (data.ok) {
-        setCfgMsg("✅ 倍率・下限レートを保存しました");
+        setCfgMsg("✅ 最大レート・下限レートを保存しました");
         loadStats();
       }
       else setCfgMsg("❌ " + (data.error ?? "失敗しました"));
@@ -447,18 +448,18 @@ function StakingPoolSection() {
       </div>
       {msg && <p className={`mt-3 text-xs ${msg.startsWith("✅") ? "text-emerald-400" : "text-red-400"}`}>{msg}</p>}
 
-      {/* 倍率・下限レート設定（全体共通） */}
+      {/* 最大レート・下限レート設定（全体共通） */}
       <div className="mt-6 border-t border-zinc-800 pt-5">
-        <h3 className="mb-1 text-sm font-bold text-zinc-200">⚙️ 倍率・下限レート設定（全期間共通）</h3>
+        <h3 className="mb-1 text-sm font-bold text-zinc-200">⚙️ レート設定（最大レート・下限レート／全期間共通）</h3>
         <p className="mb-3 text-[11px] text-zinc-500">
-          ロック期間ごとの期間倍率と下限レートを設定します。変更は以降の新規ステークに適用されます。
+          最大レート＝プールが空（消費率0%）のときのレート。プールが埋まるほど下限レートへ向けて下がります。変更は以降の新規ステークに適用されます。
         </p>
         <div className="overflow-x-auto">
           <table className="text-xs">
             <thead className="text-zinc-500">
               <tr>
                 <th className="px-2 py-1 text-left font-bold">期間</th>
-                <th className="px-2 py-1 text-left font-bold">倍率（×）</th>
+                <th className="px-2 py-1 text-left font-bold">最大レート（%）</th>
                 <th className="px-2 py-1 text-left font-bold">下限レート（%）</th>
               </tr>
             </thead>
@@ -469,13 +470,13 @@ function StakingPoolSection() {
                   <td className="px-2 py-1">
                     <input type="number" min={0} step="0.1" value={mult[d]}
                       onChange={e => setMult(prev => ({ ...prev, [d]: e.target.value }))}
-                      placeholder="例: 2.5"
+                      placeholder="例: 10"
                       className="w-28 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-200 focus:outline-none" />
                   </td>
                   <td className="px-2 py-1">
                     <input type="number" min={0} step="0.1" value={floorPct[d]}
                       onChange={e => setFloorPct(prev => ({ ...prev, [d]: e.target.value }))}
-                      placeholder="例: 7.5"
+                      placeholder="例: 0"
                       className="w-28 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-200 focus:outline-none" />
                   </td>
                 </tr>
@@ -485,7 +486,7 @@ function StakingPoolSection() {
         </div>
         <button onClick={saveConfig} disabled={cfgSaving}
           className="mt-3 rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-black hover:bg-amber-400 disabled:opacity-50">
-          {cfgSaving ? "保存中…" : "倍率・下限を保存"}
+          {cfgSaving ? "保存中…" : "レート設定を保存"}
         </button>
         {cfgMsg && <p className={`mt-3 text-xs ${cfgMsg.startsWith("✅") ? "text-emerald-400" : "text-red-400"}`}>{cfgMsg}</p>}
       </div>
