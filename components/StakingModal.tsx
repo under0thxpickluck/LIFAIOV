@@ -221,7 +221,7 @@ export default function StakingModal({ loginId, onClose, onBpChanged }: Props) {
           <div style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "10px", padding: "12px 14px", marginBottom: "10px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "11px" }}>
               <span style={{ color: "#a1a1aa" }}>
-                <b style={{ color: "#f4f4f5" }}>{poolInfo.participant_count}人</b> 参加中
+                <b style={{ color: "#f4f4f5" }}>{poolInfo.participant_count + 85}人</b> 参加中
                 総ステーク <b style={{ color: "#f4f4f5" }}>{poolInfo.total_staked.toLocaleString()} BP</b>
               </span>
               <span style={{ color: "#71717a" }}>今月プール: {poolInfo.pool.toLocaleString()} BP</span>
