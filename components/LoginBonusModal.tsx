@@ -1,7 +1,9 @@
 "use client";
 
-// components/LoginBonusModal.tsx
 import { useEffect, useState } from "react";
+import AnimatedModal from "./animations/AnimatedModal";
+import { CountUpNumber } from "./animations/CountUpNumber";
+import { RewardBurst } from "./animations/RewardBurst";
 
 type Props = {
   bp_earned: number;
@@ -10,15 +12,15 @@ type Props = {
 };
 
 export default function LoginBonusModal({ bp_earned, streak, onClose }: Props) {
-  const [visible, setVisible] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 30);
+    const t = setTimeout(() => setOpen(true), 30);
     return () => clearTimeout(t);
   }, []);
 
   const handleClose = () => {
-    setVisible(false);
+    setOpen(false);
     setTimeout(onClose, 300);
   };
 
@@ -30,23 +32,8 @@ export default function LoginBonusModal({ bp_earned, streak, onClose }: Props) {
   };
 
   return (
-    <div
-      onClick={handleClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 9999,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "rgba(0,0,0,0.6)",
-        opacity: visible ? 1 : 0,
-        transition: "opacity 0.3s ease",
-        cursor: "pointer",
-      }}
-    >
+    <AnimatedModal open={open} onBackdropClick={handleClose}>
       <div
-        onClick={(e) => e.stopPropagation()}
         style={{
           background: "#18181b",
           borderRadius: "16px",
@@ -54,13 +41,14 @@ export default function LoginBonusModal({ bp_earned, streak, onClose }: Props) {
           textAlign: "center",
           boxShadow: "0 32px 80px rgba(0,0,0,0.5)",
           maxWidth: "320px",
-          width: "90%",
-          transform: visible ? "scale(1) translateY(0)" : "scale(0.88) translateY(24px)",
-          transition: "transform 0.35s cubic-bezier(0.34,1.56,0.64,1)",
-          cursor: "default",
+          width: "90vw",
           border: "1px solid rgba(255,255,255,0.08)",
+          position: "relative",
+          overflow: "hidden",
         }}
       >
+        <RewardBurst count={10} colors={["#f59e0b", "#fbbf24", "#f97316"]} />
+
         <p
           style={{
             fontSize: "12px",
@@ -84,7 +72,7 @@ export default function LoginBonusModal({ bp_earned, streak, onClose }: Props) {
           🔥 {streak}日連続ログイン中
         </p>
 
-        <p
+        <div
           style={{
             fontSize: "36px",
             fontWeight: 900,
@@ -93,8 +81,8 @@ export default function LoginBonusModal({ bp_earned, streak, onClose }: Props) {
             margin: "0 0 8px",
           }}
         >
-          +{bp_earned}BP 獲得！
-        </p>
+          <CountUpNumber to={bp_earned} prefix="+" suffix="BP 獲得！" duration={1.0} />
+        </div>
 
         <p
           style={{
@@ -123,6 +111,6 @@ export default function LoginBonusModal({ bp_earned, streak, onClose }: Props) {
           受け取る
         </button>
       </div>
-    </div>
+    </AnimatedModal>
   );
 }
