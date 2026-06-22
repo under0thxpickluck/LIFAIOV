@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { LoadingCat } from "@/components/LoadingCat";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getAuth, getAuthSecret } from "../../lib/auth";
@@ -254,7 +255,7 @@ export default function OrdersPage() {
 
             <div className="mt-4 space-y-3">
               {listingsLoading ? (
-                <p className="text-sm text-slate-400">読み込み中…</p>
+                <LoadingCat fullscreen={false} textColor="text-slate-400" />
               ) : myListings.length === 0 ? (
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5 text-center">
                   <p className="text-sm text-slate-400">出品中のアイテムはありません</p>

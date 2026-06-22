@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTheme } from "../lib/useTheme";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { LoadingCat } from "@/components/LoadingCat";
 
 // ── チュートリアル ────────────────────────────────────────────────────────────
 
@@ -322,6 +323,8 @@ export default function MusicBoostPage() {
   };
 
   const currentPlan = status?.current_boost ? PLANS.find(p => p.id === status.current_boost!.plan_id) : null;
+
+  if (loading) return <LoadingCat />;
 
   return (
     <div className={`min-h-screen ${th.page} px-4 py-8 mx-auto transition-all ${status?.current_boost ? "max-w-3xl" : "max-w-lg"}`}>

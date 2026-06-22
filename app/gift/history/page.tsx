@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { LoadingCat } from "@/components/LoadingCat";
 import Link from "next/link";
 import { getAuth, getAuthSecret } from "@/app/lib/auth";
 
@@ -90,7 +91,7 @@ export default function GiftHistoryPage() {
           ))}
         </div>
 
-        {loading && <p style={{ fontSize: 13, color: "rgba(234,240,255,0.4)", textAlign: "center", padding: "40px 0" }}>読み込み中…</p>}
+        {loading && <div style={{ padding: "40px 0", display: "flex", justifyContent: "center" }}><LoadingCat fullscreen={false} /></div>}
         {error && <p style={{ fontSize: 13, color: "#FCA5A5" }}>{error}</p>}
 
         {!loading && current.data.length === 0 && (

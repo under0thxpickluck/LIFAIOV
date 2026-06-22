@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { LoadingCat } from "@/components/LoadingCat";
 import { useRouter } from "next/navigation";
 import { computeRaised } from "../lib/presale";
 import { clearAuth, getAuth, getAuthSecret, type AuthState } from "../lib/auth";
@@ -449,6 +450,8 @@ export default function AppHomePage() {
     (auth as any)?.login_id ??
     (auth as any)?.id ??
     "";
+
+  if (auth === null) return <LoadingCat />;
 
   return (
     <>

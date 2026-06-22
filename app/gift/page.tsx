@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { LoadingCat } from "@/components/LoadingCat";
 import Link from "next/link";
 import { getAuth, getAuthSecret } from "@/app/lib/auth";
 import GiftEPTutorial, { useGiftEPTutorial } from "@/components/GiftEPTutorial";
@@ -87,7 +88,7 @@ export default function GiftEPTopPage() {
         <div style={{ background: "#0F1A2E", border: "1px solid rgba(255,255,255,0.08)",
           borderRadius: 24, padding: 24, boxShadow: "0 8px 40px rgba(0,0,0,0.4)", marginBottom: 16 }}>
           {loading ? (
-            <p style={{ fontSize: 13, color: "rgba(234,240,255,0.4)" }}>読み込み中…</p>
+            <LoadingCat fullscreen={false} />
           ) : loadError ? (
             <p style={{ fontSize: 12, color: "#FCA5A5" }}>{loadError}</p>
           ) : (

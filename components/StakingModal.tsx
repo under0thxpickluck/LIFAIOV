@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { LoadingCat } from "./LoadingCat";
 
 type LockDays = 30 | 60 | 90;
 type StakeType = "bp" | "ep";
@@ -391,7 +392,7 @@ export default function StakingModal({ loginId, onClose, onBpChanged }: Props) {
         <p style={{ fontSize: "13px", fontWeight: 800, color: "#f4f4f5", marginBottom: "10px" }}>📋 ステーク中</p>
 
         {loading ? (
-          <p style={{ fontSize: "12px", color: "#52525b", textAlign: "center", padding: "12px 0" }}>読み込み中…</p>
+          <div style={{ display: "flex", justifyContent: "center", padding: "12px 0" }}><LoadingCat fullscreen={false} textColor="text-zinc-500" /></div>
         ) : activeStakes.length === 0 ? (
           <p style={{ fontSize: "12px", color: "#52525b", textAlign: "center", padding: "12px 0" }}>まだステークがありません</p>
         ) : (

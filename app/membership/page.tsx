@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { LoadingCat } from "@/components/LoadingCat";
 
 // plan列（"30"/"50"/"100"/"500"/"1000"）→ 表示ランク名
 const PLAN_RANK_MAP: Record<string, string> = {
@@ -139,7 +140,7 @@ export default function MembershipPage() {
       {/* 現在の状態カード */}
       <div className="bg-gradient-to-br from-purple-900/40 to-blue-900/40 border border-purple-500/20 rounded-2xl p-5 mb-6">
         {loading ? (
-          <p className="text-white/40 text-sm text-center py-4">読み込み中…</p>
+          <div className="flex justify-center py-4"><LoadingCat fullscreen={false} /></div>
         ) : (
           <>
             <div className="flex items-center justify-between mb-4">

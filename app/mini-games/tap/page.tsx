@@ -5,6 +5,7 @@ import { useTheme } from "../../lib/useTheme";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { motion, useReducedMotion } from "framer-motion";
 import { TapFloatText } from "@/components/animations/TapFloatText";
+import { LoadingCat } from "@/components/LoadingCat";
 
 type TapStatus = {
   today_taps:      number;
@@ -328,6 +329,8 @@ export default function TapMiningPage() {
 
   const comboMultiplier    = combo >= 100 ? 1.5 : combo >= 50 ? 1.2 : combo >= 20 ? 1.1 : 1.0;
   const effectiveRemaining = optimisticRemaining ?? (status?.taps_remaining ?? 0);
+
+  if (!status) return <LoadingCat />;
 
   return (
     <div className={`min-h-screen ${th.page}${rareEffect ? " animate-pulse" : ""}`}>
