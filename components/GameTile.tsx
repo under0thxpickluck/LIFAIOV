@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 
 type Props = {
   href: string;
@@ -13,12 +14,20 @@ type Props = {
 };
 
 export function GameTile({ href, title, subtitle, icon, badge, disabled }: Props) {
+  const reduced = useReducedMotion();
+  // CSS の hover/active クラスは削除（framer-motion に委譲）
   const base =
-    "group relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_20px_70px_rgba(0,0,0,.35)] backdrop-blur-xl transition";
-  const hover = disabled ? "" : "hover:bg-white/10 hover:-translate-y-[1px] active:scale-[0.99]";
+    "group relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_20px_70px_rgba(0,0,0,.35)] backdrop-blur-xl";
 
   const content = (
-    <div className={`${base} ${hover} ${disabled ? "opacity-40" : ""}`}>
+    <motion.div
+      className={`${base} ${disabled ? "opacity-40" : ""}`}
+      initial={reduced ? {} : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={reduced ? { duration: 0 } : { type: "spring", damping: 20, stiffness: 260 }}
+      whileHover={disabled || reduced ? {} : { y: -2, backgroundColor: "rgba(255,255,255,0.10)" }}
+      whileTap={disabled || reduced ? {} : { scale: 0.98 }}
+    >
       {/* 角の光 */}
       <div className="pointer-events-none absolute -top-24 -right-24 h-56 w-56 rounded-full bg-gradient-to-br from-violet-500/30 via-fuchsia-500/20 to-cyan-400/20 blur-2xl" />
       {/* badge */}
@@ -38,7 +47,7 @@ export function GameTile({ href, title, subtitle, icon, badge, disabled }: Props
           {subtitle ? <div className="mt-1 text-xs text-slate-300/80">{subtitle}</div> : null}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 
   if (disabled) return <div>{content}</div>;
