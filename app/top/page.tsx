@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { LoadingCat } from "@/components/LoadingCat";
 import { useRouter } from "next/navigation";
 import { computeRaised } from "../lib/presale";
-import { clearAuth, getAuth, getAuthSecret, type AuthState } from "../lib/auth";
+import { clearAuth, getAuth, getAuthSecret, setAuth, type AuthState } from "../lib/auth";
 import { useLifaiCat } from "@/components/LifaiCat";
 import BPGrantModal from "@/components/BPGrantModal";
 import LoginBonusModal from "@/components/LoginBonusModal";
@@ -309,6 +309,21 @@ export default function AppHomePage() {
           const meData = await meRes.json().catch(() => ({ ok: false }));
           if (meData.ok && meData.me?.ep_notification > 0) {
             setEpNotification({ amount: meData.me.ep_notification });
+          }
+          // メールでログインした既存セッションを正規 login_id へ自動修復
+          // （gacha/staking 等は login_id でのみ照合するため、メール保存だと not_found になる）
+          if (meData.ok && meData.me?.login_id && meData.me.login_id !== id) {
+            const cur = getAuth();
+            if (cur) {
+              const healed = setAuth({
+                status: cur.status,
+                id:     meData.me.login_id,
+                token:  cur.token,
+                ...(cur.plan  ? { plan:  cur.plan }  : {}),
+                ...(cur.group ? { group: cur.group } : {}),
+              });
+              setAuthState(healed);
+            }
           }
         } catch {
           // 通知失敗はサイレントに無視

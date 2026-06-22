@@ -82,9 +82,11 @@ export default function LoginPage() {
 
       if (res.ok) {
         // ✅ ログイン状態を保存（localStorage）
+        // メールでログインした場合でも、GASが返す正規の login_id を保存する
+        // （gacha/staking 等は login_id でのみ照合するため、メールを保存すると not_found になる）
         setAuth({
           status: "approved",
-          id: trimmedId,
+          id: res.login_id || trimmedId,
           token: res.token ?? pw, // ✅ ここだけ修正：tokenが無い場合はpwを入れる（壊さない保険）
           ...(res.group ? { group: res.group } : {}),
         });

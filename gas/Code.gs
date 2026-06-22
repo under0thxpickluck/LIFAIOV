@@ -4504,7 +4504,7 @@ function handle_(key, body) {
     }
     if (!loginOk) return json_({ ok: false, reason: "invalid" });
 
-    return json_({ ok: true, group: (foundIn5000Sheet || group_login === "5000") ? "5000" : "" });
+    return json_({ ok: true, group: (foundIn5000Sheet || group_login === "5000") ? "5000" : "", login_id: loginId });
   }
 
   // =========================================================
