@@ -39,7 +39,11 @@
       "Bash(python -c \"import sys; print\\(sys.version\\)\")",
       "Bash(python -m pip list)",
       "Bash(mkdir -p /tmp/m2)",
-      "Bash(python -)"
+      "Bash(python -)",
+      "Read(//c/Users/unitu/aisalon/app/api/song//**)",
+      "Read(//c/Users/unitu/aisalon/app/api/admin//**)",
+      "Bash(mkdir -p /c/Users/unitu/aisalon/app/api/admin/notify-user)",
+      "Bash(mkdir -p /c/Users/unitu/aisalon/app/api/admin/set-gacha-preset)"
     ]
   }
 }
