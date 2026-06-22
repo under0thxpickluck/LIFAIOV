@@ -2,6 +2,9 @@
 
 // components/GachaModal.tsx
 import { useEffect, useState, useRef } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import AnimatedModal from "./animations/AnimatedModal";
+import { GlowBadge } from "./animations/GlowBadge";
 
 type GachaResult = {
   prize_bp:    number;
@@ -71,6 +74,7 @@ export default function GachaModal({ loginId, onClose, onBpEarned }: Props) {
   const dailyCalledRef = useRef(false);
   const [showTutorial,  setShowTutorial]  = useState(false);
   const [tutorialStep,  setTutorialStep]  = useState(0);
+  const reduced = useReducedMotion();
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 30);
@@ -182,33 +186,19 @@ export default function GachaModal({ loginId, onClose, onBpEarned }: Props) {
   };
 
   return (
-    <div
-      onClick={result ? undefined : handleClose}
-      style={{
-        position:        "fixed",
-        inset:           0,
-        zIndex:          9999,
-        display:         "flex",
-        alignItems:      "center",
-        justifyContent:  "center",
-        backgroundColor: "rgba(0,0,0,0.6)",
-        opacity:         visible ? 1 : 0,
-        transition:      "opacity 0.3s ease",
-        cursor:          result ? "default" : "pointer",
-      }}
+    <AnimatedModal
+      open={visible}
+      onBackdropClick={result ? undefined : handleClose}
     >
       <div
-        onClick={(e) => e.stopPropagation()}
         style={{
           background:   "#18181b",
           borderRadius: "16px",
           padding:      "24px",
           maxWidth:     "380px",
-          width:        "92%",
+          width:        "92vw",
           boxShadow:    "0 32px 80px rgba(0,0,0,0.5)",
           border:       "1px solid rgba(255,255,255,0.08)",
-          transform:    visible ? "scale(1) translateY(0)" : "scale(0.88) translateY(24px)",
-          transition:   "transform 0.35s cubic-bezier(0.34,1.56,0.64,1)",
           cursor:       "default",
           maxHeight:    "90vh",
           overflowY:    "auto",
@@ -281,19 +271,27 @@ export default function GachaModal({ loginId, onClose, onBpEarned }: Props) {
               const style = RARITY_STYLE[result.rarity ?? "common"] ?? RARITY_STYLE.common;
               return (
                 <div style={{ marginBottom: "16px" }}>
-                  <p style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.15em", color: style.color, marginBottom: "6px" }}>
-                    {style.label}
-                  </p>
-                  <p style={{
-                    fontSize:      "44px",
-                    fontWeight:    900,
-                    color:         style.color,
-                    letterSpacing: "-0.02em",
-                    margin:        "0 0 6px",
-                    animation:     result.prize_bp >= 5000 ? "pulse 1s infinite" : undefined,
-                  }}>
+                  <div style={{ marginBottom: "8px" }}>
+                    <GlowBadge color={style.color} glow={result.prize_bp >= 300}>
+                      {style.label}
+                    </GlowBadge>
+                  </div>
+
+                  <motion.p
+                    initial={reduced ? {} : { scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={reduced ? { duration: 0 } : { type: "spring", damping: 16, stiffness: 280, delay: 0.1 }}
+                    style={{
+                      fontSize:      "44px",
+                      fontWeight:    900,
+                      color:         style.color,
+                      letterSpacing: "-0.02em",
+                      margin:        "0 0 6px",
+                    }}
+                  >
                     +{result.prize_bp.toLocaleString()}BP
-                  </p>
+                  </motion.p>
+
                   <p style={{ fontSize: "13px", fontWeight: 700, color: result.net >= 0 ? "#4ade80" : "#f87171" }}>
                     差引: {result.net >= 0 ? "+" : ""}{result.net}BP
                   </p>
@@ -424,6 +422,18 @@ export default function GachaModal({ loginId, onClose, onBpEarned }: Props) {
               })}
             </div>
 
+            {spinning && !reduced && (
+              <div style={{ textAlign: "center", padding: "12px 0", marginBottom: "8px" }}>
+                <motion.div
+                  style={{ fontSize: 36, display: "inline-block" }}
+                  animate={{ scale: [1, 1.15, 1] }}
+                  transition={{ duration: 0.35, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  🎰
+                </motion.div>
+              </div>
+            )}
+
             {errMsg && (
               <p style={{ fontSize: "12px", color: "#f87171", marginBottom: "12px", textAlign: "center" }}>
                 {errMsg}
@@ -511,6 +521,6 @@ export default function GachaModal({ loginId, onClose, onBpEarned }: Props) {
           </>
         )}
       </div>
-    </div>
+    </AnimatedModal>
   );
 }
