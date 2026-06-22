@@ -30,6 +30,9 @@ type PoolInfo = {
   participant_count: number;
   confirmed_rates:   Record<string, number>;
   gauge_pct:         number;
+  remaining?:        number;
+  multipliers?:      Record<string, number>;
+  floors?:           Record<string, number>;
 };
 
 function formatDate(isoStr: string): string {
@@ -96,10 +99,16 @@ export default function StakingModal({ loginId, onClose, onBpChanged }: Props) {
     ? formatDate(new Date(Date.now() + selectedDays * 24 * 60 * 60 * 1000).toISOString())
     : "";
 
+  // プール残量（pool>0 のときのみ上限が効く。未設定時は上限なし）
+  const poolCapActive = !!poolInfo && poolInfo.pool > 0;
+  const remaining     = poolInfo?.remaining ?? (poolInfo ? Math.max(0, poolInfo.pool - poolInfo.total_staked) : 0);
+  const overRemaining = poolCapActive && amountNum > remaining;
+
   const canStake =
     hasPreview &&
     bpBalance !== null &&
     amountNum <= bpBalance &&
+    !overRemaining &&
     !submitting;
 
   const handleStake = async () => {
@@ -118,6 +127,8 @@ export default function StakingModal({ loginId, onClose, onBpChanged }: Props) {
         setAmount("");
         await fetchStakes();
         onBpChanged();
+      } else if (d.reason === "pool_exceeded") {
+        setMsg(`❌ プール残量を超えています（残り ${Number(d.remaining ?? 0).toLocaleString()} BP まで）`);
       } else {
         setMsg("❌ " + (d.reason === "insufficient_bp" ? "BP残高が不足しています" : (d.error ?? "エラーが発生しました")));
       }
@@ -226,6 +237,10 @@ export default function StakingModal({ loginId, onClose, onBpChanged }: Props) {
               </span>
               <span style={{ color: "#71717a" }}>今月プール: {poolInfo.pool.toLocaleString()} BP</span>
             </div>
+            {poolCapActive && (
+              <div style={{ fontSize: "11px", color: "#38bdf8", marginBottom: "8px" }}>
+                残り <b>{remaining.toLocaleString()} BP</b> まで預け入れ可能
+              </div>)}
             {/* ゲージ */}
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "#71717a", marginBottom: "4px" }}>

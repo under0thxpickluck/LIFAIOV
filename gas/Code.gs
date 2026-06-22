@@ -3555,6 +3555,37 @@ function handle_(key, body) {
     return json_({ ok: true, month: spMonth, bp_pool: spBpPool, ep_pool: spEpPool });
   }
 
+  // admin_set_staking_config（倍率・下限レートのグローバル設定）
+  // =========================================================
+  if (action === "admin_set_staking_config") {
+    if (str_(body.adminKey) !== ADMIN_SECRET) return json_({ ok: false, error: "admin_unauthorized" });
+    var scInput = body.config || {};
+    var scSheet = getOrCreateStakingConfigSheet_();
+    var scData  = scSheet.getDataRange().getValues();
+    var scIdx   = indexMap_(scData[0]);
+    var scNow   = new Date().toISOString();
+    [30, 60, 90].forEach(function(d) {
+      var entry = scInput[d] || scInput[String(d)];
+      if (!entry) return;
+      var mult  = Number(entry.multiplier);
+      var floor = Number(entry.floor);
+      if (!isFinite(mult))  mult  = stakingDefaultMultiplier_(d);
+      if (!isFinite(floor)) floor = stakingDefaultFloor_(d);
+      var rowFound = 0;
+      for (var i = 1; i < scData.length; i++) {
+        if (Number(scData[i][scIdx["days"]] || 0) === d) { rowFound = i + 1; break; }
+      }
+      if (rowFound) {
+        scSheet.getRange(rowFound, scIdx["multiplier"] + 1).setValue(mult);
+        scSheet.getRange(rowFound, scIdx["floor"]      + 1).setValue(floor);
+        scSheet.getRange(rowFound, scIdx["set_at"]     + 1).setValue(scNow);
+      } else {
+        scSheet.appendRow([d, mult, floor, scNow]);
+      }
+    });
+    return json_({ ok: true, config: getStakingConfig_() });
+  }
+
   // stake_bp（BPステーキング開始：BPを預けて満期後に利息付きで受け取る）
   // - adminKey 認証必須（GAS_ADMIN_KEY）
   // - 最低100BP / days: 30 | 60 | 90
@@ -3604,8 +3635,15 @@ function handle_(key, body) {
     var stakePoolSetting  = getStakingPoolForMonth_(stakeCurrentMonth);
     var stakeBpPool       = stakePoolSetting.bp_pool;
     var stakeStats        = getActiveBpStakeStats_(getOrCreateStakingSheet_());
+
+    // プール上限ブロック（pool>0 のときのみ。未設定時は上限なし）
+    if (stakeBpPool > 0 && amount > (stakeBpPool - stakeStats.total)) {
+      return json_({ ok: false, reason: "pool_exceeded", remaining: Math.max(0, stakeBpPool - stakeStats.total) });
+    }
+
+    var stakeConfig       = getStakingConfig_();
     var totalForRate      = stakeStats.total + amount; // この人のステーク込みで計算
-    const rate            = calcStakeRate_(stakeBpPool, totalForRate || 1, days);
+    const rate            = calcStakeRate_(stakeBpPool, totalForRate || 1, days, stakeConfig);
     const interestBp = Math.floor(amount * rate);
     const totalBp    = amount + interestBp;
 
@@ -3715,11 +3753,13 @@ function handle_(key, body) {
     var gsPoolSetting  = getStakingPoolForMonth_(gsCurrentMonth);
     var gsBpPool       = gsPoolSetting.bp_pool;
     var gsBpStats      = getActiveBpStakeStats_(stakingSheet);
+    var gsConfig       = getStakingConfig_();
     var gsRates        = {};
     [30, 60, 90].forEach(function(d) {
-      gsRates[d] = Math.round(calcStakeRate_(gsBpPool, gsBpStats.total || 1, d) * 10000) / 10000;
+      gsRates[d] = Math.round(calcStakeRate_(gsBpPool, gsBpStats.total || 1, d, gsConfig) * 10000) / 10000;
     });
-    var gsGaugePct = gsBpPool > 0 ? Math.min(Math.round(gsBpStats.total / gsBpPool * 100), 100) : 0;
+    var gsGaugePct  = gsBpPool > 0 ? Math.min(Math.round(gsBpStats.total / gsBpPool * 100), 100) : 0;
+    var gsRemaining = Math.max(0, gsBpPool - gsBpStats.total);
 
     return json_({
       ok:         true,
@@ -3731,6 +3771,9 @@ function handle_(key, body) {
         participant_count: gsBpStats.count,
         confirmed_rates:   gsRates,
         gauge_pct:         gsGaugePct,
+        remaining:         gsRemaining,
+        multipliers:       gsConfig.multipliers,
+        floors:            gsConfig.floors,
       }
     });
   }
@@ -5743,14 +5786,58 @@ function getStakingPoolForMonth_(targetMonth) {
   };
 }
 
+// staking_config 未設定時のデフォルト（＝従来のハードコード値）
+function stakingDefaultMultiplier_(days) {
+  var m = { 30: 1.0, 60: 2.5, 90: 5.0 };
+  return m[days] === undefined ? 1.0 : m[days];
+}
+function stakingDefaultFloor_(days) {
+  var f = { 30: 0.03, 60: 0.075, 90: 0.15 };
+  return f[days] === undefined ? 0.03 : f[days];
+}
+
+// 倍率・下限レート設定シート
+function getOrCreateStakingConfigSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  return getOrCreateSheetByName_(ss, "staking_config", [
+    "days", "multiplier", "floor", "set_at"
+  ]);
+}
+
+// 倍率・下限レート設定を取得。未設定の期間はデフォルトで補完。
+function getStakingConfig_() {
+  var multipliers = {};
+  var floors      = {};
+  [30, 60, 90].forEach(function(d) {
+    multipliers[d] = stakingDefaultMultiplier_(d);
+    floors[d]      = stakingDefaultFloor_(d);
+  });
+  var sheet = getOrCreateStakingConfigSheet_();
+  var data  = sheet.getDataRange().getValues();
+  if (data.length >= 2) {
+    var idx = indexMap_(data[0]);
+    for (var i = 1; i < data.length; i++) {
+      var d = Number(data[i][idx["days"]] || 0);
+      if (d !== 30 && d !== 60 && d !== 90) continue;
+      var mv = data[i][idx["multiplier"]];
+      var fv = data[i][idx["floor"]];
+      if (mv !== "" && mv !== null && mv !== undefined && isFinite(Number(mv))) multipliers[d] = Number(mv);
+      if (fv !== "" && fv !== null && fv !== undefined && isFinite(Number(fv))) floors[d]      = Number(fv);
+    }
+  }
+  return { multipliers: multipliers, floors: floors };
+}
+
 // 動的レート計算（プールベース・期間倍率・下限保証）
-function calcStakeRate_(pool, totalStaked, days) {
-  var MULTIPLIERS = { 30: 1.0, 60: 2.5, 90: 5.0 };
-  var FLOORS      = { 30: 0.03, 60: 0.075, 90: 0.15 };
-  if (!pool || !totalStaked) return FLOORS[days] || 0.03;
+// config（{multipliers, floors}）を渡せば再読込を避けられる。省略時は内部で読む。
+function calcStakeRate_(pool, totalStaked, days, config) {
+  var cfg        = config || getStakingConfig_();
+  var multiplier = cfg.multipliers[days] === undefined ? stakingDefaultMultiplier_(days) : cfg.multipliers[days];
+  var floor      = cfg.floors[days]      === undefined ? stakingDefaultFloor_(days)      : cfg.floors[days];
+  if (!pool || !totalStaked) return floor;
   var baseRate   = Math.min(pool / totalStaked, 1.0);
-  var periodRate = baseRate * (MULTIPLIERS[days] || 1.0);
-  return Math.max(periodRate, FLOORS[days] || 0.03);
+  var periodRate = baseRate * multiplier;
+  return Math.max(periodRate, floor);
 }
 
 // staking シートのアクティブステーク合計とユニーク参加者数を返す

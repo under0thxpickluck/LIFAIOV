@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type LevelSummary = {
   level: number;
@@ -311,7 +311,14 @@ function StakingPoolSection() {
   const [epPool,   setEpPool]   = useState("");
   const [saving,   setSaving]   = useState(false);
   const [msg,      setMsg]      = useState<string | null>(null);
-  const [stats,    setStats]    = useState<{ pool: number; total_staked: number; participant_count: number; confirmed_rates: Record<string, number>; gauge_pct: number } | null>(null);
+  const [stats,    setStats]    = useState<{ pool: number; total_staked: number; participant_count: number; confirmed_rates: Record<string, number>; gauge_pct: number; remaining?: number; multipliers?: Record<string, number>; floors?: Record<string, number> } | null>(null);
+
+  // 倍率・下限レート設定（編集用。floor は % 表記で保持）
+  const [mult,      setMult]      = useState<Record<number, string>>({ 30: "", 60: "", 90: "" });
+  const [floorPct,  setFloorPct]  = useState<Record<number, string>>({ 30: "", 60: "", 90: "" });
+  const [cfgSaving, setCfgSaving] = useState(false);
+  const [cfgMsg,    setCfgMsg]    = useState<string | null>(null);
+  const cfgInit = useRef(false);
 
   const loadStats = () => {
     fetch(`/api/staking?loginId=__pool_info_only__&type=bp`, { cache: "no-store" })
@@ -323,6 +330,43 @@ function StakingPoolSection() {
   useEffect(() => {
     loadStats();
   }, []);
+
+  // 初回ロード時に現在の倍率・下限レートを入力欄へプリセット
+  useEffect(() => {
+    if (stats && !cfgInit.current && stats.multipliers && stats.floors) {
+      const m: Record<number, string> = { 30: "", 60: "", 90: "" };
+      const f: Record<number, string> = { 30: "", 60: "", 90: "" };
+      [30, 60, 90].forEach(d => {
+        m[d] = String(stats.multipliers?.[d] ?? "");
+        f[d] = String((stats.floors?.[d] ?? 0) * 100);
+      });
+      setMult(m);
+      setFloorPct(f);
+      cfgInit.current = true;
+    }
+  }, [stats]);
+
+  const saveConfig = async () => {
+    setCfgSaving(true); setCfgMsg(null);
+    try {
+      const config: Record<string, { multiplier: number; floor: number }> = {};
+      [30, 60, 90].forEach(d => {
+        config[d] = { multiplier: Number(mult[d]), floor: Number(floorPct[d]) / 100 };
+      });
+      const res  = await fetch("/api/admin/staking-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setCfgMsg("✅ 倍率・下限レートを保存しました");
+        loadStats();
+      }
+      else setCfgMsg("❌ " + (data.error ?? "失敗しました"));
+    } catch { setCfgMsg("❌ 通信エラー"); }
+    setCfgSaving(false);
+  };
 
   const save = async () => {
     setSaving(true); setMsg(null);
@@ -353,6 +397,7 @@ function StakingPoolSection() {
           <div className="flex flex-wrap gap-4 text-xs text-zinc-300">
             <span>今月プール: <b className="text-amber-400">{stats.pool.toLocaleString()} BP</b></span>
             <span>総ステーク: <b>{stats.total_staked.toLocaleString()} BP</b></span>
+            <span>残り受付可能: <b className="text-sky-400">{(stats.remaining ?? Math.max(0, stats.pool - stats.total_staked)).toLocaleString()} BP</b></span>
             <span>参加者: <b>{stats.participant_count} 人</b></span>
           </div>
           <div className="mt-3 flex gap-3 text-xs">
@@ -401,6 +446,49 @@ function StakingPoolSection() {
         </div>
       </div>
       {msg && <p className={`mt-3 text-xs ${msg.startsWith("✅") ? "text-emerald-400" : "text-red-400"}`}>{msg}</p>}
+
+      {/* 倍率・下限レート設定（全体共通） */}
+      <div className="mt-6 border-t border-zinc-800 pt-5">
+        <h3 className="mb-1 text-sm font-bold text-zinc-200">⚙️ 倍率・下限レート設定（全期間共通）</h3>
+        <p className="mb-3 text-[11px] text-zinc-500">
+          ロック期間ごとの期間倍率と下限レートを設定します。変更は以降の新規ステークに適用されます。
+        </p>
+        <div className="overflow-x-auto">
+          <table className="text-xs">
+            <thead className="text-zinc-500">
+              <tr>
+                <th className="px-2 py-1 text-left font-bold">期間</th>
+                <th className="px-2 py-1 text-left font-bold">倍率（×）</th>
+                <th className="px-2 py-1 text-left font-bold">下限レート（%）</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[30, 60, 90].map(d => (
+                <tr key={d}>
+                  <td className="px-2 py-1 font-bold text-zinc-300">{d}日</td>
+                  <td className="px-2 py-1">
+                    <input type="number" min={0} step="0.1" value={mult[d]}
+                      onChange={e => setMult(prev => ({ ...prev, [d]: e.target.value }))}
+                      placeholder="例: 2.5"
+                      className="w-28 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-200 focus:outline-none" />
+                  </td>
+                  <td className="px-2 py-1">
+                    <input type="number" min={0} step="0.1" value={floorPct[d]}
+                      onChange={e => setFloorPct(prev => ({ ...prev, [d]: e.target.value }))}
+                      placeholder="例: 7.5"
+                      className="w-28 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-200 focus:outline-none" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <button onClick={saveConfig} disabled={cfgSaving}
+          className="mt-3 rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-black hover:bg-amber-400 disabled:opacity-50">
+          {cfgSaving ? "保存中…" : "倍率・下限を保存"}
+        </button>
+        {cfgMsg && <p className={`mt-3 text-xs ${cfgMsg.startsWith("✅") ? "text-emerald-400" : "text-red-400"}`}>{cfgMsg}</p>}
+      </div>
     </div>
   );
 }
