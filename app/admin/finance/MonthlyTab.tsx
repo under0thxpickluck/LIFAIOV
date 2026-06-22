@@ -313,12 +313,15 @@ function StakingPoolSection() {
   const [msg,      setMsg]      = useState<string | null>(null);
   const [stats,    setStats]    = useState<{ pool: number; total_staked: number; participant_count: number; confirmed_rates: Record<string, number>; gauge_pct: number } | null>(null);
 
-  useEffect(() => {
-    const gasUrl = "";
+  const loadStats = () => {
     fetch(`/api/staking?loginId=__pool_info_only__&type=bp`, { cache: "no-store" })
       .then(r => r.json())
       .then(d => { if (d.pool_info) setStats(d.pool_info); })
       .catch(() => {});
+  };
+
+  useEffect(() => {
+    loadStats();
   }, []);
 
   const save = async () => {
@@ -330,7 +333,10 @@ function StakingPoolSection() {
         body: JSON.stringify({ month, bp_pool: Number(bpPool), ep_pool: Number(epPool) }),
       });
       const data = await res.json();
-      if (data.ok) setMsg(`✅ ${month} のプールを設定しました`);
+      if (data.ok) {
+        setMsg(`✅ ${month} のプールを設定しました`);
+        loadStats(); // 保存後に最新のプール統計を再取得して画面へ反映
+      }
       else setMsg("❌ " + (data.error ?? "失敗しました"));
     } catch { setMsg("❌ 通信エラー"); }
     setSaving(false);

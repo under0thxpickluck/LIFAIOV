@@ -3539,7 +3539,9 @@ function handle_(key, body) {
     var spData   = spSheet.getDataRange().getValues();
     var spIdx    = indexMap_(spData[0]);
     for (var si = 1; si < spData.length; si++) {
-      if (str_(spData[si][spIdx["month"]]) === spMonth) {
+      if (stakingMonthKey_(spData[si][spIdx["month"]]) === spMonth) {
+        // month セルがDate化していても文字列に戻す（テキスト形式で再保存）
+        spSheet.getRange(si + 1, spIdx["month"]   + 1).setNumberFormat("@").setValue(spMonth);
         spSheet.getRange(si + 1, spIdx["bp_pool"] + 1).setValue(spBpPool);
         spSheet.getRange(si + 1, spIdx["ep_pool"] + 1).setValue(spEpPool);
         spSheet.getRange(si + 1, spIdx["set_at"]  + 1).setValue(new Date().toISOString());
@@ -3547,6 +3549,9 @@ function handle_(key, body) {
       }
     }
     spSheet.appendRow([spMonth, spBpPool, spEpPool, new Date().toISOString()]);
+    // 追記直後に month セルをテキスト形式で再保存し、Date型への自動変換を防ぐ
+    var spNewRow = spSheet.getLastRow();
+    spSheet.getRange(spNewRow, spIdx["month"] + 1).setNumberFormat("@").setValue(spMonth);
     return json_({ ok: true, month: spMonth, bp_pool: spBpPool, ep_pool: spEpPool });
   }
 
@@ -5703,6 +5708,20 @@ function getOrCreateStakingPoolSheet_() {
   ]);
 }
 
+// month 値を必ず "YYYY-MM" 文字列へ正規化する
+// （Google Sheets が "2026-06" を Date 型へ自動変換してしまうため、
+//   読み戻し時に Date でも文字列でも同じキーに揃える）
+function stakingMonthKey_(v) {
+  if (v instanceof Date) {
+    return Utilities.formatDate(
+      v,
+      SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(),
+      "yyyy-MM"
+    );
+  }
+  return String(v == null ? "" : v).trim().slice(0, 7);
+}
+
 // 指定月のプール設定を取得。なければ直近の設定を返す
 function getStakingPoolForMonth_(targetMonth) {
   const poolSheet = getOrCreateStakingPoolSheet_();
@@ -5710,10 +5729,11 @@ function getStakingPoolForMonth_(targetMonth) {
   if (data.length < 2) return { bp_pool: 0, ep_pool: 0 };
   const idx = indexMap_(data[0]);
   var found = null;
+  var foundKey = "";
   for (var i = 1; i < data.length; i++) {
-    var m = str_(data[i][idx["month"]]);
+    var m = stakingMonthKey_(data[i][idx["month"]]);
     if (m <= targetMonth) {
-      if (!found || m > str_(found[idx["month"]])) found = data[i];
+      if (!found || m > foundKey) { found = data[i]; foundKey = m; }
     }
   }
   if (!found) return { bp_pool: 0, ep_pool: 0 };
