@@ -10,13 +10,12 @@ const FRAMES = [
 ];
 
 type Props = {
-  /** true（デフォルト）= 画面全体を固定オーバーレイ、false = インライン表示 */
+  /** true（デフォルト）= 画面全体グレー固定表示、false = インライン */
   fullscreen?: boolean;
-  /** インライン時のテキストカラー。デフォルトは白 */
   textColor?: string;
 };
 
-export function LoadingCat({ fullscreen = true, textColor = "text-white" }: Props) {
+export function LoadingCat({ fullscreen = true, textColor = "text-gray-500" }: Props) {
   const [frame, setFrame] = useState(0);
 
   useEffect(() => {
@@ -24,31 +23,58 @@ export function LoadingCat({ fullscreen = true, textColor = "text-white" }: Prop
     return () => clearInterval(id);
   }, []);
 
-  const inner = (
-    <div className="flex items-center gap-2">
-      <span className={`text-sm font-bold ${textColor}`}>読み込み中…</span>
-      <img
-        src={FRAMES[frame]}
-        alt=""
-        aria-hidden
-        className="w-8 h-8 object-contain"
-      />
+  // 全フレームを重ねて表示し、opacity だけ切り替える（ちらつき防止）
+  const iconSize = fullscreen ? 96 : 32;
+  const icon = (
+    <div style={{ position: "relative", width: iconSize, height: iconSize, flexShrink: 0 }}>
+      {FRAMES.map((src, i) => (
+        <img
+          key={src}
+          src={src}
+          alt=""
+          aria-hidden
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            mixBlendMode: "multiply",   // 白背景を背景色に溶け込ませる
+            opacity: i === frame ? 1 : 0,
+            transition: "opacity 0.1s",
+          }}
+        />
+      ))}
     </div>
   );
 
-  if (!fullscreen) return inner;
+  if (!fullscreen) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span className={`text-sm font-bold ${textColor}`}>読み込み中…</span>
+        {icon}
+      </div>
+    );
+  }
 
   return (
-    <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50">
-      <div className="flex flex-col items-center gap-3">
-        <img
-          src={FRAMES[frame]}
-          alt=""
-          aria-hidden
-          className="w-16 h-16 object-contain"
-        />
-        <span className="text-sm font-bold text-white">読み込み中…</span>
-      </div>
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9998,
+        backgroundColor: "#e5e7eb", // gray-200
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 12,
+      }}
+    >
+      {icon}
+      <p style={{ fontSize: 14, fontWeight: 700, color: "#6b7280", margin: 0 }}>
+        読み込み中…
+      </p>
     </div>
   );
 }
