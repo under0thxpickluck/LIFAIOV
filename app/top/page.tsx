@@ -13,6 +13,7 @@ import MissionCard from "@/components/MissionCard";
 import GachaModal from "@/components/GachaModal";
 import StakingModal from "@/components/StakingModal";
 import RadioCard from "@/components/RadioCard";
+import { motion, AnimatePresence } from "framer-motion";
 
 /** ✅ カウントダウン + 調達バー（returnの外に置く） */
 function pad2(n: number) {
@@ -522,57 +523,69 @@ export default function AppHomePage() {
     )}
 
     {/* アプリ詳細ポップアップ */}
-    {selectedApp && (
-      <>
-        {/* オーバーレイ */}
-        <div
-          className="fixed inset-0 z-40 bg-black/60"
-          onClick={() => setSelectedApp(null)}
-        />
-        {/* スライドアップシート */}
-        <div className="fixed inset-x-0 bottom-0 z-50 max-w-sm mx-auto rounded-t-3xl bg-zinc-900 p-6 shadow-2xl">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <div className={`w-20 h-20 rounded-3xl bg-gradient-to-br ${selectedApp.color} flex items-center justify-center text-4xl shadow-lg`}>
-              {selectedApp.icon}
+    <AnimatePresence>
+      {selectedApp && (
+        <>
+          {/* オーバーレイ */}
+          <motion.div
+            className="fixed inset-0 z-40 bg-black/60"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={() => setSelectedApp(null)}
+          />
+          {/* スライドアップシート */}
+          <motion.div
+            className="fixed inset-x-0 bottom-0 z-50 max-w-sm mx-auto rounded-t-3xl bg-zinc-900 p-6 shadow-2xl"
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 26, stiffness: 300 }}
+          >
+            <div className="flex flex-col items-center gap-3 text-center">
+              <div className={`w-20 h-20 rounded-3xl bg-gradient-to-br ${selectedApp.color} flex items-center justify-center text-4xl shadow-lg`}>
+                {selectedApp.icon}
+              </div>
+              <div>
+                <p className="text-lg font-extrabold text-white">{selectedApp.label}</p>
+                <p className="mt-1 text-sm text-zinc-400">{selectedApp.desc}</p>
+              </div>
+              {selectedApp.badge === '準備中' ? (
+                <button
+                  disabled
+                  className="mt-2 w-full rounded-2xl bg-slate-700 px-6 py-3 text-sm font-extrabold text-slate-400 cursor-not-allowed"
+                >
+                  準備中
+                </button>
+              ) : selectedApp.onOpen ? (
+                <button
+                  onClick={selectedApp.onOpen}
+                  className="mt-2 w-full rounded-2xl bg-amber-400 px-6 py-3 text-sm font-extrabold text-zinc-900 hover:bg-amber-300 active:scale-95 transition"
+                >
+                  開く →
+                </button>
+              ) : selectedApp.href.startsWith("#") ? (
+                <button
+                  onClick={() => setSelectedApp(null)}
+                  className="mt-2 w-full rounded-2xl bg-amber-400 px-6 py-3 text-sm font-extrabold text-zinc-900 hover:bg-amber-300 active:scale-95 transition"
+                >
+                  開く →
+                </button>
+              ) : (
+                <Link
+                  href={selectedApp.href}
+                  className="mt-2 block w-full rounded-2xl bg-amber-400 px-6 py-3 text-sm font-extrabold text-zinc-900 text-center hover:bg-amber-300 active:scale-95 transition"
+                  onClick={() => setSelectedApp(null)}
+                >
+                  開く →
+                </Link>
+              )}
             </div>
-            <div>
-              <p className="text-lg font-extrabold text-white">{selectedApp.label}</p>
-              <p className="mt-1 text-sm text-zinc-400">{selectedApp.desc}</p>
-            </div>
-            {selectedApp.badge === '準備中' ? (
-              <button
-                disabled
-                className="mt-2 w-full rounded-2xl bg-slate-700 px-6 py-3 text-sm font-extrabold text-slate-400 cursor-not-allowed"
-              >
-                準備中
-              </button>
-            ) : selectedApp.onOpen ? (
-              <button
-                onClick={selectedApp.onOpen}
-                className="mt-2 w-full rounded-2xl bg-amber-400 px-6 py-3 text-sm font-extrabold text-zinc-900 hover:bg-amber-300 active:scale-95 transition"
-              >
-                開く →
-              </button>
-            ) : selectedApp.href.startsWith("#") ? (
-              <button
-                onClick={() => setSelectedApp(null)}
-                className="mt-2 w-full rounded-2xl bg-amber-400 px-6 py-3 text-sm font-extrabold text-zinc-900 hover:bg-amber-300 active:scale-95 transition"
-              >
-                開く →
-              </button>
-            ) : (
-              <Link
-                href={selectedApp.href}
-                className="mt-2 block w-full rounded-2xl bg-amber-400 px-6 py-3 text-sm font-extrabold text-zinc-900 text-center hover:bg-amber-300 active:scale-95 transition"
-                onClick={() => setSelectedApp(null)}
-              >
-                開く →
-              </Link>
-            )}
-          </div>
-        </div>
-      </>
-    )}
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
 
     <main className="min-h-screen text-slate-900">
       <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(900px_520px_at_12%_-10%,rgba(99,102,241,.16),transparent_60%),radial-gradient(900px_520px_at_112%_0%,rgba(34,211,238,.12),transparent_55%),linear-gradient(180deg,#FFFFFF,#F6F7FB_55%,#FFFFFF)]" />
@@ -615,20 +628,38 @@ export default function AppHomePage() {
           {/* ✅ アプリグリッド（LINEミニアプリ風 4列） */}
           <div className="mt-6">
             <p className="mb-3 text-xs font-extrabold text-slate-700">アプリ</p>
-            <div className="grid grid-cols-4 gap-3 px-2">
+            <motion.div
+              className="grid grid-cols-4 gap-3 px-2"
+              initial="hidden"
+              animate="visible"
+              variants={{
+                hidden: {},
+                visible: { transition: { staggerChildren: 0.045 } },
+              }}
+            >
               {apps.map((app) => (
-                <button
+                <motion.button
                   key={app.id}
                   onClick={() => { if (app.disabled) return; setSelectedApp(app); }}
                   className="flex flex-col items-center gap-1 focus:outline-none"
                   style={{ cursor: app.disabled ? "not-allowed" : "pointer", opacity: app.disabled ? 0.6 : 1 }}
+                  variants={{
+                    hidden: { opacity: 0, y: 12, scale: 0.93 },
+                    visible: {
+                      opacity: 1, y: 0, scale: 1,
+                      transition: { type: "spring", damping: 18, stiffness: 260 },
+                    },
+                  }}
+                  whileTap={app.disabled ? {} : { scale: 0.92 }}
                 >
                   <div className="relative">
-                    <div
-                      className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${app.color} flex items-center justify-center text-2xl shadow-md active:scale-95 transition`}
+                    <motion.div
+                      className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${app.color} flex items-center justify-center text-2xl shadow-md`}
+                      whileHover={app.disabled ? {} : { scale: 1.08 }}
+                      transition={{ type: "spring", damping: 18, stiffness: 300 }}
                     >
                       {app.icon}
-                    </div>
+                    </motion.div>
                     {app.badge && (
                       <span className={`absolute -top-1 -right-1 rounded-full px-1.5 py-0.5 text-[8px] font-bold text-white leading-none ${app.badge === 'Beta' ? 'bg-sky-500' : 'bg-slate-700'}`}>
                         {app.badge}
@@ -638,9 +669,9 @@ export default function AppHomePage() {
                   <span className="text-[11px] text-zinc-600 text-center leading-tight">
                     {app.label}
                   </span>
-                </button>
+                </motion.button>
               ))}
-            </div>
+            </motion.div>
           </div>
 
           <MissionCard
