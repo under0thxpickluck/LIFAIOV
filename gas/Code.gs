@@ -3184,7 +3184,7 @@ function handle_(key, body) {
         return {prize_bp:p, rarity: p>=20000?"god":p>=5000?"mythic":"legendary"};
       }
       let useW = WEIGHTS.slice();
-      if (streakIn >= 10) useW = [0,0,0,0,0,40,35,18,6,1,0]; else if (forceGood) useW = [0,0,0,0,0,50,30,15,4,1,0];
+      if (streakIn >= 30) useW = [0,0,0,0,85,12,3,0,0,0,0]; else if (forceGood) useW = [0,0,0,0,0,50,30,15,4,1,0];
       if (countIn >= 50) { useW[5]+=3; useW[6]+=2; useW[7]+=1; }
       const total = useW.reduce((a,b)=>a+b,0);
       let r3 = Math.random()*total, c3 = 0, prize = PRIZES[0], rar = RARITY[0];
@@ -3202,7 +3202,7 @@ function handle_(key, body) {
       newFrag    += 1;
       if (hitPity) newCount = 0; // 天井発動後はカウントをリセット
       newCount   += 1;
-      if (r.prize_bp < 250) newStreak += 1; else newStreak = 0;
+      if (r.prize_bp < 80) newStreak += 1; else newStreak = 0;
       results.push(r);
     }
 
@@ -11087,7 +11087,7 @@ function gachaDailySpin_(body) {
 
   const hitPityDaily = gachaCount >= 100; // 天井発動チェック
   let useW = WEIGHTS.slice();
-  if (gachaStreak >= 10) useW = [0,0,0,0,0,40,35,18,6,1,0];
+  if (gachaStreak >= 30) useW = [0,0,0,0,85,12,3,0,0,0,0];
   if (hitPityDaily)      useW = [0,0,0,0,0,0,0,0,70,25,5];
 
   const total = useW.reduce((a,b) => a+b, 0);
@@ -11099,7 +11099,7 @@ function gachaDailySpin_(body) {
 
   const newBp     = currentBp - DAILY_COST + prize;
   const newCount  = (hitPityDaily ? 0 : gachaCount) + 1; // 天井発動後はカウントリセット
-  const newStreak = prize < 150 ? gachaStreak + 1 : 0;
+  const newStreak = prize < 80 ? gachaStreak + 1 : 0;
   const newFrag   = fragments + 1;
 
   sheet.getRange(hitRowIndex, idx["bp_balance"]      + 1).setValue(newBp);
