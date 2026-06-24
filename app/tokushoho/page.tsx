@@ -30,13 +30,25 @@ export default function TokushohoPage() {
               <h2 className="mb-2 text-lg font-semibold text-neutral-900">
                 販売事業者
               </h2>
-              <p>LIFAI運営事務局</p>
+              <p>LIFAI Labs, Inc.（LIFAI運営事務局）</p>
+            </section>
+
+            <section>
+              <h2 className="mb-2 text-lg font-semibold text-neutral-900">
+                所在地
+              </h2>
+              <p>
+                131 Continental Dr, Suite 305
+                <br />
+                Newark, DE 19713 US
+              </p>
             </section>
 
             <section>
               <h2 className="mb-2 text-lg font-semibold text-neutral-900">
                 お問い合わせ
               </h2>
+              <p>電話：+81 70 9276 2903</p>
               <p>メール：lifai.official@gmail.com</p>
               <p>
                 公式LINE：
