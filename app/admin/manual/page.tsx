@@ -71,6 +71,7 @@ export default function ManualPage() {
             <li><a href="#reset" className="hover:underline">パスワード再設定メールの再送</a></li>
             <li><a href="#withdraw" className="hover:underline">換金申請の確認（Loofity・毎日チェック）</a></li>
             <li><a href="#bp-recover" className="hover:underline">BP回復の確認・手動補充（随時チェック）</a></li>
+            <li><a href="#affiliate" className="hover:underline">紹介報酬（アフィリエイト）の支払い・紐づけ変更（毎月末締め10日払い）</a></li>
             <li><a href="#faq" className="hover:underline">よくある質問（FAQ）</a></li>
           </ol>
         </nav>
@@ -413,6 +414,132 @@ export default function ManualPage() {
               <li>判断に迷う場合（plan不明・cap以上なのに苦情がある等）は自己判断せず管理担当へ確認してください。</li>
             </ul>
           </Callout>
+        </Section>
+
+        {/* 6. 紹介報酬（アフィリエイト） */}
+        <Section id="affiliate" title="6. 紹介報酬（アフィリエイト）の支払い・紐づけ変更（毎月末締め10日払い）">
+          <p>
+            EPの紹介報酬は <strong className="text-white">毎月末締め・翌月10日払い</strong>です。流れは
+            <strong className="text-white">「① 月次集計で支払額を確認 → ② マスターシートでEPを補充（支払い）」</strong>。
+            あわせて、紹介者の<strong className="text-white">紐づけ（誰の紹介か）の変更</strong>もここで行います。すべて
+            <span className="font-mono text-amber-300">/admin/finance</span>（財務管理）で操作します。
+          </p>
+          <Callout tone="info">
+            <strong>毎月のスケジュール：</strong>月末（日本時間の月末23:59）で締め → 集計を確定 → <strong>翌月10日までに各紹介者へEPを支払う</strong>。支払いは月1回。
+          </Callout>
+
+          {/* ① 集計の確認 */}
+          <p className="mt-5 font-bold text-zinc-200">① 集計の確認方法（「月次集計」タブ）</p>
+          <ol className="list-decimal space-y-1.5 pl-5">
+            <li><span className="font-mono text-amber-300">/admin/finance</span> →「月次集計」タブを開く。</li>
+            <li>上部のプルダウンで<strong>対象月</strong>を選び、「表示する」を押す。</li>
+            <li>
+              紹介者ごとに<strong>合計EP</strong>が一覧表示される。<strong>行をクリックすると段別（L1〜L5）の内訳</strong>が開く。
+              この「合計EP」がその月にその紹介者へ支払う額。
+            </li>
+            <li>下部の<strong>「直近6ヶ月サマリ」</strong>で各月の合計EP・人数を確認・切り替えできる。</li>
+          </ol>
+          <div className="mt-3 overflow-x-auto rounded-xl border border-zinc-800">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-zinc-800">
+                <tr>
+                  <th className="px-4 py-2 font-bold text-zinc-300">段</th>
+                  <th className="px-4 py-2 font-bold text-zinc-300">初回入金に対する料率</th>
+                </tr>
+              </thead>
+              <tbody className="text-zinc-300">
+                {([
+                  ["L1（直紹介）", "10%"],
+                  ["L2", "5%"],
+                  ["L3", "2%"],
+                  ["L4", "2%"],
+                  ["L5", "1%"],
+                ] as [string, string][]).map(([lv, r]) => (
+                  <tr key={lv} className="border-t border-zinc-800">
+                    <td className="px-4 py-2">{lv}</td>
+                    <td className="px-4 py-2 font-mono text-emerald-300">{r}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <ul className="mt-3 list-disc space-y-1 pl-5 text-zinc-300">
+            <li>EP額は画面上部の<strong>換算レート</strong>（1 USD = ◯◯円 × ◯◯ EP/円）で円換算してから算出される。</li>
+            <li>締めの月境界は<strong>日本時間（JST）</strong>。どの月に入るかは <span className="font-mono text-xs">approved_at → auto_approved_at → paid_at</span> の順で日付を見て判定される。</li>
+            <li><strong>CC決済（内部課金・Square）列は現状「—」</strong>で未稼働。CC分の報酬は下記④の「CC付与待ち」タブで別途付与する。</li>
+          </ul>
+
+          {/* ② 支払い */}
+          <p className="mt-5 font-bold text-zinc-200">② 支払い（マスターシートでEPを補充）</p>
+          <p>月次集計には支払いボタンはありません。集計で確認した額を、利用者マスターシートの <strong>ep_balance</strong> に手動で加算して支払います（BP補充と同じ要領）。</p>
+          <ol className="list-decimal space-y-1.5 pl-5">
+            <li>「月次集計」で各紹介者の<strong>合計EP</strong>を確認する。</li>
+            <li>
+              <a href="https://docs.google.com/spreadsheets/d/17rV59IjSXahNwmkBSE0OfjOmlk9_K1_SWxNJOXivBGw/edit?gid=442936583#gid=442936583" target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:underline">利用者マスターシート</a>
+              を開き、<kbd className="rounded bg-zinc-800 px-1.5 py-0.5 text-xs">Ctrl+F</kbd> で紹介者の <strong>login_id</strong> を検索する。
+            </li>
+            <li>その行の <strong>ep_balance</strong> を「<strong>現在値 ＋ 集計の合計EP</strong>」に書き換える。</li>
+            <li>支払った月と金額を<strong>記録</strong>しておく（二重払い防止）。</li>
+          </ol>
+          <Callout tone="danger">
+            <strong>直接編集の注意：</strong>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>本番マスターデータです。<strong>行・列を間違えない</strong>（必ず login_id を照合）。編集するのは <strong>ep_balance</strong> のみ。</li>
+              <li><strong>「上書き」ではなく「加算」</strong>。現在の ep_balance を消して集計値だけにしないこと。</li>
+              <li>支払いは<strong>月1回</strong>。同じ月の集計を二度払わない。</li>
+            </ul>
+          </Callout>
+
+          {/* ③ 紐づけの変更 */}
+          <p className="mt-5 font-bold text-zinc-200">③ 紐づけ（紹介者）の変更方法（「紹介ツリー」タブ）</p>
+          <ol className="list-decimal space-y-1.5 pl-5">
+            <li><span className="font-mono text-amber-300">/admin/finance</span> →「紹介ツリー」タブを開く。必要なら上部に<strong>ルートのlogin_id</strong>を入れて「絞り込む」。</li>
+            <li>
+              紐づけを変えたいユーザーを<strong>ドラッグ</strong>し、<strong>新しい紹介者の行にドロップ</strong>する。
+            </li>
+            <li>確認モーダルで内容（「◯◯ の紹介者を △△ に変更」）を確認し、<strong>「変更する」</strong>を押す。</li>
+            <li>上位5段（referrer_2〜5）と ref_path が<strong>自動で再計算</strong>される。変更履歴は ref_events に記録される。</li>
+          </ol>
+          <p className="mt-2 text-zinc-300">エラーが出る主なケース：</p>
+          <ul className="list-disc space-y-1 pl-5 text-zinc-300">
+            <li><strong>循環参照になるため変更できません</strong>：自分の子孫を自分の紹介者にしようとした（ツリーがループする）。</li>
+            <li><strong>自分自身には紹介できません</strong>：同じユーザーにドロップした。</li>
+            <li><strong>対象ユーザーが見つかりません</strong>：login_id が一致しない。</li>
+          </ul>
+          <p className="mt-3 text-zinc-300">
+            <strong>refcodeからの一括補完：</strong>「🔗 refcodeから紹介者を更新」ボタンは、
+            <strong>ref_code が入っていて紹介者が空欄の行だけ</strong>を自動で紐づけます（<strong>既存の紐づけは上書きしません</strong>）。
+            実行結果に「updated（更新）／ skipped（設定済みで対象外）／ unmatched（ref_code未登録で紐づけられず）」が表示されます。
+          </p>
+
+          {/* ④ CC付与待ち */}
+          <p className="mt-5 font-bold text-zinc-200">④ CC決済（Square）分の付与（「CC付与待ち」タブ）</p>
+          <p>
+            クレジットカード（Square）決済から発生した紹介報酬は、<strong>「CC付与待ち」タブ</strong>に「未付与」で並びます。
+            内容（購入者・紹介者・付与予定EP）を確認し、各行の<strong>「付与」ボタン</strong>で支払います（確認ダイアログあり）。付与済みは状態が「付与済み」に変わります。
+          </p>
+          <Callout tone="warn">
+            CC分は「CC付与待ち」タブの付与ボタンで支払う運用です。月次集計のCC列は未稼働（—）なので、<strong>CC分をシート編集で二重に払わない</strong>よう注意してください。
+          </Callout>
+
+          {/* ⑤ 考えられる付与ミス */}
+          <p className="mt-5 font-bold text-zinc-200">⑤ 考えられる付与ミス（チェックリスト）</p>
+          <Callout tone="danger">
+            <ul className="list-disc space-y-1.5 pl-5">
+              <li><strong>上書きしてしまう：</strong>ep_balance を「現在値＋集計EP」ではなく集計EPで上書きし、残高を消してしまう。→ 必ず加算。</li>
+              <li><strong>二重払い：</strong>同じ月の集計を2回払う／別の社員と重複して払う。→ 支払った月を記録し、月1回に統一。</li>
+              <li><strong>行・列の取り違え：</strong>別ユーザーの行に入れてしまう。→ login_id を必ず照合。</li>
+              <li><strong>締めタイミングのズレ：</strong>月末ギリギリの入金が当月/翌月どちらに入るかを取り違える。→ 集計は日本時間の月末締め、判定日は approved_at→auto_approved_at→paid_at。</li>
+              <li><strong>紐づけ変更のタイミング：</strong>集計確定・支払い後に紐づけを変えると過去の支払いと食い違う。→ 紐づけ変更は締め前に。締め後に変更が入ったら再集計してから支払う。</li>
+              <li><strong>紐づけ漏れ（unmatched）：</strong>ref_code未登録などで紹介者が空のままだと、報酬が誰にも付かない。→ バックフィルの unmatched を確認し、必要なら紹介ツリーで手動紐づけ。</li>
+              <li><strong>CC分の二重払い：</strong>CC（Square）分は「CC付与待ち」で付与済み。シート編集で重ねて払わない。</li>
+              <li><strong>換算レートの変動：</strong>USD→円・EP/円のレートが変わると集計EPも変わる。→ 支払いに使うのは、その月の集計タブに表示された値。</li>
+              <li><strong>承認時の自動配当との混同：</strong>承認時に別の自動紹介配当が走る仕組みがあります。月次集計分と二重にならないよう範囲を取り違えない。<strong>判断に迷ったら自己判断せず管理担当へ確認。</strong></li>
+            </ul>
+          </Callout>
+          <p className="text-xs text-zinc-400">
+            ※「アフィリエイト」タブは付与済みの紹介報酬（affiliate_reward）の台帳ビューです。受取人・送出元・段・EP額の履歴確認に使えます。
+          </p>
         </Section>
 
         {/* FAQ */}
