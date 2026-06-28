@@ -1,11 +1,11 @@
 export const BP_COSTS = {
   // 音楽生成
-  music_lyrics:     30,  // 歌詞生成
-  music_structure:  15,  // 構成生成
-  music_bgm:       240,  // BGM生成
-  music_bgm_pro:   450,  // BGM生成（Pro）
-  music_full:      300,  // フル生成（構成+音楽）
-  music_full_pro:  750,  // Pro設定使用時のフル生成
+  music_lyrics:     36,  // 歌詞生成
+  music_structure:  18,  // 構成生成
+  music_bgm:       288,  // BGM生成
+  music_bgm_pro:   540,  // BGM生成（Pro）
+  music_full:      360,  // フル生成（構成+音楽）
+  music_full_pro:  900,  // Pro設定使用時のフル生成
 
   // note記事生成
   note_title:        6,  // タイトル生成

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getAuth, getAuthSecret } from "../lib/auth";
 import { AppSidebar } from "@/components/AppSidebar";
+import { BP_COSTS } from "@/app/lib/bp-config";
 
 // ── 定数 ────────────────────────────────────────────────────────────────────
 
@@ -551,7 +552,7 @@ export default function Music2Page() {
         if (!data.ok) {
           setErrorMsg(
             data.error === "insufficient_bp"
-              ? `BPが不足しています（現在: ${data.bp ?? "?"}BP、必要: ${data.required ?? 80}BP）`
+              ? `BPが不足しています（現在: ${data.bp ?? "?"}BP、必要: ${data.required ?? (isPro ? BP_COSTS.music_bgm_pro : BP_COSTS.music_bgm)}BP）`
               : `BGM生成に失敗しました（${data.error ?? "unknown"}）`
           );
           setLoading(false);
@@ -589,7 +590,7 @@ export default function Music2Page() {
       if (!data.ok) {
         const msg =
           data.error === "insufficient_bp"
-            ? `BPが不足しています（現在: ${data.bp ?? "?"}BP、必要: ${isProSettingsActive ? 250 : 100}BP）`
+            ? `BPが不足しています（現在: ${data.bp ?? "?"}BP、必要: ${isProSettingsActive ? BP_COSTS.music_full_pro : BP_COSTS.music_full}BP）`
             : data.error === "job_create_failed"
             ? "サーバー設定のエラーが発生しました。管理者に連絡してください。（GAS未デプロイの可能性）"
             : `エラーが発生しました（${data.error ?? "unknown"}）`;
@@ -1237,15 +1238,15 @@ export default function Music2Page() {
               <div className="mt-5 flex items-center gap-2 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3">
                 <span className="text-xs font-bold text-indigo-700">必要BP</span>
                 <span className="rounded-full bg-indigo-600 px-2.5 py-0.5 text-xs font-extrabold text-white">
-                  {isBgmMode ? (isPro ? "150 BP" : "80 BP") : isProSettingsActive ? "250 BP" : "100 BP"}
+                  {isBgmMode ? (isPro ? `${BP_COSTS.music_bgm_pro} BP` : `${BP_COSTS.music_bgm} BP`) : isProSettingsActive ? `${BP_COSTS.music_full_pro} BP` : `${BP_COSTS.music_full} BP`}
                 </span>
                 {isBgmMode ? (
                   <span className="ml-auto text-[11px] text-indigo-500">{isPro ? "🎛️ Pro BGM（時間指定）" : "2〜3分半のBGMをランダム生成"}</span>
                 ) : isPro ? (
                   isProSettingsActive ? (
-                    <span className="ml-auto text-[11px] text-violet-600 font-semibold">🎛️ Pro設定使用中（250BP）</span>
+                    <span className="ml-auto text-[11px] text-violet-600 font-semibold">🎛️ Pro設定使用中（{BP_COSTS.music_full_pro}BP）</span>
                   ) : (
-                    <span className="ml-auto text-[11px] text-violet-500">Pro設定を使うと250BP</span>
+                    <span className="ml-auto text-[11px] text-violet-500">Pro設定を使うと{BP_COSTS.music_full_pro}BP</span>
                   )
                 ) : (
                   <span className="ml-auto text-[11px] text-indigo-500">構成生成→音楽生成の2ステップ</span>
