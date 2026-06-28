@@ -562,12 +562,20 @@ export default function AdminPage() {
         {/* ヘッダー */}
         <header className="mb-6 flex items-center justify-between">
           <h1 className="text-xl font-bold text-white">LIFAI 管理</h1>
-          <button
-            onClick={() => { load(); loadMusicSellRequests(); loadSellRequests(); loadDashboard(); loadMembers(membersPage); }}
-            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-black hover:bg-amber-600"
-          >
-            再読み込み
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href="/admin/manual"
+              className="rounded-lg border border-zinc-700 px-3 py-2 text-sm font-semibold text-zinc-300 hover:bg-zinc-800"
+            >
+              📖 マニュアル
+            </a>
+            <button
+              onClick={() => { load(); loadMusicSellRequests(); loadSellRequests(); loadDashboard(); loadMembers(membersPage); }}
+              className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-black hover:bg-amber-600"
+            >
+              再読み込み
+            </button>
+          </div>
         </header>
 
         {/* 通知 */}

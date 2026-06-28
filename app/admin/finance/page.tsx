@@ -31,6 +31,12 @@ export default function FinancePage() {
             ← admin に戻る
           </a>
           <h1 className="text-xl font-bold text-white">財務管理</h1>
+          <a
+            href="/admin/manual"
+            className="ml-auto rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-zinc-800"
+          >
+            📖 マニュアル
+          </a>
         </header>
 
         <div className="mb-6 flex gap-1 rounded-xl bg-zinc-900 p-1 w-fit">
