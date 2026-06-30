@@ -174,14 +174,7 @@ type Notice = {
   body: string;
 };
 
-const NOTICES: Notice[] = [
-  {
-    id: "2026-06-16-narasu",
-    date: "2026-06-16",
-    title: "【一時停止】narasu代理申請 受付停止のお知らせ",
-    body: "現在、多くのご依頼をいただいており、一件一件の対応品質を維持するため、narasu代理申請の新規受付を一時停止しております。\n\n再開時期は未定です。再開の際はこちらのお知らせにてご案内いたします。\n\nすでに申請済みの方のご対応は引き続き進めております。ご不便をおかけし、誠に申し訳ございません。",
-  },
-];
+const NOTICES: Notice[] = [];
 
 function NoticeBoard() {
   const [openId, setOpenId] = useState<string | null>(null);
