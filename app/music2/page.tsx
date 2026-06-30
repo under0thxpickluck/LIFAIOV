@@ -401,7 +401,10 @@ export default function Music2Page() {
                 createdAt:   new Date().toISOString(),
               });
               setHistory(updated);
-              if (userId) saveToServer(updated[0], userId).catch(() => {});
+              // userId ステートはクロージャで空のまま固定される場合があるため、保存時に最新の認証IDを取得する
+              const shareAuth = getAuth();
+              const shareId = (shareAuth as any)?.id || (shareAuth as any)?.loginId || "";
+              if (shareId) saveToServer(updated[0], shareId).catch(() => {});
             }
           } else {
             setErrorMsg("曲の取得に失敗しました。");
@@ -485,7 +488,10 @@ export default function Music2Page() {
             createdAt: new Date().toISOString(),
           });
           setHistory(updated);
-          if (userId) saveToServer(updated[0], userId).catch(() => {});
+          // userId ステートはクロージャで空のまま固定される場合があるため、保存時に最新の認証IDを取得する
+          const shareAuth = getAuth();
+          const shareId = (shareAuth as any)?.id || (shareAuth as any)?.loginId || "";
+          if (shareId) saveToServer(updated[0], shareId).catch(() => {});
           return;
         }
 
