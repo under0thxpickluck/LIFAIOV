@@ -53,6 +53,20 @@ export default function MiniGamesPage() {
             <span className={`${th.badge} text-xs px-3 py-1 rounded-full`}>PLAY</span>
           </div>
         </Link>
+
+        {/* MIRAIX（外部サイト・準備中） */}
+        <div aria-disabled="true" className={`${th.card} rounded-2xl p-6 block opacity-50 cursor-not-allowed select-none`}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">🔮</span>
+              <div>
+                <h2 className="font-bold">MIRAIX</h2>
+                <p className={`${th.muted} text-xs`}>EPで遊べる予測ゲーム（外部サイト）</p>
+              </div>
+            </div>
+            <span className={`${th.muted} text-xs px-3 py-1 rounded-full border border-current`}>準備中</span>
+          </div>
+        </div>
       </div>
 
       <Link href="/top" className={`block text-center ${th.back} mt-10`}>
