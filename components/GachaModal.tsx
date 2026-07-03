@@ -65,6 +65,79 @@ const RARITY_STYLE: Record<string, { color: string; label: string }> = {
   god:       { color: "#f87171", label: "GOD"       },
 };
 
+// ── ルーレット盤 ──────────────────────────────────────────────────────────────
+
+const WHEEL_SEG = 360 / GACHA_TABLE.length;
+
+// 0°を真上として時計回りの極座標→XY変換
+function polarPoint(cx: number, cy: number, r: number, angleDeg: number): [number, number] {
+  const rad = ((angleDeg - 90) * Math.PI) / 180;
+  return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
+}
+
+function wheelLabel(bp: number): string {
+  return bp >= 10000 ? `${bp / 10000}万` : bp.toLocaleString();
+}
+
+// 当選BPのセグメントがポインター（真上）に来る回転角を計算（6周＋着地位置）
+function computeTargetRotation(prizeBp: number): number {
+  let idx = GACHA_TABLE.findIndex((g) => g.bp === prizeBp);
+  if (idx < 0) {
+    // デイリー等でテーブル外の額の場合は最も近い額のセグメントに着地
+    let bestDiff = Infinity;
+    GACHA_TABLE.forEach((g, i) => {
+      const d = Math.abs(g.bp - prizeBp);
+      if (d < bestDiff) { bestDiff = d; idx = i; }
+    });
+  }
+  const center = idx * WHEEL_SEG + WHEEL_SEG / 2;
+  const jitter = (Math.random() - 0.5) * WHEEL_SEG * 0.55;
+  return 360 * 6 + (360 - center) + jitter;
+}
+
+function RouletteWheel() {
+  const cx = 110, cy = 110, r = 104;
+  return (
+    <svg width="220" height="220" viewBox="0 0 220 220" style={{ display: "block" }}>
+      {GACHA_TABLE.map(({ bp, rarity }, i) => {
+        const start = i * WHEEL_SEG;
+        const mid   = start + WHEEL_SEG / 2;
+        const [x1, y1] = polarPoint(cx, cy, r, start);
+        const [x2, y2] = polarPoint(cx, cy, r, start + WHEEL_SEG);
+        const [tx, ty] = polarPoint(cx, cy, r * 0.72, mid);
+        const color = RARITY_STYLE[rarity].color;
+        return (
+          <g key={bp}>
+            <path
+              d={`M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2} Z`}
+              fill={`${color}2e`}
+              stroke="rgba(255,255,255,0.18)"
+              strokeWidth="1"
+            />
+            <text
+              x={tx}
+              y={ty}
+              fill={color}
+              fontSize="11"
+              fontWeight="800"
+              textAnchor="middle"
+              dominantBaseline="middle"
+              transform={`rotate(${mid}, ${tx}, ${ty})`}
+            >
+              {wheelLabel(bp)}
+            </text>
+          </g>
+        );
+      })}
+      {/* 外周リング */}
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="3" />
+      {/* 中心ハブ */}
+      <circle cx={cx} cy={cy} r="24" fill="#18181b" stroke="rgba(255,255,255,0.25)" strokeWidth="2" />
+      <text x={cx} y={cy + 1} fontSize="20" textAnchor="middle" dominantBaseline="middle">🎰</text>
+    </svg>
+  );
+}
+
 export default function GachaModal({ loginId, onClose, onBpEarned }: Props) {
   const [visible,       setVisible]       = useState(false);
   const [spinning,      setSpinning]      = useState(false);
@@ -74,11 +147,20 @@ export default function GachaModal({ loginId, onClose, onBpEarned }: Props) {
   const dailyCalledRef = useRef(false);
   const [showTutorial,  setShowTutorial]  = useState(false);
   const [tutorialStep,  setTutorialStep]  = useState(0);
+  // ルーレット演出: spinning=結果待ちで高速回転 / landing=当選セグメントへ減速着地
+  const [phase,          setPhase]          = useState<"idle" | "spinning" | "landing">("idle");
+  const [pendingResult,  setPendingResult]  = useState<GachaResult | null>(null);
+  const [targetRotation, setTargetRotation] = useState<number | null>(null);
+  const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reduced = useReducedMotion();
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 30);
     return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => () => {
+    if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
   }, []);
 
   // マウント時にデイリー使用状況を確認
@@ -94,11 +176,40 @@ export default function GachaModal({ loginId, onClose, onBpEarned }: Props) {
       .catch(() => {});
   }, [loginId]);
 
+  // 結果を受け取ったらルーレットを当選セグメントへ着地させ、停止後に結果画面へ
+  const startRoulette = (data: GachaResult, landBp: number) => {
+    if (reduced) {
+      setResult(data);
+      onBpEarned(data.prize_bp);
+      setPhase("idle");
+      setSpinning(false);
+      return;
+    }
+    setPendingResult(data);
+    setTargetRotation(computeTargetRotation(landBp));
+    setPhase("landing");
+  };
+
+  // 着地後に少し「ため」を作ってから結果を表示
+  const revealResult = () => {
+    if (!pendingResult) return;
+    const data = pendingResult;
+    revealTimerRef.current = setTimeout(() => {
+      setResult(data);
+      onBpEarned(data.prize_bp);
+      setPendingResult(null);
+      setTargetRotation(null);
+      setPhase("idle");
+      setSpinning(false);
+    }, 450);
+  };
+
   const handleDaily = async () => {
     if (spinning || dailyUsed || !loginId || dailyCalledRef.current) return;
     dailyCalledRef.current = true;
     setSpinning(true);
     setErrMsg("");
+    if (!reduced) setPhase("spinning");
     try {
       const res = await fetch("/api/gacha/daily", {
         method: "POST",
@@ -115,23 +226,27 @@ export default function GachaModal({ loginId, onClose, onBpEarned }: Props) {
           setErrMsg(reason === "insufficient_bp" ? "BPが不足しています（80BP必要）" : `エラー: ${reason}`);
           dailyCalledRef.current = false;
         }
+        setPhase("idle");
+        setSpinning(false);
         return;
       }
       setDailyUsed(true);
-      setResult({
-        prize_bp:    data.prize_bp,
-        net:         data.net,
-        bp_balance:  data.bp_balance,
-        fragments:   data.fragments,
-        gacha_count: data.gacha_count,
-        rarity:      data.rarity,
-        to_pity:     data.to_pity,
-      });
-      onBpEarned(data.prize_bp);
+      startRoulette(
+        {
+          prize_bp:    data.prize_bp,
+          net:         data.net,
+          bp_balance:  data.bp_balance,
+          fragments:   data.fragments,
+          gacha_count: data.gacha_count,
+          rarity:      data.rarity,
+          to_pity:     data.to_pity,
+        },
+        data.prize_bp
+      );
     } catch {
       setErrMsg("通信エラーが発生しました");
       dailyCalledRef.current = false;
-    } finally {
+      setPhase("idle");
       setSpinning(false);
     }
   };
@@ -145,6 +260,7 @@ export default function GachaModal({ loginId, onClose, onBpEarned }: Props) {
     if (spinning || !loginId) return;
     setSpinning(true);
     setErrMsg("");
+    if (!reduced) setPhase("spinning");
     try {
       const res = await fetch("/api/gacha", {
         method: "POST",
@@ -160,22 +276,32 @@ export default function GachaModal({ loginId, onClose, onBpEarned }: Props) {
             ? `BPが不足しています（${is10 ? "1000" : "100"}BP必要）`
             : `エラー: ${reason}`
         );
+        setPhase("idle");
+        setSpinning(false);
         return;
       }
 
-      setResult({
-        prize_bp:    data.prize_bp,
-        net:         data.net,
-        bp_balance:  data.bp_balance,
-        results:     data.results,
-        fragments:   data.fragments,
-        gacha_count: data.gacha_count,
-        rarity:      data.rarity,
-      });
-      onBpEarned(data.prize_bp);
+      // 10連は最高額の当たりに着地させる
+      const landBp =
+        is10 && Array.isArray(data.results) && data.results.length > 0
+          ? Math.max(...data.results.map((r: any) => Number(r?.prize_bp) || 0))
+          : data.prize_bp;
+
+      startRoulette(
+        {
+          prize_bp:    data.prize_bp,
+          net:         data.net,
+          bp_balance:  data.bp_balance,
+          results:     data.results,
+          fragments:   data.fragments,
+          gacha_count: data.gacha_count,
+          rarity:      data.rarity,
+        },
+        landBp
+      );
     } catch {
       setErrMsg("通信エラーが発生しました");
-    } finally {
+      setPhase("idle");
       setSpinning(false);
     }
   };
@@ -188,7 +314,7 @@ export default function GachaModal({ loginId, onClose, onBpEarned }: Props) {
   return (
     <AnimatedModal
       open={visible}
-      onBackdropClick={result ? undefined : handleClose}
+      onBackdropClick={result || spinning || phase !== "idle" ? undefined : handleClose}
     >
       <div
         style={{
@@ -385,6 +511,57 @@ export default function GachaModal({ loginId, onClose, onBpEarned }: Props) {
               </button>
             </div>
           </div>
+        ) : phase !== "idle" ? (
+          /* ===== ルーレット演出画面 ===== */
+          <div style={{ textAlign: "center" }}>
+            <p style={{ fontSize: "16px", fontWeight: 900, color: "#f4f4f5", margin: "0 0 4px" }}>
+              🎰 BPガチャ
+            </p>
+            <p style={{ fontSize: "12px", color: "#a1a1aa", marginBottom: "14px" }}>
+              {phase === "landing" ? "運命の一撃…！" : "抽選中…"}
+            </p>
+
+            <div style={{ position: "relative", width: "220px", margin: "0 auto", paddingTop: "10px" }}>
+              {/* ポインター */}
+              <div
+                style={{
+                  position:    "absolute",
+                  top:         0,
+                  left:        "50%",
+                  transform:   "translateX(-50%)",
+                  width:       0,
+                  height:      0,
+                  zIndex:      2,
+                  borderLeft:  "10px solid transparent",
+                  borderRight: "10px solid transparent",
+                  borderTop:   "16px solid #fbbf24",
+                  filter:      "drop-shadow(0 2px 6px rgba(251,191,36,0.6))",
+                }}
+              />
+              <motion.div
+                style={{ width: 220, height: 220 }}
+                animate={
+                  phase === "landing" && targetRotation !== null
+                    ? { rotate: targetRotation }
+                    : { rotate: 360 }
+                }
+                transition={
+                  phase === "landing" && targetRotation !== null
+                    ? { duration: 3.4, ease: [0.12, 0.75, 0.15, 1] }
+                    : { repeat: Infinity, ease: "linear", duration: 0.5 }
+                }
+                onAnimationComplete={() => {
+                  if (phase === "landing") revealResult();
+                }}
+              >
+                <RouletteWheel />
+              </motion.div>
+            </div>
+
+            <p style={{ fontSize: "11px", color: "#71717a", marginTop: "14px", minHeight: "16px" }}>
+              {phase === "landing" ? "" : "結果を待っています…"}
+            </p>
+          </div>
         ) : (
           /* ===== 通常画面 ===== */
           <>
@@ -421,18 +598,6 @@ export default function GachaModal({ loginId, onClose, onBpEarned }: Props) {
                 );
               })}
             </div>
-
-            {spinning && !reduced && (
-              <div style={{ textAlign: "center", padding: "12px 0", marginBottom: "8px" }}>
-                <motion.div
-                  style={{ fontSize: 36, display: "inline-block" }}
-                  animate={{ scale: [1, 1.15, 1] }}
-                  transition={{ duration: 0.35, repeat: Infinity, ease: "easeInOut" }}
-                >
-                  🎰
-                </motion.div>
-              </div>
-            )}
 
             {errMsg && (
               <p style={{ fontSize: "12px", color: "#f87171", marginBottom: "12px", textAlign: "center" }}>
