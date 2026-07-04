@@ -78,9 +78,9 @@ export function MiraixCard({ th }: { th: Th }) {
           <div className={`${th.card} rounded-2xl p-6 max-w-md w-full`}>
             <h3 className="font-bold text-lg mb-3">外部サイトへ移動します</h3>
             <ul className={`${th.muted} text-sm space-y-2 mb-4 list-disc pl-5`}>
-              <li>MIRAIX は<strong>外部サイト</strong>です。</li>
-              <li>転送したEPを含め、<strong>資金保証・返金等の保証は一切できません</strong>。</li>
-              <li>MIRAIX は <strong>LIFAI（LIFAIOV / aisalon）とは関係のない別サービス</strong>であり、LIFAI はその運営・内容について責任を負いません。</li>
+              <li>MIRAIX は <strong>LIFAI（LIFAIOV / aisalon）とは関係のない外部サイト</strong>であり、LIFAI はその運営・内容について一切の責任を負いません。</li>
+              <li>MIRAIX へ転送したEP、および <strong>MIRAIX 上で消費・喪失したEPを、LIFAI 側で補填・返金することはできません</strong>。</li>
+              <li>資金保証・返金等の<strong>保証は一切ありません</strong>。</li>
             </ul>
             <label className="flex items-center gap-2 text-sm mb-4 cursor-pointer">
               <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
