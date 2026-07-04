@@ -2518,7 +2518,7 @@ function handle_(key, body) {
   // add_ep（EP加算：MIRAIXからの戻し・補償）
   // - adminKey 認証必須（GAS_ADMIN_KEY）
   // - group:"5000" は applies_5000、それ以外はデフォルト applies
-  // - idempotencyKey: wallet_ledger の memo "MIRAIX:<key>" で二重加算防止
+  // - idempotencyKey: 専用シート miraix_idempotency で二重加算防止（LockService併用）
   // =========================================================
   if (action === "add_ep") {
     if (str_(body.adminKey) !== ADMIN_SECRET) {
@@ -2535,14 +2535,22 @@ function handle_(key, body) {
     if (!Number.isFinite(amount_add) || amount_add <= 0) return json_({ ok: false, error: "invalid_amount" });
     if (!key_add) return json_({ ok: false, error: "idempotencyKey_required" });
 
-    // 冪等チェック: wallet_ledger（デフォルトSSに一元記録）の memo を走査
-    const ledgerMemo = "MIRAIX:" + key_add;
-    const led_add = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("wallet_ledger");
-    if (led_add) {
-      const lv = led_add.getDataRange().getValues();
-      const lidx = indexMap_(lv[0]);
-      for (let i = 1; i < lv.length; i++) {
-        if (str_(lv[i][lidx["kind"]]) === "add_ep" && str_(lv[i][lidx["memo"]]) === ledgerMemo) {
+    // 冪等チェック: 専用シート miraix_idempotency（デフォルトSS・key列固定）で照合。
+    // 既存 wallet_ledger のヘッダー構成には依存しない（ヘッダー差異で照合漏れ→二重加算が起きるため）。
+    // LockService で同時実行の二重加算も防ぐ。
+    const lock_add = LockService.getScriptLock();
+    try {
+      lock_add.waitLock(20000);
+    } catch (eLock_add) {
+      return json_({ ok: false, error: "busy" });
+    }
+    try {
+      const ided_add = getOrCreateSheetByName_(
+        SpreadsheetApp.getActiveSpreadsheet(), "miraix_idempotency", ["key", "ts", "login_id", "amount"]
+      );
+      const iv_add = getValuesSafe_(ided_add);
+      for (let i = 1; i < iv_add.length; i++) {
+        if (str_(iv_add[i][0]) === key_add) {
           // 既に加算済み → 現残高を返す（再加算しない）
           const vals_dup = targetSheet_add.getDataRange().getValues();
           const didx = indexMap_(vals_dup[0]);
@@ -2554,45 +2562,48 @@ function handle_(key, body) {
           return json_({ ok: true, duplicated: true });
         }
       }
-    }
 
-    let values_add = targetSheet_add.getDataRange().getValues();
-    let header_add = values_add[0];
+      let values_add = targetSheet_add.getDataRange().getValues();
+      let header_add = values_add[0];
 
-    ensureCols_(targetSheet_add, header_add, ["login_id", "email", "ep_balance"]);
+      ensureCols_(targetSheet_add, header_add, ["login_id", "email", "ep_balance"]);
 
-    values_add = targetSheet_add.getDataRange().getValues();
-    header_add = values_add[0];
+      values_add = targetSheet_add.getDataRange().getValues();
+      header_add = values_add[0];
 
-    const idx_add  = indexMap_(header_add);
-    const rows_add = values_add.slice(1);
+      const idx_add  = indexMap_(header_add);
+      const rows_add = values_add.slice(1);
 
-    let hitRowIndex_add = 0;
-    let hitEmail_add    = "";
+      let hitRowIndex_add = 0;
+      let hitEmail_add    = "";
 
-    for (let i = 0; i < rows_add.length; i++) {
-      if (str_(rows_add[i][idx_add["login_id"]]) === loginId_add) {
-        hitRowIndex_add = i + 2;
-        hitEmail_add    = str_(rows_add[i][idx_add["email"]]);
-        break;
+      for (let i = 0; i < rows_add.length; i++) {
+        if (str_(rows_add[i][idx_add["login_id"]]) === loginId_add) {
+          hitRowIndex_add = i + 2;
+          hitEmail_add    = str_(rows_add[i][idx_add["email"]]);
+          break;
+        }
       }
+
+      if (!hitRowIndex_add) return json_({ ok: false, error: "not_found" });
+
+      const currentEp_add = Number(targetSheet_add.getRange(hitRowIndex_add, idx_add["ep_balance"] + 1).getValue() || 0);
+      const newEp_add = currentEp_add + amount_add;
+      targetSheet_add.getRange(hitRowIndex_add, idx_add["ep_balance"] + 1).setValue(newEp_add);
+
+      ided_add.appendRow([key_add, new Date(), loginId_add, amount_add]);
+      appendWalletLedger_({
+        kind:     "add_ep",
+        login_id: loginId_add,
+        email:    hitEmail_add,
+        amount:   amount_add,
+        memo:     "MIRAIX:" + key_add,
+      });
+
+      return json_({ ok: true, ep_balance: newEp_add });
+    } finally {
+      lock_add.releaseLock();
     }
-
-    if (!hitRowIndex_add) return json_({ ok: false, error: "not_found" });
-
-    const currentEp_add = Number(targetSheet_add.getRange(hitRowIndex_add, idx_add["ep_balance"] + 1).getValue() || 0);
-    const newEp_add = currentEp_add + amount_add;
-    targetSheet_add.getRange(hitRowIndex_add, idx_add["ep_balance"] + 1).setValue(newEp_add);
-
-    appendWalletLedger_({
-      kind:     "add_ep",
-      login_id: loginId_add,
-      email:    hitEmail_add,
-      amount:   amount_add,
-      memo:     ledgerMemo,
-    });
-
-    return json_({ ok: true, ep_balance: newEp_add });
   }
 
   // =========================================================
