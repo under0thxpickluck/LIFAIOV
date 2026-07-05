@@ -1,6 +1,8 @@
 // app/lib/miraixSso.ts — MIRAIX SSOトークン署名（poripori 側 verifySsoToken と形式互換）
 // HMAC-SHA256 / base64url。ペイロードとエンコーディングを変えるときは両側同時に変えること。
 export type SsoPayload = {
+  // 発行元サロン（各リポジトリの route.ts にハードコード。MIRAIX側が gasGroup との整合を検証する）
+  salon: 'lifaiov' | 'aisalon'
   gasGroup: '' | '5000'
   loginId: string
   email?: string
