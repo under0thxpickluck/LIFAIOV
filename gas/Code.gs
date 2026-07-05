@@ -2461,52 +2461,189 @@ function handle_(key, body) {
 
     const loginId = str_(body.loginId);
     const amount  = Number(body.amount);
+    // ✅ group ルーティング（"5000"=applies_5000 / それ以外=デフォルト applies）
+    //    既存呼び出し（narasu等・group無し）は挙動不変
+    const group_dep = str_(body.group);
+    const targetSheet_dep = group_dep === "5000" ? getAppliesSheet5000_() : sheet;
+    const memo_dep = str_(body.memo) || "narasu代理申請EPポイント払い";
+    // ✅ idempotencyKey は任意（MIRAIX入金の再送対策。既存呼び出し＝未指定は挙動不変）
+    const key_dep = str_(body.idempotencyKey);
 
     if (!loginId) return json_({ ok: false, error: "loginId_required" });
     if (!Number.isFinite(amount) || amount <= 0) return json_({ ok: false, error: "invalid_amount" });
 
-    let values = sheet.getDataRange().getValues();
-    let header = values[0];
-
-    ensureCols_(sheet, header, ["login_id", "email", "ep_balance"]);
-
-    values = sheet.getDataRange().getValues();
-    header = values[0];
-
-    const idx = indexMap_(header);
-    const rows = values.slice(1);
-
-    let hitRowIndex = 0;
-    let hitEmail    = "";
-
-    for (let i = 0; i < rows.length; i++) {
-      if (str_(rows[i][idx["login_id"]]) === loginId) {
-        hitRowIndex = i + 2;
-        hitEmail    = str_(rows[i][idx["email"]]);
-        break;
+    // ✅ LockService: 同時実行の read-modify-write 競合（減算が1回分潰れて残高過大）を防ぐ
+    const lock_dep = LockService.getScriptLock();
+    try {
+      lock_dep.waitLock(20000);
+    } catch (eLock_dep) {
+      return json_({ ok: false, error: "busy" });
+    }
+    try {
+      if (key_dep) {
+        // 冪等チェック: add_ep と同じ専用シート miraix_idempotency（key列固定）で照合
+        const ided_dep = getOrCreateSheetByName_(
+          SpreadsheetApp.getActiveSpreadsheet(), "miraix_idempotency", ["key", "ts", "login_id", "amount"]
+        );
+        const iv_dep = getValuesSafe_(ided_dep);
+        for (let i = 1; i < iv_dep.length; i++) {
+          if (str_(iv_dep[i][0]) === key_dep) {
+            // 既に減算済み → 現残高を返す（再減算しない）
+            const vals_dup_dep = targetSheet_dep.getDataRange().getValues();
+            const didx_dep = indexMap_(vals_dup_dep[0]);
+            for (let j = 1; j < vals_dup_dep.length; j++) {
+              if (str_(vals_dup_dep[j][didx_dep["login_id"]]) === loginId) {
+                return json_({ ok: true, duplicated: true, ep_balance: Number(vals_dup_dep[j][didx_dep["ep_balance"]] || 0) });
+              }
+            }
+            return json_({ ok: true, duplicated: true });
+          }
+        }
       }
+
+      let values = targetSheet_dep.getDataRange().getValues();
+      let header = values[0];
+
+      ensureCols_(targetSheet_dep, header, ["login_id", "email", "ep_balance"]);
+
+      values = targetSheet_dep.getDataRange().getValues();
+      header = values[0];
+
+      const idx = indexMap_(header);
+      const rows = values.slice(1);
+
+      let hitRowIndex = 0;
+      let hitEmail    = "";
+
+      for (let i = 0; i < rows.length; i++) {
+        if (str_(rows[i][idx["login_id"]]) === loginId) {
+          hitRowIndex = i + 2;
+          hitEmail    = str_(rows[i][idx["email"]]);
+          break;
+        }
+      }
+
+      if (!hitRowIndex) return json_({ ok: false, error: "not_found" });
+
+      const currentEp = Number(targetSheet_dep.getRange(hitRowIndex, idx["ep_balance"] + 1).getValue() || 0);
+
+      if (currentEp < amount) {
+        return json_({ ok: false, error: "insufficient_ep", ep_balance: currentEp });
+      }
+
+      const newEp = currentEp - amount;
+      targetSheet_dep.getRange(hitRowIndex, idx["ep_balance"] + 1).setValue(newEp);
+
+      if (key_dep) {
+        const ided_rec_dep = getOrCreateSheetByName_(
+          SpreadsheetApp.getActiveSpreadsheet(), "miraix_idempotency", ["key", "ts", "login_id", "amount"]
+        );
+        ided_rec_dep.appendRow([key_dep, new Date(), loginId, -amount]);
+      }
+      appendWalletLedger_({
+        kind:     "deduct_ep",
+        login_id: loginId,
+        email:    hitEmail,
+        amount:   -amount,
+        memo:     memo_dep,
+      });
+
+      return json_({ ok: true, ep_balance: newEp });
+    } finally {
+      lock_dep.releaseLock();
+    }
+  }
+
+  // =========================================================
+  // add_ep（EP加算：MIRAIXからの戻し・補償）
+  // - adminKey 認証必須（GAS_ADMIN_KEY）
+  // - group:"5000" は applies_5000、それ以外はデフォルト applies
+  // - idempotencyKey: 専用シート miraix_idempotency で二重加算防止（LockService併用）
+  // =========================================================
+  if (action === "add_ep") {
+    if (str_(body.adminKey) !== ADMIN_SECRET) {
+      return json_({ ok: false, error: "admin_unauthorized" });
     }
 
-    if (!hitRowIndex) return json_({ ok: false, error: "not_found" });
+    const loginId_add = str_(body.loginId);
+    const amount_add  = Number(body.amount);
+    const key_add     = str_(body.idempotencyKey);
+    const group_add   = str_(body.group);
+    const targetSheet_add = group_add === "5000" ? getAppliesSheet5000_() : sheet;
 
-    const currentEp = Number(sheet.getRange(hitRowIndex, idx["ep_balance"] + 1).getValue() || 0);
+    if (!loginId_add) return json_({ ok: false, error: "loginId_required" });
+    if (!Number.isFinite(amount_add) || amount_add <= 0) return json_({ ok: false, error: "invalid_amount" });
+    if (!key_add) return json_({ ok: false, error: "idempotencyKey_required" });
 
-    if (currentEp < amount) {
-      return json_({ ok: false, error: "insufficient_ep", ep_balance: currentEp });
+    // 冪等チェック: 専用シート miraix_idempotency（デフォルトSS・key列固定）で照合。
+    // 既存 wallet_ledger のヘッダー構成には依存しない（ヘッダー差異で照合漏れ→二重加算が起きるため）。
+    // LockService で同時実行の二重加算も防ぐ。
+    const lock_add = LockService.getScriptLock();
+    try {
+      lock_add.waitLock(20000);
+    } catch (eLock_add) {
+      return json_({ ok: false, error: "busy" });
     }
+    try {
+      const ided_add = getOrCreateSheetByName_(
+        SpreadsheetApp.getActiveSpreadsheet(), "miraix_idempotency", ["key", "ts", "login_id", "amount"]
+      );
+      const iv_add = getValuesSafe_(ided_add);
+      for (let i = 1; i < iv_add.length; i++) {
+        if (str_(iv_add[i][0]) === key_add) {
+          // 既に加算済み → 現残高を返す（再加算しない）
+          const vals_dup = targetSheet_add.getDataRange().getValues();
+          const didx = indexMap_(vals_dup[0]);
+          for (let j = 1; j < vals_dup.length; j++) {
+            if (str_(vals_dup[j][didx["login_id"]]) === loginId_add) {
+              return json_({ ok: true, duplicated: true, ep_balance: Number(vals_dup[j][didx["ep_balance"]] || 0) });
+            }
+          }
+          return json_({ ok: true, duplicated: true });
+        }
+      }
 
-    const newEp = currentEp - amount;
-    sheet.getRange(hitRowIndex, idx["ep_balance"] + 1).setValue(newEp);
+      let values_add = targetSheet_add.getDataRange().getValues();
+      let header_add = values_add[0];
 
-    appendWalletLedger_({
-      kind:     "deduct_ep",
-      login_id: loginId,
-      email:    hitEmail,
-      amount:   -amount,
-      memo:     "narasu代理申請EPポイント払い",
-    });
+      ensureCols_(targetSheet_add, header_add, ["login_id", "email", "ep_balance"]);
 
-    return json_({ ok: true, ep_balance: newEp });
+      values_add = targetSheet_add.getDataRange().getValues();
+      header_add = values_add[0];
+
+      const idx_add  = indexMap_(header_add);
+      const rows_add = values_add.slice(1);
+
+      let hitRowIndex_add = 0;
+      let hitEmail_add    = "";
+
+      for (let i = 0; i < rows_add.length; i++) {
+        if (str_(rows_add[i][idx_add["login_id"]]) === loginId_add) {
+          hitRowIndex_add = i + 2;
+          hitEmail_add    = str_(rows_add[i][idx_add["email"]]);
+          break;
+        }
+      }
+
+      if (!hitRowIndex_add) return json_({ ok: false, error: "not_found" });
+
+      const currentEp_add = Number(targetSheet_add.getRange(hitRowIndex_add, idx_add["ep_balance"] + 1).getValue() || 0);
+      const newEp_add = currentEp_add + amount_add;
+      targetSheet_add.getRange(hitRowIndex_add, idx_add["ep_balance"] + 1).setValue(newEp_add);
+
+      ided_add.appendRow([key_add, new Date(), loginId_add, amount_add]);
+      appendWalletLedger_({
+        kind:     "add_ep",
+        login_id: loginId_add,
+        email:    hitEmail_add,
+        amount:   amount_add,
+        memo:     "MIRAIX:" + key_add,
+      });
+
+      return json_({ ok: true, ep_balance: newEp_add });
+    } finally {
+      lock_add.releaseLock();
+    }
   }
 
   // =========================================================
