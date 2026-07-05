@@ -4,9 +4,15 @@ import { motion } from 'framer-motion'
 import StarBackground from '@/components/tarot/StarBackground'
 import { TAROT_THEME } from '@/lib/fortune/theme'
 
+// カード占い(タロット)は準備中: NEXT_PUBLIC_TAROT_ENABLED === '1' のときだけ表示・入場可。
+// 未設定時はハブから非表示（会員は入れない）。ページ側 /fortune/cards も同フラグでガード。
+const TAROT_ENABLED = process.env.NEXT_PUBLIC_TAROT_ENABLED === '1'
+
 const CHOICES = [
   { href: '/fortune/dango', emoji: '🍡', title: '団子占い', desc: '毎日の運勢チェック(+10BP)' },
-  { href: '/fortune/cards', emoji: '🔮', title: 'カード占い', desc: '月影の占術 — AIがあなただけの運命を読み解く' },
+  ...(TAROT_ENABLED
+    ? [{ href: '/fortune/cards', emoji: '🔮', title: 'カード占い', desc: '月影の占術 — AIがあなただけの運命を読み解く' }]
+    : []),
 ]
 
 export default function FortuneHub() {
