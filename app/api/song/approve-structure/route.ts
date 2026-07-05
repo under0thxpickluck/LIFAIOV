@@ -483,6 +483,18 @@ export async function POST(req: Request) {
 
   const job = await getJob(String(jobId));
   if (!job) return NextResponse.json({ ok: false, error: "job_not_found" }, { status: 404 });
+  if (job.prompt.vocalStyle === "ボーカルなし") {
+    await updateJob(String(jobId), {
+      status: "failed",
+      error: "invalid_vocal_style_for_song",
+    });
+    await refundBpToUser(job.userId ?? "", job.bpLocked ?? 0, "音楽生成失敗（song生成でボーカルなしは使用不可）");
+    return NextResponse.json({
+      ok: false,
+      error: "invalid_vocal_style_for_song",
+      message: "song生成ではボーカルなしは使えません。BGM生成を使用してください。",
+    }, { status: 400 });
+  }
   if (job.status !== "structure_ready") {
     // すでにパイプライン進行中 or 完了済みの場合は冪等処理（二重クリック対策）
     const IN_PROGRESS_STATUSES: JobStatus[] = [

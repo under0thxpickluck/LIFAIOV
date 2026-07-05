@@ -527,6 +527,10 @@ export default function Music2Page() {
       return;
     }
     if (!theme.trim() || !genre || selectedMoods.length === 0) return;
+    if (!isBgmMode && vocalStyle === "ボーカルなし") {
+      setErrorMsg("song生成ではボーカルなしは使えません。BGM生成を使用してください。");
+      return;
+    }
 
     stopPoll();
     setLoading(true);
@@ -1108,7 +1112,7 @@ export default function Music2Page() {
                 <div className="mt-5">
                   <label className="block text-xs font-bold text-slate-700">ボーカルタイプ</label>
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    {VOCAL_STYLES.map((v) => (
+                    {VOCAL_STYLES.filter((v) => v !== "ボーカルなし").map((v) => (
                       <button
                         key={v}
                         type="button"
@@ -1157,7 +1161,7 @@ export default function Music2Page() {
                   <div className="mb-4">
                     <label className="block text-[11px] font-bold text-violet-400 mb-1.5">ボーカルスタイル</label>
                     <div className="flex flex-wrap gap-1.5">
-                      {VOCAL_STYLES.map((v) => (
+                      {VOCAL_STYLES.filter((v) => v !== "ボーカルなし").map((v) => (
                         <button
                           key={v}
                           type="button"
