@@ -18,7 +18,7 @@ const SERVICES = [
   { icon: "🚀", label: "Music Boost",    href: "/music-boost" },
   { icon: "📝", label: "ノート生成",      href: "/note-generator" },
   { icon: "🛒", label: "マーケット",      href: "/market" },
-  { icon: "🔮", label: "団子占い",        href: "/fortune" },
+  { icon: "🔮", label: "占い",        href: "/fortune" },
   { icon: "💎", label: "ステーキング",    href: "/top" },
   { icon: "🎰", label: "ガチャ",          href: "/top" },
   { icon: "🧩", label: "ワークフロー",    href: "/workflow" },
