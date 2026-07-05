@@ -148,6 +148,13 @@ export async function POST(req: Request) {
   if (!theme || !genre || !mood) {
     return NextResponse.json({ ok: false, error: "theme_genre_mood_required" }, { status: 400 });
   }
+  if (vocalStyle === "ボーカルなし") {
+    return NextResponse.json({
+      ok: false,
+      error: "invalid_vocal_style_for_song",
+      message: "song生成ではボーカルなしは使えません。BGM生成を使用してください。",
+    }, { status: 400 });
+  }
 
   const gasUrl = process.env.GAS_WEBAPP_URL;
   const gasKey = process.env.GAS_API_KEY;
