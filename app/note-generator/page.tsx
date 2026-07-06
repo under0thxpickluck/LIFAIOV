@@ -5,6 +5,7 @@ import Link from "next/link";
 import InputPanel from "./components/InputPanel";
 import PreviewPanel from "./components/PreviewPanel";
 import { getAuth, getAuthSecret } from "@/app/lib/auth";
+import { BP_COSTS } from "@/app/lib/bp-config";
 
 // ── チュートリアル ────────────────────────────────────────────────────────────
 
@@ -132,12 +133,15 @@ export default function NoteGeneratorPage() {
           tone: "note売れ筋風",
           length: 8000,
           paywall_mode: "intro_free_main_paid",
+          loginId,
         }),
       });
       const json = await res.json();
       if (json.ok) {
         setArticleData(json.data);
         setStep("article");
+      } else if (json.error === "insufficient_bp") {
+        setError(`BPが不足しています（必要: ${BP_COSTS.note_full}BP、残高: ${json.bp_balance ?? "?"}BP）`);
       } else {
         setError(json.error || "本文生成に失敗しました");
       }
