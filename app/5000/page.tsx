@@ -709,7 +709,7 @@ function DaoMemberPage() {
               { icon: "🛒", title: "マーケット",       desc: "メンバー間でサービスやコンテンツを売買",         accent: "#f59e0b", i: 3 },
               { icon: "🎰", title: "ガチャ",           desc: "BPを消費してレアアイテムや特典を獲得",          accent: "#ec4899", i: 4 },
               { icon: "💎", title: "ステーキング",     desc: "BPを預けて複利で増やす自動運用機能",            accent: "#06b6d4", i: 5 },
-              { icon: "🔮", title: "団子占い",         desc: "毎日の運勢チェックでBPを +10獲得",             accent: "#8b5cf6", i: 6 },
+              { icon: "🔮", title: "占い",         desc: "団子占い・AIカード占い",             accent: "#8b5cf6", i: 6 },
               { icon: "🧩", title: "ワークフロー",     desc: "n8nなど自動化ツールの設計テンプレを生成",       accent: "#0ea5e9", i: 7 },
               { icon: "⚔️", title: "Rumble Arena",    desc: "週次バトルランキングで上位入賞してBP獲得",      accent: "#6C63FF", i: 8 },
               { icon: "⛏️", title: "Tap Mining",      desc: "毎日500タップでコツコツBPをマイニング",         accent: "#6C63FF", i: 9 },

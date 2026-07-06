@@ -49,7 +49,7 @@ const DEFAULT_RECS: Recommendation[] = [
   { icon: "🎼", label: "曲を作る",            href: "/music2" },
   { icon: "🛒", label: "マーケットを見る",     href: "/market" },
   { icon: "⚔️", label: "Rumble Arena",        href: "/mini-games/rumble" },
-  { icon: "🔮", label: "団子占い",             href: "/fortune" },
+  { icon: "🔮", label: "占い",             href: "/fortune" },
 ];
 
 export async function GET(req: Request) {

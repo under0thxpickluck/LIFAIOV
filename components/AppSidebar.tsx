@@ -39,7 +39,7 @@ export function AppSidebar({ activePage }: Props) {
   const navItems = [
     { href: "/top",    icon: "🏠", label: "ホーム" },
     { href: "/music2", icon: "🎵", label: "音楽生成NEW" },
-    { href: "/fortune",icon: "🔮", label: "団子占い" },
+    { href: "/fortune",icon: "🔮", label: "占い" },
     { href: "/market", icon: "🛒", label: "マーケット" },
   ];
 
