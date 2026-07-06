@@ -1371,7 +1371,7 @@ export default function Music2Page() {
                   これで曲を作る →
                 </button>
                 <p className="text-xs text-orange-400 text-center mt-2">
-                  ⚠️ Beta版のため、現在は2分〜3分の生成となります
+                  ⚠️ 曲の長さは毎回2分〜4分でランダムに生成されます
                 </p>
                 <div className="flex gap-2">
                   <button onClick={handleRedoStructure} className={`flex-1 ${btnSecondary}`}>

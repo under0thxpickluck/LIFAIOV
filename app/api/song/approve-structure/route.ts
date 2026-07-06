@@ -34,6 +34,16 @@ function chooseStructurePreset(mood?: string, isPro?: boolean): string {
   return "hook_only";
 }
 
+// ── 曲の長さ決定 ──────────────────────────────────────────────────────────────
+// Proでユーザーが明示的に長さを指定した場合はそれを優先。
+// 未指定時は毎回ランダムで2分〜4分（120〜240秒）。
+function chooseSongDurationSec(userDuration?: number): number {
+  if (userDuration && Number.isFinite(userDuration) && userDuration > 0) {
+    return Math.round(userDuration);
+  }
+  return 120 + Math.floor(Math.random() * 121); // 120〜240秒
+}
+
 // ── Helper 1: ElevenLabs 生成 + postprocess + R2 アップロード ───────────────────
 
 type GenerateAttemptResult = {
@@ -47,11 +57,12 @@ type GenerateAttemptResult = {
 async function generateAudioAttempt(
   job: SongJob,
   apiKey: string,
-  opts: { maxChorusRepeats?: number; attemptNum?: number } = {}
+  opts: { maxChorusRepeats?: number; attemptNum?: number; durationTargetSec?: number } = {}
 ): Promise<GenerateAttemptResult> {
   const { jobId, structureData, prompt, singableLyrics } = job;
   const { attemptNum = 1, maxChorusRepeats = 2 } = opts;
   const isPro = !!prompt.isPro;
+  const durationTargetSec = opts.durationTargetSec ?? chooseSongDurationSec(prompt.duration);
 
   const rawTempPath   = path.join(os.tmpdir(), `${jobId}_attempt${attemptNum}_raw.wav`);
   const finalTempPath = path.join(os.tmpdir(), `${jobId}_attempt${attemptNum}_final.wav`);
@@ -86,7 +97,7 @@ async function generateAudioAttempt(
       lyrics:            hasSingable ? singableLyrics : undefined,
       lyricsMode:        hasSingable ? "manual" : "auto",
       language:          prompt.language ?? "ja",
-      durationTargetSec: isPro ? 180 : 150,
+      durationTargetSec,
       vocalMode,
       vocalStyle,
       structurePreset:   chooseStructurePreset(prompt.mood, isPro),
@@ -323,10 +334,14 @@ async function runAsrAndQuality(
 async function runAudioPipeline(job: SongJob, apiKey: string): Promise<void> {
   const { jobId } = job;
 
+  // 曲の長さをジョブ単位で1回決定（attempt1 / attempt2 で同一の長さを使う）
+  const durationTargetSec = chooseSongDurationSec(job.prompt.duration);
+  console.log(`[Job ${jobId}] durationTargetSec=${durationTargetSec} (userSpecified=${!!job.prompt.duration})`);
+
   // ── Attempt 1 ──────────────────────────────────────────────────────────────
   await updateJob(jobId, { status: "generating_audio", stage: "generating" });
 
-  const attempt1 = await generateAudioAttempt(job, apiKey, { attemptNum: 1, maxChorusRepeats: 2 });
+  const attempt1 = await generateAudioAttempt(job, apiKey, { attemptNum: 1, maxChorusRepeats: 2, durationTargetSec });
   if (!attempt1.audioAvailable) {
     await refundBpToUser(job.userId ?? "", job.bpLocked ?? 0, "音楽生成失敗（ElevenLabs音声生成エラー）");
     return;
@@ -383,7 +398,7 @@ async function runAudioPipeline(job: SongJob, apiKey: string): Promise<void> {
 
     // ── Attempt 2: 強化された拘束プロンプトで再生成 ─────────────────────────
     console.log(`[Job ${jobId}] attempt2 started`);
-    const attempt2 = await generateAudioAttempt(job, apiKey, { attemptNum: 2, maxChorusRepeats: 1 });
+    const attempt2 = await generateAudioAttempt(job, apiKey, { attemptNum: 2, maxChorusRepeats: 1, durationTargetSec });
 
     let attempt2Adopted = false;  // 実際に attempt2 を最終採用したかどうか
 
