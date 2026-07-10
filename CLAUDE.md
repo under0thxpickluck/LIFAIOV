@@ -44,6 +44,9 @@ GAS actions (全一覧):
 | `music_boost_set_tracks` | `/api/music-boost/info` (PATCH) | 楽曲リスト（`tracks` 配列）を全置換保存 |
 | `my_referral_dashboard` | `/api/referral/dashboard` (POST) | 自分が紹介した人リスト＋報酬履歴・合計を返す |
 | `user_reset_request` | `/api/auth/forgot-password` (POST) | ユーザー自身によるPW再設定申請→トークン再発行＋メール送信（approved限定、列挙攻撃対策で常にok:true返却） |
+| `affiliate_monthly_summary` | `/api/admin/affiliate-summary` (POST) | 月次アフィリエイト集計（理論値・読み取り専用） |
+| `affiliate_grant_run` | `/api/admin/affiliate-grant` (POST) | 月次アフィリエイトEP付与。`dry_run:true`でプレビュー、`false`で本実行（行単位＋台帳単位の冪等ガード付き） |
+| `affiliate_cutoff_mark` | `/api/admin/affiliate-cutoff` (POST) | 指定月より前の承認済み・未付与行を一括「対象外」マーク（EP付与なし・運用開始時の初期化用） |
 
 ### GAS Sheets
 
@@ -67,6 +70,8 @@ GAS actions (全一覧):
 - **`getValuesSafe_` / `getSheetValuesSafe_`**: 同一処理の関数が2つ存在（`getValuesSafe_` を使うこと）。
 - **login_id は永続不変**: `approveRowCore_` 内で一度発行された `login_id` は絶対に上書きしない（パスワードリセット・再承認・メール再送のいずれでも変わらない）。`if (!loginId)` の判定でのみ新規発行する。
 - **Music Boost 楽曲データ**: `applies` シートの `music_boost_tracks_json` カラムに `[{"artist":"...","album":"..."}]` 形式のJSON文字列を保存。上限なし。`music_boost_artist` / `music_boost_album` カラムは後方互換のために残す。
+- **アフィリエイト分配（2026-07〜）**: 旧 `grantReferralBonusOnce_`（1段・USD・`ref_share_pct` 20/40）は停止済み（関数先頭で早期return。旧コード・`ref_bonus_*` 列・過去の `referral_bonus` 台帳記録は残置）。分配は管理者が `/admin/finance` 月次タブから `affiliate_grant_run` で実行（プレビュー→人間確認→本実行）。冪等ガードは `applies` の `affiliate_granted_at` / `affiliate_batch_id`（行単位）＋ `wallet_ledger` の from×level 重複チェック（台帳単位）。`entry_source="5000"` の行はデフォルト除外、`ref_bonus_granted_at` 済み行はL1のみ自動除外。
+- **`approved_at` の記録**: `approveRowCore_` は承認時に `approved_at` を記録する（空のときのみ・再承認では上書きしない）。月次アフィリエイト集計・付与の月判定は `approved_at → auto_approved_at → paid_at` のフォールバック。
 
 ### Payments: NOWPayments
 

@@ -1874,6 +1874,409 @@ function handle_(key, body) {
   }
 
   // =========================================================
+  // ✅ affiliate_grant_run（管理：月次アフィリエイトEP付与）
+  // - dry_run:true → 付与プレビュー（計算のみ・書き込みなし）
+  // - dry_run:false → 実際にEP付与 + wallet_ledger記録 + affiliate_granted_at刻印
+  // - 冪等性: 行単位（affiliate_granted_at）+ 台帳単位（from×level の重複チェック）
+  // - 除外ルール:
+  //   * ref_bonus_granted_at あり → L1のみ自動除外（旧配当支払済み）
+  //   * entry_source="5000" → 行ごとデフォルト除外（include_apply_ids で個別解除可）
+  //   * 日付なし行 → デフォルト除外（include_apply_ids で個別解除可）
+  //   * exclude_apply_ids → 管理者が画面でチェックを外した行を除外
+  // =========================================================
+  if (action === "affiliate_grant_run") {
+    if (str_(body.adminKey) !== ADMIN_SECRET) {
+      return json_({ ok: false, error: "admin_unauthorized" });
+    }
+
+    const agrMonth = str_(body.month);
+    if (!agrMonth || !/^\d{4}-\d{2}$/.test(agrMonth)) {
+      return json_({ ok: false, error: "invalid_month_format" });
+    }
+    const agrDryRun = body.dry_run !== false; // 省略時は安全側（プレビュー）
+    const agrExcludeIds = {};
+    (Array.isArray(body.exclude_apply_ids) ? body.exclude_apply_ids : []).forEach(function(id) {
+      if (str_(id)) agrExcludeIds[str_(id)] = true;
+    });
+    const agrIncludeIds = {};
+    (Array.isArray(body.include_apply_ids) ? body.include_apply_ids : []).forEach(function(id) {
+      if (str_(id)) agrIncludeIds[str_(id)] = true;
+    });
+
+    // 対象月の JST 範囲（affiliate_monthly_summary と同一ロジック）
+    const agrParts = agrMonth.split("-");
+    const agrY = Number(agrParts[0]);
+    const agrM = Number(agrParts[1]);
+    const agrStartUtc = new Date(Date.UTC(agrY, agrM - 1, 1, -9, 0, 0));
+    const agrEndUtc   = new Date(Date.UTC(agrY, agrM,     1, -9, 0, 0));
+
+    const agrSettings = getSystemSettings_();
+    const agrUsdToJpy = agrSettings.usdToJpy;
+    const agrEpPerJpy = agrSettings.epPerJpy;
+    const agrRates    = agrSettings.rates;
+
+    const agrSheet  = getOrCreateSheet_();
+    const agrHeaderRaw = agrSheet.getDataRange().getValues()[0];
+    ensureCols_(agrSheet, agrHeaderRaw, [
+      "apply_id", "login_id", "email", "status", "plan", "expected_paid",
+      "referrer_login_id", "referrer_2_login_id", "referrer_3_login_id",
+      "referrer_4_login_id", "referrer_5_login_id",
+      "ref_bonus_granted_at", "entry_source",
+      "affiliate_granted_at", "affiliate_batch_id",
+      "approved_at", "auto_approved_at", "paid_at",
+    ]);
+    const agrValues = getValuesSafe_(agrSheet);
+    const agrHeader = agrValues[0];
+    const agrIdx    = indexMap_(agrHeader);
+
+    const agrRefCols = [
+      "referrer_login_id",
+      "referrer_2_login_id",
+      "referrer_3_login_id",
+      "referrer_4_login_id",
+      "referrer_5_login_id",
+    ];
+
+    // login_id → email の索引（受取人メール解決用）
+    const agrEmailByLogin = {};
+    for (let ei = 1; ei < agrValues.length; ei++) {
+      const eLogin = str_(agrValues[ei][agrIdx["login_id"]]);
+      if (eLogin && !agrEmailByLogin[eLogin]) {
+        agrEmailByLogin[eLogin] = str_(agrValues[ei][agrIdx["email"]]);
+      }
+    }
+
+    // 台帳側の二重付与ガード: 既存 affiliate_reward の from×level を索引化
+    const agrLedgerDone = {};
+    try {
+      const agrSs = SpreadsheetApp.getActiveSpreadsheet();
+      const agrLed = agrSs.getSheetByName("wallet_ledger");
+      if (agrLed) {
+        const agrLedValues = getValuesSafe_(agrLed);
+        if (agrLedValues.length >= 2) {
+          const agrLedIdx = indexMap_(agrLedValues[0]);
+          for (let li = 1; li < agrLedValues.length; li++) {
+            if (str_(agrLedValues[li][agrLedIdx["kind"]]) !== "affiliate_reward") continue;
+            try {
+              const lm = JSON.parse(str_(agrLedValues[li][agrLedIdx["memo"]]));
+              if (lm && lm.from && lm.level) {
+                agrLedgerDone[str_(lm.from) + "|" + String(lm.level)] = true;
+              }
+            } catch (e) {}
+          }
+        }
+      }
+    } catch (e) {}
+
+    // 対象行の抽出と計算
+    const agrRows = [];
+    for (let ri = 1; ri < agrValues.length; ri++) {
+      const r = agrValues[ri];
+      if (str_(r[agrIdx["status"]]) !== "approved") continue;
+      if (r[agrIdx["affiliate_granted_at"]]) continue; // 付与済み・対象外マーク済み
+
+      // 日付フォールバック: approved_at → auto_approved_at → paid_at
+      let agrDate = null;
+      const agrDateCols = ["approved_at", "auto_approved_at", "paid_at"];
+      for (let dc = 0; dc < agrDateCols.length; dc++) {
+        const raw = r[agrIdx[agrDateCols[dc]]];
+        if (!raw) continue;
+        const d = new Date(raw);
+        if (!isNaN(d.getTime())) { agrDate = d; break; }
+      }
+
+      const agrApplyId = str_(r[agrIdx["apply_id"]]);
+      const agrUndated = !agrDate;
+      const agrInMonth = !agrUndated && agrDate >= agrStartUtc && agrDate < agrEndUtc;
+
+      // 対象: 月内の行 + 日付なし行（日付なしはデフォルト除外だが、段別計算を見せて include で付与可能にする）
+      if (!agrInMonth && !agrUndated) continue;
+
+      // 決済金額（affiliate_monthly_summary と同一）
+      let agrAmountUsd = parseMoneyLike_(r[agrIdx["expected_paid"]]);
+      if (!agrAmountUsd) {
+        agrAmountUsd = planToExpectedPaid_(str_(r[agrIdx["plan"]]));
+      }
+
+      const agrChildLogin = str_(r[agrIdx["login_id"]]);
+      const agrFlags = [];
+      const agrLegacyL1 = !!r[agrIdx["ref_bonus_granted_at"]];
+      const agrIs5000  = str_(r[agrIdx["entry_source"]]) === "5000";
+      if (agrLegacyL1) agrFlags.push("legacy_l1_paid");
+      if (agrIs5000)   agrFlags.push("route_5000");
+      if (agrUndated)  agrFlags.push("undated");
+      if (!agrAmountUsd) agrFlags.push("no_amount");
+
+      // 行単位の除外判定
+      let agrExcluded = false;
+      let agrExcludeReason = "";
+      if (agrExcludeIds[agrApplyId]) {
+        agrExcluded = true; agrExcludeReason = "admin_unchecked";
+      } else if (!agrAmountUsd) {
+        agrExcluded = true; agrExcludeReason = "no_amount";
+      } else if (agrUndated && !agrIncludeIds[agrApplyId]) {
+        agrExcluded = true; agrExcludeReason = "undated";
+      } else if (agrIs5000 && !agrIncludeIds[agrApplyId]) {
+        agrExcluded = true; agrExcludeReason = "route_5000";
+      }
+
+      // 段別計算
+      const agrAmountJpy = agrAmountUsd * agrUsdToJpy;
+      const agrLevels = [];
+      let agrRowTotal = 0;
+      for (let lvl = 0; lvl < 5; lvl++) {
+        const refLogin = str_(r[agrIdx[agrRefCols[lvl]]]);
+        if (!refLogin) continue;
+        const ratePct = agrRates[lvl];
+        const ep = Math.floor(agrAmountJpy * ratePct / 100 * agrEpPerJpy);
+        let lvlStatus = "pending";
+        if (lvl === 0 && agrLegacyL1) lvlStatus = "excluded_legacy";
+        else if (ep < 1) lvlStatus = "excluded_zero";
+        else if (agrLedgerDone[agrChildLogin + "|" + String(lvl + 1)]) lvlStatus = "skipped_dup";
+        agrLevels.push({
+          level: lvl + 1,
+          to: refLogin,
+          rate_pct: ratePct,
+          ep: ep,
+          status: lvlStatus,
+        });
+        if (lvlStatus === "pending" && !agrExcluded) agrRowTotal += ep;
+      }
+
+      agrRows.push({
+        apply_id: agrApplyId,
+        login_id: agrChildLogin,
+        email: str_(r[agrIdx["email"]]),
+        plan: str_(r[agrIdx["plan"]]),
+        amount_usd: agrAmountUsd,
+        date_used: agrDate ? agrDate.toISOString() : "",
+        flags: agrFlags,
+        excluded: agrExcluded,
+        exclude_reason: agrExcludeReason,
+        levels: agrLevels,
+        row_total_ep: agrRowTotal,
+        row_index: ri + 1, // シート実行時の行番号（1始まりヘッダー込み）
+      });
+    }
+
+    // 集計（除外行を除く）
+    const agrPerReferrer = {};
+    let agrTotalEp = 0;
+    let agrGrantRowCount = 0;
+    agrRows.forEach(function(row) {
+      if (row.excluded) return;
+      let counted = false;
+      row.levels.forEach(function(lv) {
+        if (lv.status !== "pending") return;
+        agrPerReferrer[lv.to] = (agrPerReferrer[lv.to] || 0) + lv.ep;
+        agrTotalEp += lv.ep;
+        counted = true;
+      });
+      if (counted) agrGrantRowCount++;
+    });
+    const agrPerReferrerArr = Object.keys(agrPerReferrer).map(function(k) {
+      return { login_id: k, ep: agrPerReferrer[k] };
+    }).sort(function(a, b) { return b.ep - a.ep; });
+
+    // dry_run → ここで返す（書き込みなし）
+    if (agrDryRun) {
+      return json_({
+        ok: true,
+        dry_run: true,
+        month: agrMonth,
+        usd_to_jpy: agrUsdToJpy,
+        ep_per_jpy: agrEpPerJpy,
+        rates: agrRates,
+        rows: agrRows,
+        totals: {
+          row_count: agrRows.length,
+          grant_row_count: agrGrantRowCount,
+          total_ep: agrTotalEp,
+          referrer_count: agrPerReferrerArr.length,
+        },
+        per_referrer: agrPerReferrerArr,
+      });
+    }
+
+    // ===== 本実行 =====
+    const agrLock = LockService.getScriptLock();
+    try {
+      agrLock.waitLock(30000);
+    } catch (e) {
+      return json_({ ok: false, error: "lock_timeout" });
+    }
+
+    const agrStartedMs = Date.now();
+    const agrBatchId = "AFB-" + agrMonth + "-" + Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyyMMddHHmmss");
+    const agrGranted = [];
+    const agrErrors  = [];
+    let agrPartial = false;
+
+    try {
+      for (let gi = 0; gi < agrRows.length; gi++) {
+        const row = agrRows[gi];
+        if (row.excluded) continue;
+
+        // GAS 実行時間制限（6分）対策: 4.5分を超えたら中断（残りは再実行で拾える）
+        if (Date.now() - agrStartedMs > 270000) {
+          agrPartial = true;
+          break;
+        }
+
+        // ロック取得後の再チェック（行単位冪等ガード）
+        const agrAlready = agrSheet.getRange(row.row_index, agrIdx["affiliate_granted_at"] + 1).getValue();
+        if (agrAlready) continue;
+
+        for (let lj = 0; lj < row.levels.length; lj++) {
+          const lv = row.levels[lj];
+          if (lv.status !== "pending") continue;
+          const toEmail = agrEmailByLogin[lv.to] || "";
+          const res = mktAdjustEp_(
+            lv.to,
+            toEmail,
+            lv.ep,
+            "affiliate_reward",
+            JSON.stringify({
+              from: row.login_id,
+              level: lv.level,
+              amount_usd: row.amount_usd,
+              rate_pct: lv.rate_pct,
+              month: agrMonth,
+              batch_id: agrBatchId,
+              note: "affiliate_grant_run",
+            })
+          );
+          if (res && res.ok) {
+            agrGranted.push({ apply_id: row.apply_id, from: row.login_id, level: lv.level, to: lv.to, ep: lv.ep });
+          } else {
+            agrErrors.push({ apply_id: row.apply_id, from: row.login_id, level: lv.level, to: lv.to, ep: lv.ep, error: res ? str_(res.error) : "unknown" });
+          }
+        }
+
+        // 行単位の付与完了マーク（失敗段があっても刻む：台帳の from×level ガードで再付与は防がれる）
+        agrSheet.getRange(row.row_index, agrIdx["affiliate_granted_at"] + 1).setValue(new Date());
+        agrSheet.getRange(row.row_index, agrIdx["affiliate_batch_id"] + 1).setValue(agrBatchId);
+      }
+    } finally {
+      agrLock.releaseLock();
+    }
+
+    const agrGrantedTotalEp = agrGranted.reduce(function(s, g) { return s + g.ep; }, 0);
+    return json_({
+      ok: true,
+      dry_run: false,
+      month: agrMonth,
+      batch_id: agrBatchId,
+      granted: agrGranted,
+      granted_count: agrGranted.length,
+      granted_total_ep: agrGrantedTotalEp,
+      errors: agrErrors,
+      partial: agrPartial,
+    });
+  }
+
+  // =========================================================
+  // ✅ affiliate_cutoff_mark（管理：過去分を一括「対象外」マーク）
+  // - before_month(YYYY-MM) より前の承認済み・未付与行に
+  //   affiliate_granted_at + affiliate_batch_id="CUTOFF_BEFORE_YYYY-MM" を刻む
+  // - EP付与・台帳記録は一切行わない（新分配制度の開始月より前を締め出すための初期化）
+  // - dry_run:true で対象行の確認のみ可能
+  // =========================================================
+  if (action === "affiliate_cutoff_mark") {
+    if (str_(body.adminKey) !== ADMIN_SECRET) {
+      return json_({ ok: false, error: "admin_unauthorized" });
+    }
+
+    const acmMonth = str_(body.before_month);
+    if (!acmMonth || !/^\d{4}-\d{2}$/.test(acmMonth)) {
+      return json_({ ok: false, error: "invalid_month_format" });
+    }
+    const acmDryRun = body.dry_run !== false;
+
+    const acmParts = acmMonth.split("-");
+    const acmCutUtc = new Date(Date.UTC(Number(acmParts[0]), Number(acmParts[1]) - 1, 1, -9, 0, 0)); // 指定月の月初 JST
+
+    const acmSheet = getOrCreateSheet_();
+    const acmHeaderRaw = acmSheet.getDataRange().getValues()[0];
+    ensureCols_(acmSheet, acmHeaderRaw, [
+      "apply_id", "login_id", "email", "status",
+      "affiliate_granted_at", "affiliate_batch_id",
+      "approved_at", "auto_approved_at", "paid_at",
+    ]);
+    const acmValues = getValuesSafe_(acmSheet);
+    const acmIdx = indexMap_(acmValues[0]);
+
+    const acmTargets = [];
+    let acmUndatedCount = 0;
+    for (let ri = 1; ri < acmValues.length; ri++) {
+      const r = acmValues[ri];
+      if (str_(r[acmIdx["status"]]) !== "approved") continue;
+      if (r[acmIdx["affiliate_granted_at"]]) continue;
+
+      let acmDate = null;
+      const acmDateCols = ["approved_at", "auto_approved_at", "paid_at"];
+      for (let dc = 0; dc < acmDateCols.length; dc++) {
+        const raw = r[acmIdx[acmDateCols[dc]]];
+        if (!raw) continue;
+        const d = new Date(raw);
+        if (!isNaN(d.getTime())) { acmDate = d; break; }
+      }
+      if (!acmDate) { acmUndatedCount++; continue; } // 日付なし行はマークしない（プレビューで人間が判断）
+      if (acmDate >= acmCutUtc) continue;
+
+      acmTargets.push({
+        apply_id: str_(r[acmIdx["apply_id"]]),
+        login_id: str_(r[acmIdx["login_id"]]),
+        email: str_(r[acmIdx["email"]]),
+        date_used: acmDate.toISOString(),
+        row_index: ri + 1,
+      });
+    }
+
+    if (acmDryRun) {
+      return json_({
+        ok: true,
+        dry_run: true,
+        before_month: acmMonth,
+        target_count: acmTargets.length,
+        undated_count: acmUndatedCount,
+        rows: acmTargets,
+      });
+    }
+
+    const acmLock = LockService.getScriptLock();
+    try {
+      acmLock.waitLock(30000);
+    } catch (e) {
+      return json_({ ok: false, error: "lock_timeout" });
+    }
+
+    const acmBatchId = "CUTOFF_BEFORE_" + acmMonth;
+    let acmMarked = 0;
+    try {
+      for (let ti = 0; ti < acmTargets.length; ti++) {
+        const t = acmTargets[ti];
+        const already = acmSheet.getRange(t.row_index, acmIdx["affiliate_granted_at"] + 1).getValue();
+        if (already) continue;
+        acmSheet.getRange(t.row_index, acmIdx["affiliate_granted_at"] + 1).setValue(new Date());
+        acmSheet.getRange(t.row_index, acmIdx["affiliate_batch_id"] + 1).setValue(acmBatchId);
+        acmMarked++;
+      }
+    } finally {
+      acmLock.releaseLock();
+    }
+
+    return json_({
+      ok: true,
+      dry_run: false,
+      before_month: acmMonth,
+      batch_id: acmBatchId,
+      marked_count: acmMarked,
+      undated_count: acmUndatedCount,
+    });
+  }
+
+  // =========================================================
   // ✅ send_test_mail（管理：メール送信テスト）
   // adminKey + to アドレスが必要。デプロイ後のMailApp動作確認用。
   // curl などから: ?action=send_test_mail&key=...&adminKey=...&to=xxx@yyy.com
@@ -5464,7 +5867,9 @@ function approveRowCore_(sheet, header, idx, rowIndex, note) {
       "referrer_4_login_id",   // 5段拡張
       "referrer_5_login_id",   // 5段拡張
       "ref_path",
-      "affiliate_granted_at",  // 将来の自動付与用冪等ガード
+      "affiliate_granted_at",  // アフィリエイト付与の冪等ガード（affiliate_grant_run が使用）
+      "affiliate_batch_id",    // 付与バッチID（CUTOFF_* は対象外マーク）
+      "approved_at",           // 承認日時（月次アフィリエイト集計の月判定に使用）
 
       // ✅ BP/EP付与（今回追加：壊さない）
       "bp_balance",
@@ -5624,6 +6029,16 @@ function approveRowCore_(sheet, header, idx, rowIndex, note) {
     sheet.getRange(rowIndex, idx["reset_used_at"] + 1).setValue("");
     sheet.getRange(rowIndex, idx["status"] + 1).setValue("approved");
 
+    // ✅ 承認日時を記録（空のときのみ・再承認で上書きしない → 月次集計の月がズレない）
+    try {
+      if (idx["approved_at"] !== undefined) {
+        const approvedAtCur = sheet.getRange(rowIndex, idx["approved_at"] + 1).getValue();
+        if (!approvedAtCur) {
+          sheet.getRange(rowIndex, idx["approved_at"] + 1).setValue(new Date());
+        }
+      }
+    } catch (e) {}
+
     // ✅ approved になった瞬間にBP/EPを付与（bp_granted_at で二重付与防止）（壊さない）
     let bpGranted = false;
     let bpAdded = 0;
@@ -5738,6 +6153,12 @@ function approveRowCore_(sheet, header, idx, rowIndex, note) {
 // ==============================
 
 function grantReferralBonusOnce_(sheet, header, idx, childRowIndex, expectedPaid, note) {
+  // ✅ 旧紹介配当は停止（2026-07: affiliate_grant_run による月次EP分配へ一本化）
+  // 旧ロジックは記録のため下に残しているが実行されない。
+  // ref_bonus_* 列・過去の wallet_ledger 記録（kind="referral_bonus"）はそのまま残る。
+  Logger.log("grantReferralBonusOnce_ skipped: replaced by affiliate_grant_run");
+  return { ok: false, skipped: true };
+
   try {
     // 必要列保証（壊さない）
     ensureCols_(sheet, header, [
