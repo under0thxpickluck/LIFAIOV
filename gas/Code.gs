@@ -2001,7 +2001,9 @@ function handle_(key, body) {
       const agrChildLogin = str_(r[agrIdx["login_id"]]);
       const agrFlags = [];
       const agrLegacyL1 = !!r[agrIdx["ref_bonus_granted_at"]];
-      const agrIs5000  = str_(r[agrIdx["entry_source"]]) === "5000";
+      // 5000ルート判定: entry_source列（新規移行分）に加え、apply_id の "5000_" プレフィックスでも判定
+      // （entry_source 列導入前に移行された行は entry_source が空のため）
+      const agrIs5000  = str_(r[agrIdx["entry_source"]]) === "5000" || agrApplyId.indexOf("5000_") === 0;
       if (agrLegacyL1) agrFlags.push("legacy_l1_paid");
       if (agrIs5000)   agrFlags.push("route_5000");
       if (agrUndated)  agrFlags.push("undated");
