@@ -11,6 +11,8 @@
 
 ## 1. LIFAIOVが真似したいもの（aisalon → LIFAIOV に移植したい候補）
 
+※ Ultraモード（歌詞持込生成）とグローバルダークモード基盤は検討の結果、**LIFAIOVへの移植は不要と判断**（2026-07-10）。
+
 ### 1-1. ★最重要★ BP月次回復の capマップに旧プラン値を含める＋一括回復関数
 
 `docs/2026-07-10-music-feedback-tasks.md` A-1（BPの毎月半分回復ができていない）の
@@ -28,42 +30,20 @@
 未回復だった期間のリカバリを一括実行 → その後は通常サイクルに乗る。
 （前提確認：LIFAIOV 本番シートの `plan` 列の実値と、本番GASへのデプロイ状況）
 
-### 1-2. ★Ultraモード（歌詞持込・ボーカル指定の楽曲生成）
-
-タスクMD B-1「生成後に歌詞を直したい」への直接の答えになる機能が aisalon に実装済み。
-
-| 箇所 | 内容 |
-|---|---|
-| `app/music2/page.tsx` | 生成モードが `song / bgm / ultra` の3択。Ultraは歌詞テキストエリア＋ボーカルタイプ（女性/男性/混声/ボーカルなし）指定。構成確認ステップをスキップして直接生成 |
-| `app/api/song/start/route.ts` | `userLyrics` / `isUltra` を受け取り、ユーザー歌詞で masterLyrics〜distributionLyrics を上書き。`lyricsSource:"manual"`・`distributionReady:true`（ASRによる上書きなし） |
-| `app/api/song/approve-structure/route.ts` | `lyricsOverride` パラメータで承認時にも歌詞を直接注入（GAS往復に依存しない） |
-| `app/api/me/route.ts` | `ULTRA_ADMIN_LOGINS` 環境変数 → `isUltraAdmin` を返し、UI側で機能をゲート（一般には「準備中」表示） |
-| `app/lib/bp-config.ts` | 専用コスト `music_ultra: 300` |
-
-**移植効果**：「歌詞がおかしいので直して作り直す」フローが
-（コピー→Ultraで歌詞修正→再生成）として成立する。admin限定ゲート付きなので段階公開も可能。
-
-### 1-3. グローバルダークモード基盤
-
-aisalon は `app/lib/ThemeContext.tsx` + `app/components/GlobalThemeToggleWrapper.tsx` で
-テーマをサイト全体に適用し、`gift/*`・`chat`・`referral-app`・`top` など多数のページが
-ライト/ダーク両対応（`dark:` クラス、`C_DARK`/`C_LIGHT` パレット）。
-LIFAIOV はページ単位の `useTheme` のみでダーク非対応ページが多い。UX差として大きい。
-
-### 1-4. Square Webhook のテストモード
+### 1-2. Square Webhook のテストモード
 
 aisalon の `app/api/square/webhook/route.ts` は `isTest=true` 時に
 `payload.test_reference_id` を直接使い Orders API 呼び出しをスキップできる
 （NOWPayments の `x-test-ipn: 1` と同じ発想）。決済フローの動作確認が楽になる。
 
-### 1-5. アフィリエイト管理の診断情報
+### 1-3. アフィリエイト管理の診断情報
 
 aisalon の月次配当（`app/admin/finance/MonthlyTab.tsx`）は
 `debug_info`（対象月の approved 数 / ref_code なし / referrer 不明の件数）と
 `ep_per_jpy` をGASから受け取り、集計から漏れた人を管理画面で可視化できる。
 「配当が合わない」調査の時間短縮になる。
 
-### 1-6. /me の EP受取通知（ep_notification）
+### 1-4. /me の EP受取通知（ep_notification）
 
 aisalon は `/api/me` が `ep_notification`（未読のEP受取通知数）を返し、UIでバッジ表示。
 LIFAIOV は `ep-notification-clear` ルートはあるが `/me` が通知数を返していない。
@@ -91,7 +71,7 @@ approve-structure 側が参照しない（実質無視されるバグ気味の�
 
 LIFAIOV の `MonthlyTab` は過去6ヶ月分の配当合計・対象者数を一括表示
 （`loadMonthlySummaries` / `/api/admin/affiliate-summary`）。aisalon にはない。
-（お互いに 1-5 と 2-3 を交換すると両方の管理画面が完成形に近づく）
+（お互いに 1-3 と 2-3 を交換すると両方の管理画面が完成形に近づく）
 
 ### 2-4. ステーキング設定の管理API
 
@@ -136,7 +116,5 @@ LIFAIOV の `/api/admin/reset-resend`。aisalon はGAS直呼びのみ。
 ## 4. 推奨アクション（優先順）
 
 1. **A-1の裏取り**：LIFAIOV本番シートの `plan` 列の実値を確認 → aisalon式に capマップへ旧値追加＋`bulkBpRecovery()` 移植（工数小・クレーム直結）
-2. **Ultraモード移植**：歌詞修正→再生成の要望（B-1）に対する本命。admin限定ゲート付きで低リスクに導入可能（工数中）
-3. **曲の長さロジックの輸出**：A-3実装後に aisalon へ（aisalon側の長さ指定無視も直る）
-4. 管理画面機能の相互交換（1-5 ⇔ 2-3、2-2、2-4）は運用負荷と相談して順次
-5. ダークモード基盤（1-3)は効果大だが対象ページが多く工数大 → 別タスク化推奨
+2. **曲の長さロジックの輸出**：A-3実装後に aisalon へ（aisalon側の長さ指定無視も直る）
+3. 管理画面機能の相互交換（1-3 ⇔ 2-3、2-2、2-4）は運用負荷と相談して順次
