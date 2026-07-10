@@ -43,7 +43,9 @@
       "Read(//c/Users/unitu/aisalon/app/api/song//**)",
       "Read(//c/Users/unitu/aisalon/app/api/admin//**)",
       "Bash(mkdir -p /c/Users/unitu/aisalon/app/api/admin/notify-user)",
-      "Bash(mkdir -p /c/Users/unitu/aisalon/app/api/admin/set-gacha-preset)"
+      "Bash(mkdir -p /c/Users/unitu/aisalon/app/api/admin/set-gacha-preset)",
+      "mcp__bf7c680d-5fdc-5ef4-b4a0-abadb619bf0a__list_repos",
+      "mcp__bf7c680d-5fdc-5ef4-b4a0-abadb619bf0a__add_repo"
     ]
   }
 }
