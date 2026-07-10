@@ -27,6 +27,7 @@ type SummaryData = {
   month: string;
   usd_to_jpy: number;
   ep_per_jpy: number;
+  plan_ep_rates?: Record<string, number>;
   referrers: ReferrerSummary[];
   summary: {
     total_initial_usd: number;
@@ -156,7 +157,10 @@ export default function MonthlyTab() {
         </button>
         {data && (
           <span className="text-xs text-zinc-500">
-            {fmtMonth(data.month)} の集計 ／ 換算: 1 USD = {data.usd_to_jpy} 円 × {data.ep_per_jpy} EP/円
+            {fmtMonth(data.month)} の集計 ／ 換算: 1 USD = {data.usd_to_jpy} 円
+            {data.plan_ep_rates
+              ? ` ／ EPレートは受取人プラン別（${Object.entries(data.plan_ep_rates).map(([p, r]) => `$${p}:${r}`).join(" / ")} EP/円、その他: ${data.ep_per_jpy}）`
+              : ` × ${data.ep_per_jpy} EP/円`}
           </span>
         )}
       </div>
@@ -322,6 +326,7 @@ type GrantLevel = {
   level: number;
   to: string;
   rate_pct: number;
+  ep_rate?: number; // 受取人プラン別のEPミントレート（EP/円）
   ep: number;
   status: string; // pending | excluded_legacy | excluded_zero | skipped_dup
 };
@@ -346,6 +351,7 @@ type GrantPreview = {
   month: string;
   usd_to_jpy: number;
   ep_per_jpy: number;
+  plan_ep_rates?: Record<string, number>;
   rates: number[];
   rows: GrantRow[];
   totals: { row_count: number; grant_row_count: number; total_ep: number; referrer_count: number };
@@ -495,7 +501,10 @@ function GrantSection({ month }: { month: string }) {
         </button>
         {preview && (
           <span className="text-xs text-zinc-500">
-            換算: 1 USD = {preview.usd_to_jpy} 円 × {preview.ep_per_jpy} EP/円 ／
+            換算: 1 USD = {preview.usd_to_jpy} 円
+            {preview.plan_ep_rates
+              ? ` ／ EPレートは受取人プラン別（${Object.entries(preview.plan_ep_rates).map(([p, r]) => `$${p}:${r}`).join(" / ")} EP/円、その他: ${preview.ep_per_jpy}）`
+              : ` × ${preview.ep_per_jpy} EP/円`} ／
             料率 L1〜L5: {preview.rates.join("% / ")}%
           </span>
         )}
@@ -609,6 +618,9 @@ function GrantSection({ month }: { month: string }) {
                               {r.levels.map(lv => (
                                 <p key={lv.level} className={`font-mono text-[11px] ${lv.status === "pending" ? "text-emerald-400" : "text-zinc-600 line-through"}`}>
                                   L{lv.level}({lv.rate_pct}%) → {lv.to} +{lv.ep.toLocaleString()} EP
+                                  {lv.ep_rate != null && (
+                                    <span className="ml-1 text-[10px] text-zinc-500">@{lv.ep_rate}EP/円</span>
+                                  )}
                                   {lv.status !== "pending" && (
                                     <span className="ml-1 no-underline text-[10px] text-zinc-500">
                                       {LEVEL_STATUS_LABELS[lv.status] ?? lv.status}

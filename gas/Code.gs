@@ -1717,6 +1717,15 @@ function handle_(key, body) {
       "referrer_5_login_id",
     ];
 
+    // 受取人（紹介者）のプラン別EPレート適用のため login_id → plan を索引化
+    const amPlanByLogin = {};
+    for (let pi = 1; pi < amValues.length; pi++) {
+      const pLogin = str_(amValues[pi][amIdx["login_id"]]);
+      if (pLogin && amPlanByLogin[pLogin] === undefined && amIdx["plan"] !== undefined) {
+        amPlanByLogin[pLogin] = amValues[pi][amIdx["plan"]];
+      }
+    }
+
     // referrer ごとの集計マップ
     const referrerMap = {};
 
@@ -1781,7 +1790,9 @@ function handle_(key, body) {
         if (!refLoginId) continue;
 
         const ratePct  = initRates[lvl];
-        const rewardEp = Math.floor(amountJpy * ratePct / 100 * epPerJpy);
+        // 受取人のプランに応じたレートでミント（換金レートと揃えて円建て価値を保存）
+        const epRate   = epRateForPlan_(settings, amPlanByLogin[refLoginId]);
+        const rewardEp = Math.floor(amountJpy * ratePct / 100 * epRate);
 
         const entry = ensureReferrer(refLoginId);
         entry.levels[lvl].initial_usd += amountUsd;
@@ -1868,6 +1879,7 @@ function handle_(key, body) {
       month:       monthStr,
       usd_to_jpy:  usdToJpy,
       ep_per_jpy:  epPerJpy,
+      plan_ep_rates: settings.planEpRates,
       referrers:   amReferrers,
       summary:     amSummary,
     });
@@ -1937,12 +1949,14 @@ function handle_(key, body) {
       "referrer_5_login_id",
     ];
 
-    // login_id → email の索引（受取人メール解決用）
+    // login_id → email / plan の索引（受取人のメール解決・プラン別EPレート適用用）
     const agrEmailByLogin = {};
+    const agrPlanByLogin  = {};
     for (let ei = 1; ei < agrValues.length; ei++) {
       const eLogin = str_(agrValues[ei][agrIdx["login_id"]]);
       if (eLogin && !agrEmailByLogin[eLogin]) {
         agrEmailByLogin[eLogin] = str_(agrValues[ei][agrIdx["email"]]);
+        agrPlanByLogin[eLogin]  = agrValues[ei][agrIdx["plan"]];
       }
     }
 
@@ -2030,7 +2044,9 @@ function handle_(key, body) {
         const refLogin = str_(r[agrIdx[agrRefCols[lvl]]]);
         if (!refLogin) continue;
         const ratePct = agrRates[lvl];
-        const ep = Math.floor(agrAmountJpy * ratePct / 100 * agrEpPerJpy);
+        // 受取人のプランに応じたレートでミント（換金レートと揃えて円建て価値を保存）
+        const epRate  = epRateForPlan_(agrSettings, agrPlanByLogin[refLogin]);
+        const ep = Math.floor(agrAmountJpy * ratePct / 100 * epRate);
         let lvlStatus = "pending";
         if (lvl === 0 && agrLegacyL1) lvlStatus = "excluded_legacy";
         else if (ep < 1) lvlStatus = "excluded_zero";
@@ -2039,6 +2055,7 @@ function handle_(key, body) {
           level: lvl + 1,
           to: refLogin,
           rate_pct: ratePct,
+          ep_rate: epRate,
           ep: ep,
           status: lvlStatus,
         });
@@ -2088,6 +2105,7 @@ function handle_(key, body) {
         month: agrMonth,
         usd_to_jpy: agrUsdToJpy,
         ep_per_jpy: agrEpPerJpy,
+        plan_ep_rates: agrSettings.planEpRates,
         rates: agrRates,
         rows: agrRows,
         totals: {
@@ -2143,6 +2161,7 @@ function handle_(key, body) {
               level: lv.level,
               amount_usd: row.amount_usd,
               rate_pct: lv.rate_pct,
+              ep_rate: lv.ep_rate,
               month: agrMonth,
               batch_id: agrBatchId,
               note: "affiliate_grant_run",
@@ -6734,11 +6753,14 @@ function getSecrets_() {
 // シートが存在しない場合はデフォルト値を返す（壊さない）
 // ==============================
 function getSystemSettings_() {
+  // プラン別EPレート（EP/円）: 換金レートと同じレートでミントすることで円建て価値を保存する
+  // system_settings シートの ep_rate_plan_500 等で上書き可能。未知のプランは ep_per_jpy にフォールバック。
+  const DEFAULT_PLAN_EP_RATES = { "500": 3, "2000": 2.5, "3000": 2.5, "5000": 2 };
   try {
     const ss    = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName("system_settings");
     if (!sheet) {
-      return { usdToJpy: 145, epPerJpy: 4, rates: [10, 5, 2, 2, 1] };
+      return { usdToJpy: 145, epPerJpy: 4, rates: [10, 5, 2, 2, 1], planEpRates: DEFAULT_PLAN_EP_RATES };
     }
     const values   = sheet.getDataRange().getValues();
     const settings = {};
@@ -6755,10 +6777,29 @@ function getSystemSettings_() {
         Number(settings["affiliate_rate_4"] || 2),
         Number(settings["affiliate_rate_5"] || 1),
       ],
+      planEpRates: {
+        "500":  Number(settings["ep_rate_plan_500"]  || DEFAULT_PLAN_EP_RATES["500"]),
+        "2000": Number(settings["ep_rate_plan_2000"] || DEFAULT_PLAN_EP_RATES["2000"]),
+        "3000": Number(settings["ep_rate_plan_3000"] || DEFAULT_PLAN_EP_RATES["3000"]),
+        "5000": Number(settings["ep_rate_plan_5000"] || DEFAULT_PLAN_EP_RATES["5000"]),
+      },
     };
   } catch (e) {
-    return { usdToJpy: 145, epPerJpy: 4, rates: [10, 5, 2, 2, 1] };
+    return { usdToJpy: 145, epPerJpy: 4, rates: [10, 5, 2, 2, 1], planEpRates: DEFAULT_PLAN_EP_RATES };
   }
+}
+
+// 受取人のプランに応じたEPミントレート（EP/円）を返す
+// プランが planEpRates に無い場合は ep_per_jpy にフォールバック
+function epRateForPlan_(settings, planVal) {
+  try {
+    const n = parseMoneyLike_(planVal);
+    const key = (Number.isFinite(n) && n > 0) ? String(Math.round(n)) : str_(planVal);
+    if (settings && settings.planEpRates && settings.planEpRates[key] !== undefined) {
+      return Number(settings.planEpRates[key]);
+    }
+  } catch (e) {}
+  return settings ? Number(settings.epPerJpy) : 4;
 }
 
 function getOrCreateSheet_() {

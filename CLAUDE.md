@@ -72,6 +72,7 @@ GAS actions (全一覧):
 - **Music Boost 楽曲データ**: `applies` シートの `music_boost_tracks_json` カラムに `[{"artist":"...","album":"..."}]` 形式のJSON文字列を保存。上限なし。`music_boost_artist` / `music_boost_album` カラムは後方互換のために残す。
 - **アフィリエイト分配（2026-07〜）**: 旧 `grantReferralBonusOnce_`（1段・USD・`ref_share_pct` 20/40）は停止済み（関数先頭で早期return。旧コード・`ref_bonus_*` 列・過去の `referral_bonus` 台帳記録は残置）。分配は管理者が `/admin/finance` 月次タブから `affiliate_grant_run` で実行（プレビュー→人間確認→本実行）。冪等ガードは `applies` の `affiliate_granted_at` / `affiliate_batch_id`（行単位）＋ `wallet_ledger` の from×level 重複チェック（台帳単位）。`entry_source="5000"` の行はデフォルト除外、`ref_bonus_granted_at` 済み行はL1のみ自動除外。
 - **`approved_at` の記録**: `approveRowCore_` は承認時に `approved_at` を記録する（空のときのみ・再承認では上書きしない）。月次アフィリエイト集計・付与の月判定は `approved_at → auto_approved_at → paid_at` のフォールバック。
+- **アフィリエイトEPのミントレートは受取人プラン別**: EPの換金レートがプラン別（$500=3EP/円、$2,000・$3,000=2.5EP/円、$5,000=2EP/円）のため、付与時も受取人（紹介者）のプランのレートでミントして円建て価値を保存する（`epRateForPlan_`）。`system_settings` の `ep_rate_plan_500/2000/3000/5000` で上書き可、未知プランは `ep_per_jpy` にフォールバック。`affiliate_monthly_summary`（表示）と `affiliate_grant_run`（付与）は同一ロジック。
 
 ### Payments: NOWPayments
 
