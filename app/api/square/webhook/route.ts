@@ -142,7 +142,8 @@ export async function POST(req: Request) {
   }
 
   // GAS square_grant_bp を呼び出し
-  // LIFAIOV は 5000 ユーザーのみ → group: "5000" を渡してGASが5000シートを検索
+  // 会員の実残高は全員メイン applies シート（plan 500/2000/3000/5000, entry_source="5000"）にあるため
+  // group は空でメインシートを対象にする（group:"5000" は旧構成の applies_5000 別シート行きで付与が反映されない）
   if (gasUrl && gasKey) {
     const url = `${gasUrl}?key=${encodeURIComponent(gasKey)}`;
     try {
@@ -156,7 +157,7 @@ export async function POST(req: Request) {
           bp_amount: bpAmount,
           square_payment_id: paymentId,
           pack_id: packId,
-          group: "5000",
+          group: "",
           note: `amount_cents:${amountCents} order_id:${orderId}`,
           isTest,
         }),
