@@ -260,7 +260,7 @@ export default function NarasuFormPage() {
                       )}
                     </div>
                     <div>
-                      <p className="text-[11px] font-bold text-slate-500 mb-1">歌詞<span className="text-rose-500"> *</span></p>
+                      <p className="text-[11px] font-bold text-slate-500 mb-1">歌詞（任意）</p>
                       <p className="text-[11px] text-slate-400 mb-1 leading-relaxed">
                         歌詞はLIFAI運営が簡易的に確認しますが、表現・言い回しの細かいチェックは対応範囲外です。<b>事前にご自身でご確認ください。</b>
                       </p>
@@ -268,7 +268,7 @@ export default function NarasuFormPage() {
                         value={entry.lyrics ?? ""}
                         onChange={(e) => updateAudioLyrics(entry.id, e.target.value)}
                         className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 h-28 resize-none"
-                        placeholder="この曲の歌詞を入力してください（必須）"
+                        placeholder="この曲の歌詞を入力してください（任意）"
                       />
                     </div>
                   </div>
