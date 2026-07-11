@@ -10393,12 +10393,28 @@ function rumbleDailyLotteryTrigger_() {
   var jstMin   = nowJst.getUTCMinutes();
   if (jstHour < 18 || (jstHour === 18 && jstMin < 50)) {
     Logger.log("[rumbleDailyLotteryTrigger_] Too early (JST " + jstHour + ":" + jstMin + "), skipping.");
+    // 管理者がシート上で気づけるようスキップを記録
+    // （タイムゾーン不正等でガードに毎回かかり抽選が一度も走らない事故の検知用）
+    logRumbleTrigger_("skipped_too_early", "JST " + jstHour + ":" + jstMin);
     return;
   }
   var today = getTodayJst_();
+  logRumbleTrigger_("lottery_run", "date=" + today);
   rumbleDailyLottery_({ date: today });
   // 抽選完了後にバトルログを生成・シートに保存（翌日以降も確実に取得できるようにする）
   rumbleSpectator_({ date: today });
+}
+
+// rumbleトリガーの発火記録（rumble_trigger_log シート）。記録失敗しても本処理には影響させない
+function logRumbleTrigger_(event, detail) {
+  try {
+    var sh = getOrCreateSheetByName_(
+      SpreadsheetApp.getActiveSpreadsheet(), "rumble_trigger_log", ["ts_jst", "event", "detail"]
+    );
+    sh.appendRow([new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString(), event, String(detail || "")]);
+  } catch (e) {
+    Logger.log("[logRumbleTrigger_] failed: " + e);
+  }
 }
 
 // ============================================================
