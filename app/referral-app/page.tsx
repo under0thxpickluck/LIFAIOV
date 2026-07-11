@@ -25,7 +25,8 @@ type DashboardData = {
   my_ref_code: string;
   referrals: Referral[];
   bonuses: Bonus[];
-  total_bonus: number;
+  total_bonus: number;        // 旧制度（USD建て・停止済み）の合計
+  total_affiliate_ep: number; // 新制度（EP建て・2026-07〜）の合計
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -44,6 +45,38 @@ function formatDate(iso: string): string {
 
 function formatAmount(n: number): string {
   return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// EP建て報酬（新アフィリエイト制度）の kind
+const EP_BONUS_KINDS = new Set(["affiliate_reward", "cc_affiliate_reward"]);
+
+function isEpBonus(kind: string): boolean {
+  return EP_BONUS_KINDS.has(kind);
+}
+
+function formatEp(n: number): string {
+  return n.toLocaleString(undefined, { maximumFractionDigits: 2 }) + " EP";
+}
+
+// 報酬1件分の金額表示（EP建てとUSD建てで出し分け）
+function formatBonusAmount(b: Bonus): string {
+  return isEpBonus(b.kind) ? formatEp(b.amount) : formatAmount(b.amount);
+}
+
+// affiliate_reward / cc_affiliate_reward の memo はJSON（from/level/month等）なので読みやすく整形
+function formatBonusMemo(b: Bonus): string {
+  if (!b.memo) return "—";
+  if (!isEpBonus(b.kind)) return b.memo;
+  try {
+    const m = JSON.parse(b.memo);
+    const parts: string[] = [];
+    if (m?.level) parts.push(`L${m.level}`);
+    if (m?.month) parts.push(String(m.month));
+    if (m?.from) parts.push(maskId(String(m.from)));
+    return parts.length > 0 ? parts.join("・") : b.memo;
+  } catch {
+    return b.memo;
+  }
 }
 
 function getMonthKey(iso: string): string {
@@ -72,6 +105,8 @@ function getPrevMonthKey(): string {
 function kindLabel(kind: string): string {
   if (kind === "referral_bonus") return "紹介報酬";
   if (kind === "referral_entry") return "入会報酬";
+  if (kind === "affiliate_reward") return "紹介報酬（EP）";
+  if (kind === "cc_affiliate_reward") return "クレカ紹介報酬（EP）";
   return kind;
 }
 
@@ -135,7 +170,9 @@ function MonthlyBonuses({ bonuses }: { bonuses: Bonus[] }) {
       </p>
       {monthKeys.map((key) => {
         const mb = bonuses.filter((b) => getMonthKey(b.ts) === key);
-        const total = mb.reduce((s, b) => s + b.amount, 0);
+        // 単位が違うためEP建てとUSD建ては分けて合計する
+        const totalEp  = mb.filter((b) => isEpBonus(b.kind)).reduce((s, b) => s + b.amount, 0);
+        const totalUsd = mb.filter((b) => !isEpBonus(b.kind)).reduce((s, b) => s + b.amount, 0);
         const isOpen = openMonths.has(key);
         return (
           <div key={key} style={{ borderTop: `1px solid ${C.border}` }}>
@@ -146,7 +183,12 @@ function MonthlyBonuses({ bonuses }: { bonuses: Bonus[] }) {
             >
               <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{getMonthLabel(key)}</span>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 13, fontWeight: 800, color: C.em }}>{formatAmount(total)}</span>
+                {totalEp > 0 && (
+                  <span style={{ fontSize: 13, fontWeight: 800, color: C.em }}>{formatEp(totalEp)}</span>
+                )}
+                {totalUsd > 0 && (
+                  <span style={{ fontSize: 13, fontWeight: 800, color: C.em }}>{formatAmount(totalUsd)}</span>
+                )}
                 <span style={{ fontSize: 10, color: C.textDim }}>{isOpen ? "▲" : "▼"}</span>
               </div>
             </button>
@@ -166,8 +208,8 @@ function MonthlyBonuses({ bonuses }: { bonuses: Bonus[] }) {
                         <tr key={b.ts + b.kind + i} style={{ borderTop: `1px solid ${C.border}` }}>
                           <td style={{ padding: "8px 12px", color: C.textMuted, whiteSpace: "nowrap" }}>{formatDate(b.ts)}</td>
                           <td style={{ padding: "8px 12px", color: C.textMuted }}>{kindLabel(b.kind)}</td>
-                          <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: C.em }}>{formatAmount(b.amount)}</td>
-                          <td style={{ padding: "8px 12px", color: C.textDim, maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.memo || "—"}</td>
+                          <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: C.em, whiteSpace: "nowrap" }}>{formatBonusAmount(b)}</td>
+                          <td style={{ padding: "8px 12px", color: C.textDim, maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{formatBonusMemo(b)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -290,11 +332,12 @@ export default function ReferralAppPage() {
 
   const currentKey = getCurrentMonthKey();
   const prevKey = getPrevMonthKey();
+  // 月次サマリーはEP建て（新制度）のみ集計。旧USD報酬は月別テーブル側で単位付きで表示する
   const currentMonthBonus = data
-    ? data.bonuses.filter((b) => getMonthKey(b.ts) === currentKey).reduce((s, b) => s + b.amount, 0)
+    ? data.bonuses.filter((b) => isEpBonus(b.kind) && getMonthKey(b.ts) === currentKey).reduce((s, b) => s + b.amount, 0)
     : 0;
   const prevMonthBonus = data
-    ? data.bonuses.filter((b) => getMonthKey(b.ts) === prevKey).reduce((s, b) => s + b.amount, 0)
+    ? data.bonuses.filter((b) => isEpBonus(b.kind) && getMonthKey(b.ts) === prevKey).reduce((s, b) => s + b.amount, 0)
     : 0;
 
   const visibleReferrals = showAll ? (data?.referrals ?? []) : (data?.referrals ?? []).slice(0, 5);
@@ -411,16 +454,20 @@ export default function ReferralAppPage() {
             [0,1,2,3].map(i => <Skel key={i} h={76} />)
           ) : (
             [
-              { label: "紹介した人", value: `${data?.referrals.length ?? 0} 人`, accent: false },
-              { label: "報酬合計",   value: formatAmount(data?.total_bonus ?? 0), accent: true },
-              { label: "今月の報酬", value: formatAmount(currentMonthBonus), accent: false },
-              { label: "先月の報酬", value: formatAmount(prevMonthBonus), accent: false },
+              { label: "紹介した人", value: `${data?.referrals.length ?? 0} 人`, accent: false, sub: "" },
+              { label: "報酬合計",   value: formatEp(data?.total_affiliate_ep ?? 0), accent: true,
+                sub: (data?.total_bonus ?? 0) > 0 ? `旧報酬 ${formatAmount(data?.total_bonus ?? 0)}` : "" },
+              { label: "今月の報酬", value: formatEp(currentMonthBonus), accent: false, sub: "" },
+              { label: "先月の報酬", value: formatEp(prevMonthBonus), accent: false, sub: "" },
             ].map((item) => (
               <div key={item.label} style={{ background: C.card, border: `1px solid ${item.accent ? C.emBorder : C.border}`,
                 borderRadius: 18, padding: "14px 16px", textAlign: "center",
                 boxShadow: item.accent ? C.shadowEm : C.shadow }}>
                 <p style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, marginBottom: 6 }}>{item.label}</p>
                 <p style={{ fontSize: 20, fontWeight: 800, color: item.accent ? C.em : C.text, lineHeight: 1 }}>{item.value}</p>
+                {item.sub && (
+                  <p style={{ fontSize: 10, fontWeight: 700, color: C.textMuted, marginTop: 5 }}>{item.sub}</p>
+                )}
               </div>
             ))
           )}

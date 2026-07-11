@@ -29,6 +29,7 @@ type GasDashboardResponse =
       referrals: Referral[];
       bonuses: Bonus[];
       total_bonus: number;
+      total_affiliate_ep: number;
       group?: string;
     }
   | {
@@ -112,6 +113,7 @@ async function callGasDashboard(
         referrals: Array.isArray(data.referrals) ? data.referrals : [],
         bonuses: Array.isArray(data.bonuses) ? data.bonuses : [],
         total_bonus: Number(data.total_bonus || 0),
+        total_affiliate_ep: Number(data.total_affiliate_ep || 0),
         ...(data.group ? { group: str(data.group) } : {}),
       };
     }

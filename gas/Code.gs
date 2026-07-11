@@ -4948,10 +4948,14 @@ function handle_(key, body) {
     }
 
     // wallet_ledger からボーナス履歴取得
+    // - 旧制度（USD建て・停止済み）: referral_bonus / referral_entry → total_bonus に合算
+    // - 新制度（EP建て・2026-07〜）: affiliate_reward（月次アフィリエイト）/ cc_affiliate_reward（クレカ紹介）
+    //   → total_affiliate_ep に合算（単位が違うため total_bonus とは分ける）
     const ss_rd = SpreadsheetApp.getActiveSpreadsheet();
     const ledger_rd = ss_rd.getSheetByName("wallet_ledger");
     const bonuses = [];
     let total_bonus = 0;
+    let total_affiliate_ep = 0;
 
     if (ledger_rd) {
       const ledValues = getValuesSafe_(ledger_rd);
@@ -4959,7 +4963,8 @@ function handle_(key, body) {
         const lHeader = ledValues[0];
         const lIdx = indexMap_(lHeader);
         const lRows = ledValues.slice(1);
-        const BONUS_KINDS = ["referral_bonus", "referral_entry"];
+        const BONUS_KINDS = ["referral_bonus", "referral_entry", "affiliate_reward", "cc_affiliate_reward"];
+        const EP_KINDS    = ["affiliate_reward", "cc_affiliate_reward"];
         for (let i = 0; i < lRows.length; i++) {
           const r = lRows[i];
           const kind = str_(r[lIdx["kind"]]);
@@ -4974,7 +4979,11 @@ function handle_(key, body) {
             amount: amount,
             memo: str_(r[lIdx["memo"]]),
           });
-          total_bonus += amount;
+          if (EP_KINDS.includes(kind)) {
+            total_affiliate_ep += amount;
+          } else {
+            total_bonus += amount;
+          }
         }
       }
     }
@@ -4985,6 +4994,7 @@ function handle_(key, body) {
       referrals: referrals,
       bonuses: bonuses,
       total_bonus: total_bonus,
+      total_affiliate_ep: total_affiliate_ep,
     });
   }
 
