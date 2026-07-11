@@ -10011,6 +10011,7 @@ function rumbleEquipment_(params) {
   var userId = String(params.userId || "");
   var sheet  = getEquipmentSheet_();
   ensureEquipmentCols_(sheet);
+  ensureEquipmentNewCols_(sheet); // enhance_level/luck/stability/locked 列を保証
   var data    = sheet.getDataRange().getValues();
   var headers = data[0];
   var idx     = {};
@@ -10026,6 +10027,11 @@ function rumbleEquipment_(params) {
         name:     String(data[i][idx["name"]]),
         bonus:    Number(data[i][idx["bonus"]] || 0),
         equipped: String(data[i][idx["equipped"]]) === "true",
+        // 強化コスト誤表示の修正: リロード後もフロントが実レベルを把握できるよう返却する
+        enhance_level: Number(data[i][idx["enhance_level"]] || 0),
+        luck:          Number(data[i][idx["luck"]] || 0),
+        stability:     Number(data[i][idx["stability"]] || 0),
+        locked:        String(data[i][idx["locked"]]) === "true",
       });
     }
   }
@@ -10585,39 +10591,54 @@ function rumbleDismantle_(params) {
   var itemId = String(params.itemId || "");
   if (!userId || !itemId) return json_({ ok: false, error: "params_required" });
 
-  // equipmentシートの新カラムを保証
-  ensureEquipmentNewCols_(getEquipmentSheet_());
+  // 連打・並行実行によるかけら残高のロストアップデートを防ぐ（rumbleEntry_と同じパターン）
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(15000); // 最大15秒待機
+  } catch (e) {
+    return json_({ ok: false, error: "lock_timeout" });
+  }
 
-  var found = getEquipmentItem_(userId, itemId);
-  if (!found) return json_({ ok: false, error: "item_not_found" });
+  try {
+    // equipmentシートの新カラムを保証
+    ensureEquipmentNewCols_(getEquipmentSheet_());
 
-  var row = found.row;
-  var idx = found.idx;
+    var found = getEquipmentItem_(userId, itemId);
+    if (!found) return json_({ ok: false, error: "item_not_found" });
 
-  // ロック中は分解不可
-  if (String(row[idx["locked"]]) === "true") return json_({ ok: false, error: "item_locked" });
+    var row = found.row;
+    var idx = found.idx;
 
-  // shard計算
-  var SHARD_BASE = { common: 1, rare: 3, epic: 10, legendary: 40, mythic: 300 };
-  var rarity       = String(row[idx["rarity"]]);
-  var enhanceLevel = Number(row[idx["enhance_level"]] || 0);
-  var quality      = Number(row[idx["quality"]] || 100);
-  var baseShard    = SHARD_BASE[rarity] || 1;
-  var bonusShard   = enhanceLevel; // +1ごとに+1
-  if (quality >= 115) bonusShard += 8;
-  else if (quality >= 110) bonusShard += 3;
-  var totalShard   = baseShard + bonusShard;
+    // ロック中は分解不可
+    if (String(row[idx["locked"]]) === "true") return json_({ ok: false, error: "item_locked" });
 
-  // appliesシートのupgrade_shardを更新
-  var userData = getUserShards_(userId);
-  if (!userData) return json_({ ok: false, error: "user_not_found" });
-  var newShards = userData.shards + totalShard;
-  setUserShards_(userData.sheet, userData.rowNum, userData.idx, newShards);
+    // 装備中は分解不可（フロントはボタンdisabledだがAPI直叩き対策としてサーバー側でも拒否）
+    if (String(row[idx["equipped"]]) === "true") return json_({ ok: false, error: "item_equipped" });
 
-  // 装備削除（行削除）
-  found.sheet.deleteRow(found.rowNum);
+    // shard計算
+    var SHARD_BASE = { common: 1, rare: 3, epic: 10, legendary: 40, mythic: 300 };
+    var rarity       = String(row[idx["rarity"]]);
+    var enhanceLevel = Number(row[idx["enhance_level"]] || 0);
+    var quality      = Number(row[idx["quality"]] || 100);
+    var baseShard    = SHARD_BASE[rarity] || 1;
+    var bonusShard   = enhanceLevel; // +1ごとに+1
+    if (quality >= 115) bonusShard += 8;
+    else if (quality >= 110) bonusShard += 3;
+    var totalShard   = baseShard + bonusShard;
 
-  return json_({ ok: true, gained_shard: totalShard, remaining_shard: newShards });
+    // appliesシートのupgrade_shardを更新
+    var userData = getUserShards_(userId);
+    if (!userData) return json_({ ok: false, error: "user_not_found" });
+    var newShards = userData.shards + totalShard;
+    setUserShards_(userData.sheet, userData.rowNum, userData.idx, newShards);
+
+    // 装備削除（行削除）
+    found.sheet.deleteRow(found.rowNum);
+
+    return json_({ ok: true, gained_shard: totalShard, remaining_shard: newShards });
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // action: rumble_enhance（装備強化）
@@ -10639,62 +10660,74 @@ function rumbleEnhance_(params) {
     { cost: 130, rate: 0.25, main: 3, sub: 0.10  },
   ];
 
-  // equipmentシートの新カラムを保証
-  ensureEquipmentNewCols_(getEquipmentSheet_());
+  // 連打・並行実行によるかけら残高のロストアップデートを防ぐ（rumbleEntry_と同じパターン）
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(15000); // 最大15秒待機
+  } catch (e) {
+    return json_({ ok: false, error: "lock_timeout" });
+  }
 
-  var found = getEquipmentItem_(userId, itemId);
-  if (!found) return json_({ ok: false, error: "item_not_found" });
+  try {
+    // equipmentシートの新カラムを保証
+    ensureEquipmentNewCols_(getEquipmentSheet_());
 
-  var row          = found.row;
-  var idx          = found.idx;
-  var enhanceLevel = Number(row[idx["enhance_level"]] || 0);
+    var found = getEquipmentItem_(userId, itemId);
+    if (!found) return json_({ ok: false, error: "item_not_found" });
 
-  if (enhanceLevel >= 10) return json_({ ok: false, error: "max_enhance_reached" });
+    var row          = found.row;
+    var idx          = found.idx;
+    var enhanceLevel = Number(row[idx["enhance_level"]] || 0);
 
-  var tableEntry = ENHANCE_TABLE[enhanceLevel];
-  var cost       = tableEntry.cost;
+    if (enhanceLevel >= 10) return json_({ ok: false, error: "max_enhance_reached" });
 
-  // shard残高確認
-  var userData = getUserShards_(userId);
-  if (!userData) return json_({ ok: false, error: "user_not_found" });
-  if (userData.shards < cost) return json_({ ok: false, error: "insufficient_shard", shards: userData.shards });
+    var tableEntry = ENHANCE_TABLE[enhanceLevel];
+    var cost       = tableEntry.cost;
 
-  // shard消費
-  var newShards = userData.shards - cost;
-  setUserShards_(userData.sheet, userData.rowNum, userData.idx, newShards);
+    // shard残高確認
+    var userData = getUserShards_(userId);
+    if (!userData) return json_({ ok: false, error: "user_not_found" });
+    if (userData.shards < cost) return json_({ ok: false, error: "insufficient_shard", shards: userData.shards });
 
-  // 成功判定
-  var success = Math.random() < tableEntry.rate;
-  if (!success) {
+    // shard消費
+    var newShards = userData.shards - cost;
+    setUserShards_(userData.sheet, userData.rowNum, userData.idx, newShards);
+
+    // 成功判定
+    var success = Math.random() < tableEntry.rate;
+    if (!success) {
+      return json_({
+        ok: true, result: "fail",
+        before_level: enhanceLevel, after_level: enhanceLevel,
+        shard_spent: cost, remaining_shard: newShards
+      });
+    }
+
+    // 強化適用
+    var newLevel       = enhanceLevel + 1;
+    var currentBonus   = Number(row[idx["bonus"]] || 0);
+    var newBonus       = Math.round((currentBonus + tableEntry.main) * 100) / 100;
+    var newLuck        = Number(row[idx["luck"]] || 0);
+    var newStability   = Number(row[idx["stability"]] || 0);
+    if (tableEntry.sub > 0) {
+      newLuck      = Math.round(newLuck * (1 + tableEntry.sub) * 100) / 100;
+      newStability = Math.round(newStability * (1 + tableEntry.sub) * 100) / 100;
+    }
+
+    found.sheet.getRange(found.rowNum, idx["enhance_level"] + 1).setValue(newLevel);
+    found.sheet.getRange(found.rowNum, idx["bonus"] + 1).setValue(newBonus);
+    found.sheet.getRange(found.rowNum, idx["luck"] + 1).setValue(newLuck);
+    found.sheet.getRange(found.rowNum, idx["stability"] + 1).setValue(newStability);
+
     return json_({
-      ok: true, result: "fail",
-      before_level: enhanceLevel, after_level: enhanceLevel,
-      shard_spent: cost, remaining_shard: newShards
+      ok: true, result: "success",
+      before_level: enhanceLevel, after_level: newLevel,
+      shard_spent: cost, remaining_shard: newShards,
+      updated: { bonus: newBonus, luck: newLuck, stability: newStability }
     });
+  } finally {
+    lock.releaseLock();
   }
-
-  // 強化適用
-  var newLevel       = enhanceLevel + 1;
-  var currentBonus   = Number(row[idx["bonus"]] || 0);
-  var newBonus       = Math.round((currentBonus + tableEntry.main) * 100) / 100;
-  var newLuck        = Number(row[idx["luck"]] || 0);
-  var newStability   = Number(row[idx["stability"]] || 0);
-  if (tableEntry.sub > 0) {
-    newLuck      = Math.round(newLuck * (1 + tableEntry.sub) * 100) / 100;
-    newStability = Math.round(newStability * (1 + tableEntry.sub) * 100) / 100;
-  }
-
-  found.sheet.getRange(found.rowNum, idx["enhance_level"] + 1).setValue(newLevel);
-  found.sheet.getRange(found.rowNum, idx["bonus"] + 1).setValue(newBonus);
-  found.sheet.getRange(found.rowNum, idx["luck"] + 1).setValue(newLuck);
-  found.sheet.getRange(found.rowNum, idx["stability"] + 1).setValue(newStability);
-
-  return json_({
-    ok: true, result: "success",
-    before_level: enhanceLevel, after_level: newLevel,
-    shard_spent: cost, remaining_shard: newShards,
-    updated: { bonus: newBonus, luck: newLuck, stability: newStability }
-  });
 }
 
 // action: rumble_my_rank_context（自分順位コンテキスト）
