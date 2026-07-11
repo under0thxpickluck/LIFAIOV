@@ -15,6 +15,17 @@ function newAudioEntry(): AudioUrlEntry {
   return { id: crypto.randomUUID(), url: "", title: "", lyrics: "" };
 }
 
+// /api/music/history が返す生成履歴1件分（GAS music_history_list）
+type MusicHistoryItem = {
+  jobId: string;
+  title: string;
+  audioUrl: string;
+  downloadUrl: string;
+  lyrics: string;
+  createdAt: string;
+  expiresAt: string;
+};
+
 function emptyDraft(): NarasuAgencyDraft {
   return {
     narasuLoginId: "",
@@ -42,6 +53,12 @@ export default function NarasuFormPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [resolvingIds, setResolvingIds] = useState<Set<string>>(new Set());
+  // 「自分の生成曲から選ぶ」ピッカー
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [pickerError, setPickerError] = useState<string | null>(null);
+  const [pickerItems, setPickerItems] = useState<MusicHistoryItem[]>([]);
+  const [pickerSelected, setPickerSelected] = useState<Set<string>>(new Set());
   const lifaiLoginIdRef = useRef("");
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
@@ -135,6 +152,69 @@ export default function NarasuFormPage() {
     });
   }
 
+  // ── 「自分の生成曲から選ぶ」ピッカー ─────────────────────────
+  async function openPicker() {
+    setPickerOpen(true);
+    setPickerSelected(new Set());
+    setPickerError(null);
+    const userId = lifaiLoginIdRef.current;
+    if (!userId) {
+      setPickerError("ログイン情報が取得できませんでした。ログインし直してください。");
+      return;
+    }
+    setPickerLoading(true);
+    try {
+      const res = await fetch(`/api/music/history?userId=${encodeURIComponent(userId)}`);
+      const data = await res.json().catch(() => ({}));
+      if (data.ok && Array.isArray(data.items)) {
+        setPickerItems(data.items as MusicHistoryItem[]);
+        if (data.items.length === 0) {
+          setPickerError("生成履歴がありません。AI音楽生成で曲を作ると、ここから選べるようになります。");
+        }
+      } else {
+        setPickerError("履歴の取得に失敗しました。時間をおいて再度お試しください。");
+      }
+    } catch {
+      setPickerError("履歴の取得に失敗しました。時間をおいて再度お試しください。");
+    } finally {
+      setPickerLoading(false);
+    }
+  }
+
+  function togglePicked(jobId: string) {
+    setPickerSelected((prev) => {
+      const s = new Set(prev);
+      if (s.has(jobId)) { s.delete(jobId); } else { s.add(jobId); }
+      return s;
+    });
+  }
+
+  function addPickedSongs() {
+    const picked = pickerItems.filter((it) => pickerSelected.has(it.jobId));
+    if (picked.length === 0) { setPickerOpen(false); return; }
+    setDraft((prev) => {
+      // 既に入力済みのURLはスキップ（重複追加防止）
+      const existingUrls = new Set(prev.audioUrls.map((e) => e.url.trim()).filter(Boolean));
+      const newEntries: AudioUrlEntry[] = [];
+      for (const it of picked) {
+        const url = (it.downloadUrl || it.audioUrl || "").trim();
+        if (!url || existingUrls.has(url)) continue;
+        existingUrls.add(url);
+        newEntries.push({ ...newAudioEntry(), url, title: it.title || "", lyrics: it.lyrics || "" });
+      }
+      // 完全に空の初期エントリ1件だけの場合は置き換える
+      let base = prev.audioUrls;
+      if (base.length === 1 && !base[0].url.trim() && !(base[0].title ?? "").trim() && !(base[0].lyrics ?? "").trim()) {
+        base = [];
+      }
+      const merged = [...base, ...newEntries].slice(0, MAX_AUDIO_ENTRIES);
+      const next = { ...prev, audioUrls: merged.length > 0 ? merged : [newAudioEntry()] };
+      saveDraft(next);
+      return next;
+    });
+    setPickerOpen(false);
+  }
+
   function handleNext() {
     const errs = validateDraft(draft);
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
@@ -223,7 +303,16 @@ export default function NarasuFormPage() {
 
             {/* 音源URL */}
             <div>
-              <label className={labelCls}>音源URL<span className="text-rose-500"> *</span></label>
+              <div className="flex items-center justify-between gap-2">
+                <label className={labelCls}>音源URL<span className="text-rose-500"> *</span></label>
+                <button
+                  type="button"
+                  onClick={openPicker}
+                  className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-[11px] font-bold text-indigo-600 hover:bg-indigo-100"
+                >
+                  🎵 自分の生成曲から選ぶ
+                </button>
+              </div>
               <p className="mt-0.5 text-[11px] text-slate-400">複数追加できます</p>
               <div className="mt-2 space-y-3">
                 {draft.audioUrls.map((entry, idx) => (
@@ -418,6 +507,73 @@ export default function NarasuFormPage() {
           </div>
         </div>
       </div>
+
+      {/* 「自分の生成曲から選ぶ」モーダル */}
+      {pickerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
+          <div className="flex max-h-[80vh] w-full max-w-md flex-col rounded-3xl border border-slate-200 bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <p className="text-sm font-extrabold text-slate-900">🎵 自分の生成曲から選ぶ</p>
+              <button
+                type="button"
+                onClick={() => setPickerOpen(false)}
+                className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50"
+              >
+                ✕ 閉じる
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 py-4">
+              {pickerLoading && (
+                <p className="py-6 text-center text-sm text-slate-400">読み込み中…</p>
+              )}
+              {!pickerLoading && pickerError && (
+                <p className="py-6 text-center text-xs leading-relaxed text-slate-500">{pickerError}</p>
+              )}
+              {!pickerLoading && !pickerError && pickerItems.length > 0 && (
+                <div className="space-y-2">
+                  {pickerItems.map((it) => (
+                    <label
+                      key={it.jobId}
+                      className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 transition ${
+                        pickerSelected.has(it.jobId)
+                          ? "border-indigo-400 bg-indigo-50"
+                          : "border-slate-200 bg-slate-50 hover:bg-slate-100"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={pickerSelected.has(it.jobId)}
+                        onChange={() => togglePicked(it.jobId)}
+                        className="h-4 w-4 accent-indigo-600"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-bold text-slate-800">{it.title || "（無題）"}</span>
+                        <span className="block text-[11px] text-slate-400">
+                          {it.createdAt ? it.createdAt.slice(0, 10) : ""}
+                          {(it.lyrics ?? "").trim() ? " ・歌詞あり" : ""}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="border-t border-slate-100 px-5 py-4">
+              <button
+                type="button"
+                onClick={addPickedSongs}
+                disabled={pickerSelected.size === 0}
+                className="w-full rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-extrabold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                選んだ曲を追加する{pickerSelected.size > 0 ? `（${pickerSelected.size}曲）` : ""}
+              </button>
+              <p className="mt-2 text-center text-[10px] text-slate-400">
+                曲名・歌詞も自動で入力されます（音源URLは最大{MAX_AUDIO_ENTRIES}曲まで）
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
