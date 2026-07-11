@@ -142,6 +142,10 @@ NEXT_PUBLIC_SITE_URL=
 - `GET /api/debug/env` — inspect resolved env vars
 - Test IPN locally by sending `POST /api/nowpayments/ipn` with header `x-test-ipn: 1` (bypasses signature verification)
 
+### お知らせ運用ルール
+
+ユーザーに見える更新（新機能・修正・仕様変更）をリリースする際は、必ず `data/notices.ts` にお知らせを1件追加する。日付（YYYY-MM-DD）、タイトル（【○○機能追加】等）、本文は専門用語を使わず一般ユーザーでもわかる説明にする（何が変わったか／ユーザーへの影響／必要なアクション。なければ「お手続きは不要です」と書く）。`/top` の NoticeBoard は最新3件を表示し、4件以上は「過去のお知らせを見る」で展開される。
+
 ## 絶対に守るルール
 - 既存のコード・API・文章・構造を勝手に削除・変更・省略しない
 - 修正は指示された箇所のみに限定する

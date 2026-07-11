@@ -15,6 +15,7 @@ import GachaModal from "@/components/GachaModal";
 import StakingModal from "@/components/StakingModal";
 import RadioCard from "@/components/RadioCard";
 import { motion, AnimatePresence } from "framer-motion";
+import { NOTICES } from "@/data/notices";
 
 /** ✅ カウントダウン + 調達バー（returnの外に置く） */
 function pad2(n: number) {
@@ -166,44 +167,52 @@ function BalanceBadge({ auth, refreshTrigger }: { auth: AuthState; refreshTrigge
 }
 
 
-// ── お知らせデータ（空配列のときは「なし」表示） ────────────────────
-type Notice = {
-  id: string;
-  date: string;   // "YYYY-MM-DD"
-  title: string;
-  body: string;
-};
-
-const NOTICES: Notice[] = [];
+// ── お知らせ（データは data/notices.ts で管理・空配列のときは「なし」表示） ────
+const NOTICE_VISIBLE_COUNT = 3;
 
 function NoticeBoard() {
   const [openId, setOpenId] = useState<string | null>(null);
+  const [showAllNotices, setShowAllNotices] = useState(false);
+
+  // date 降順（最新が先頭）
+  const sortedNotices = [...NOTICES].sort((a, b) => (a.date < b.date ? 1 : -1));
+  const visibleNotices = showAllNotices ? sortedNotices : sortedNotices.slice(0, NOTICE_VISIBLE_COUNT);
 
   return (
     <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5">
       <p className="text-[10px] font-extrabold tracking-wide text-slate-500">お知らせ</p>
-      {NOTICES.length === 0 ? (
+      {sortedNotices.length === 0 ? (
         <p className="mt-1 text-xs text-slate-400">最新のお知らせはありません</p>
       ) : (
-        <ul className="mt-1 divide-y divide-slate-100">
-          {NOTICES.map((n) => (
-            <li key={n.id}>
-              <button
-                onClick={() => setOpenId(openId === n.id ? null : n.id)}
-                className="flex w-full items-start gap-2 rounded px-1 py-2 text-left transition hover:bg-slate-100"
-              >
-                <span className="mt-0.5 shrink-0 text-[10px] text-slate-400">{n.date}</span>
-                <span className="flex-1 text-xs font-semibold text-slate-700">{n.title}</span>
-                <span className="shrink-0 text-[10px] text-slate-400">{openId === n.id ? "▲" : "▼"}</span>
-              </button>
-              {openId === n.id && (
-                <div className="px-1 pb-2">
-                  <p className="whitespace-pre-line text-xs leading-relaxed text-slate-600">{n.body}</p>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="mt-1 divide-y divide-slate-100">
+            {visibleNotices.map((n) => (
+              <li key={n.id}>
+                <button
+                  onClick={() => setOpenId(openId === n.id ? null : n.id)}
+                  className="flex w-full items-start gap-2 rounded px-1 py-2 text-left transition hover:bg-slate-100"
+                >
+                  <span className="mt-0.5 shrink-0 text-[10px] text-slate-400">{n.date}</span>
+                  <span className="flex-1 text-xs font-semibold text-slate-700">{n.title}</span>
+                  <span className="shrink-0 text-[10px] text-slate-400">{openId === n.id ? "▲" : "▼"}</span>
+                </button>
+                {openId === n.id && (
+                  <div className="px-1 pb-2">
+                    <p className="whitespace-pre-line text-xs leading-relaxed text-slate-600">{n.body}</p>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+          {sortedNotices.length > NOTICE_VISIBLE_COUNT && (
+            <button
+              onClick={() => setShowAllNotices((v) => !v)}
+              className="mt-1 w-full rounded px-1 py-1.5 text-center text-[11px] font-semibold text-slate-500 transition hover:bg-slate-100"
+            >
+              {showAllNotices ? "閉じる ▲" : "過去のお知らせを見る ▼"}
+            </button>
+          )}
+        </>
       )}
     </div>
   );
