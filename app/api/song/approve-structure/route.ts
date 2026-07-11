@@ -36,12 +36,12 @@ function chooseStructurePreset(mood?: string, isPro?: boolean): string {
 
 // ── 曲の長さ決定 ──────────────────────────────────────────────────────────────
 // Proでユーザーが明示的に長さを指定した場合はそれを優先。
-// 未指定時は毎回ランダムで2分〜4分（120〜240秒）。
+// 未指定時は毎回ランダムで2分30秒〜3分30秒（150〜210秒）。
 function chooseSongDurationSec(userDuration?: number): number {
   if (userDuration && Number.isFinite(userDuration) && userDuration > 0) {
     return Math.round(userDuration);
   }
-  return 120 + Math.floor(Math.random() * 121); // 120〜240秒
+  return 150 + Math.floor(Math.random() * 61); // 150〜210秒（2分30秒〜3分30秒）
 }
 
 // ── Helper 1: ElevenLabs 生成 + postprocess + R2 アップロード ───────────────────
