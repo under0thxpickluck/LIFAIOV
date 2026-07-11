@@ -101,7 +101,7 @@ const TUTORIAL_SLIDES = [
   {
     icon: "🎵",
     title: "完成！聴いて・ダウンロードしよう",
-    body: "再生プレイヤーで試聴し、MP3ダウンロードもできます。表示用歌詞・配信用歌詞もここから確認できます。",
+    body: "再生プレイヤーで試聴し、MP3ダウンロードもできます。表示用歌詞・配信用歌詞もここから確認できます。なお、生成後に歌詞（歌唱内容）を変更することはできません。歌詞を変えたい場合は新しく生成してください。",
   },
 ];
 
@@ -1571,6 +1571,10 @@ export default function Music2Page() {
                 {/* 歌詞エディター + 保存 */}
                 {displayLyrics && (
                   <div className="mt-3 flex flex-col gap-2">
+                    {/* 歌唱内容は変更不可の注意書き（表示用歌詞の編集は表示テキストのみで音源は変わらない） */}
+                    <p className="text-[11px] leading-relaxed text-amber-600">
+                      ⚠️ 生成後の歌詞（歌唱内容）の変更はできません。歌詞を変えたい場合は新しく生成（BP消費）してください
+                    </p>
                     {/* 表示用歌詞 インライン編集 */}
                     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
                       <div className="flex items-center justify-between px-4 py-3">
