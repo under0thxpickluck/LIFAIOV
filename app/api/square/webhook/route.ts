@@ -129,10 +129,39 @@ export async function POST(req: Request) {
 
   console.log("[Square Webhook] parsed", { userId, packId, bpAmount });
 
-  // bp_amount === 0 は music-boost 注文（BP付与なし）
+  // bp_amount === 0 は music-boost 注文（BP付与なし・ブーストを自動有効化）
   if (bpAmount === 0) {
     console.log("[Square Webhook] music-boost order received, pack_id:", packId);
-    // TODO Phase 2: 管理者通知メール等
+    const gasAdminKey = process.env.GAS_ADMIN_KEY;
+    if (!isTest && packId.startsWith("music_boost_") && gasUrl && gasKey && gasAdminKey) {
+      // pack_id = "music_boost_{planId}"（例: music_boost_starter）
+      const planId = packId.slice("music_boost_".length);
+      const url = `${gasUrl}?key=${encodeURIComponent(gasKey)}`;
+      try {
+        const r = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+          body: JSON.stringify({
+            action: "music_boost_subscribe",
+            userId,
+            planId,
+            paymentMethod: "card",
+            adminKey: gasAdminKey,               // GAS側でcard経路はadminKey必須
+            square_payment_id: paymentId,        // GAS側で二重有効化防止に使用
+          }),
+        });
+        const text = await r.text();
+        console.log("[Square Webhook] music-boost activate GAS status", r.status, "body", text.slice(0, 300));
+      } catch (e) {
+        console.error("[Square Webhook] music-boost activate GAS call failed", e);
+        // GAS失敗でも200を返す（Squareのリトライを防ぐ。台帳未記録なので再purchase時は正常に有効化される）
+      }
+    } else {
+      console.warn("[Square Webhook] music-boost activation skipped", {
+        isTest, packId, hasGas: !!(gasUrl && gasKey), hasAdminKey: !!gasAdminKey,
+      });
+    }
     return NextResponse.json({ ok: true, type: "music_boost_order", pack_id: packId });
   }
 

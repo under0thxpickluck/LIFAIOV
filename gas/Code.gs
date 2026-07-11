@@ -11520,6 +11520,34 @@ function musicBoostSubscribe_(params) {
     return json_({ ok: false, error: "ep_payment_suspended" });
   }
 
+  // ── カード決済経路（paymentMethod:"card" 等）の保護 ──────────────
+  // カードでの有効化は Square Webhook（サーバー側・adminKey保持）経由のみ許可。
+  // クライアントが paymentMethod を注入して無料でブーストを有効化するのを防ぐ。
+  if (paymentMethod !== "ep") {
+    var secrets_mb = getSecrets_();
+    if (String(params.adminKey || "") !== secrets_mb.ADMIN_SECRET) {
+      return json_({ ok: false, error: "admin_unauthorized" });
+    }
+    // 冪等性: 同じ square_payment_id での二重有効化を防ぐ（Squareのwebhookリトライ対策）
+    var paymentId_mb = String(params.square_payment_id || "");
+    if (paymentId_mb) {
+      var led_mb = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("wallet_ledger");
+      if (led_mb) {
+        var ledVals_mb = led_mb.getDataRange().getValues();
+        if (ledVals_mb.length >= 2) {
+          var ledIdx_mb = indexMap_(ledVals_mb[0]);
+          for (var lm = 1; lm < ledVals_mb.length; lm++) {
+            if (String(ledVals_mb[lm][ledIdx_mb["kind"]]) === "music_boost_card" &&
+                String(ledVals_mb[lm][ledIdx_mb["memo"]]).indexOf(paymentId_mb) !== -1) {
+              Logger.log("[musicBoostSubscribe_] duplicate paymentId: " + paymentId_mb);
+              return json_({ ok: true, duplicate: true, message: "already_processed" });
+            }
+          }
+        }
+      }
+    }
+  }
+
   // ── EP決済処理 ────────────────────────────────────────────
   if (paymentMethod === "ep") {
     var epCost = plan.price * 100;
@@ -11569,6 +11597,18 @@ function musicBoostSubscribe_(params) {
     newId, userId, planId, plan.percent, plan.price,
     plan.slots, "active", nowJst, expiresAt, "", nowJst
   ]);
+
+  // カード決済の有効化は wallet_ledger に記録（監査＋square_payment_id での冪等チェック用）
+  if (paymentMethod !== "ep") {
+    appendWalletLedger_({
+      kind:     "music_boost_card",
+      login_id: userId,
+      email:    "",
+      amount:   0,
+      memo:     "Music Boost " + planId + " カード決済有効化" +
+                (params.square_payment_id ? " payment_id:" + String(params.square_payment_id) : ""),
+    });
+  }
 
   var returnPayload = {
     ok:         true,
@@ -11713,6 +11753,84 @@ function musicBoostAutoRenew_() {
   }
 }
 // ── Music Boost 自動更新ここまで ──────────────────────────────────────────
+
+// ── Music Boost 期限切れ自動処理（毎日の時間ベーストリガーから呼び出す）────
+// EP決済休止中（2026-07〜）のため自動更新は行わず、期限切れの失効化＋通知メールのみ行う。
+// ※ EP自動更新の musicBoostAutoRenew_ は温存してあるが、EP決済再開までトリガーに接続しないこと。
+function musicBoostExpireTrigger_() {
+  var nowJst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  var nowIso = nowJst.toISOString();
+
+  var boostSheet = getMusicBoostSheet_();
+  var boostData  = boostSheet.getDataRange().getValues();
+  if (boostData.length < 2) return;
+  var boostIdx = {};
+  boostData[0].forEach(function(h, i) { boostIdx[h] = i; });
+
+  // メール送信用に applies から email を索引化
+  var appliesSheet = getOrCreateSheet_();
+  var appliesData  = appliesSheet.getDataRange().getValues();
+  var appliesIdx   = {};
+  appliesData[0].forEach(function(h, i) { appliesIdx[h] = i; });
+  var emailByLogin = {};
+  for (var ai = 1; ai < appliesData.length; ai++) {
+    var aLogin = String(appliesData[ai][appliesIdx["login_id"]] || "");
+    if (aLogin && !emailByLogin[aLogin]) {
+      emailByLogin[aLogin] = String(appliesData[ai][appliesIdx["email"]] || "");
+    }
+  }
+
+  var expired = 0;
+  for (var i = 1; i < boostData.length; i++) {
+    var row = boostData[i];
+    if (String(row[boostIdx["status"]]) !== "active") continue;
+
+    var expiresAt = new Date(row[boostIdx["expires_at"]]);
+    if (!(expiresAt <= nowJst)) continue; // まだ期限内（不正な日付もスキップ）
+
+    var userId = String(row[boostIdx["user_id"]]);
+    var planId = String(row[boostIdx["plan_id"]]);
+
+    boostSheet.getRange(i + 1, boostIdx["status"]     + 1).setValue("expired");
+    boostSheet.getRange(i + 1, boostIdx["updated_at"] + 1).setValue(nowIso);
+    expired++;
+
+    var email = emailByLogin[userId] || "";
+    if (email) {
+      try {
+        MailApp.sendEmail(
+          email,
+          "【LIFAI】Music Boost の有効期限が切れました",
+          "Music Boost の有効期限が切れたため、ブーストを停止しました。\n\n" +
+          "プラン: " + planId + "\n\n" +
+          "継続をご希望の場合は、以下のページからクレジットカードで再度ご購入ください:\n" +
+          "https://lifaiov.vercel.app/music-boost"
+        );
+      } catch (mailErr) {
+        console.error("musicBoostExpireTrigger_: mail failed userId=" + userId + " err=" + mailErr);
+      }
+    }
+  }
+  Logger.log("[musicBoostExpireTrigger_] expired: " + expired + " 件");
+}
+
+// Music Boost のトリガー設置（GASエディタから1回手動実行する）
+function setupMusicBoostTriggers() {
+  // 既存の同名トリガーを削除してから設置（重複防止）
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === "musicBoostExpireTrigger_") {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+  ScriptApp.newTrigger("musicBoostExpireTrigger_")
+    .timeBased()
+    .everyDays(1)
+    .atHour(9)
+    .create();
+  Logger.log("setupMusicBoostTriggers: musicBoostExpireTrigger_（毎日9時）を設置しました");
+}
+// ── Music Boost 期限切れ自動処理ここまで ──────────────────────────────────
 
 // action: music_boost_admin_list（管理用：全ブースト一覧）
 function musicBoostAdminList_(params) {
