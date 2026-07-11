@@ -8309,6 +8309,7 @@ function doPost(e) {
     if (action === 'rumble_reward_distribute') return rumbleRewardDistribute_(body);
     if (action === 'rumble_dismantle')         return rumbleDismantle_(body);
     if (action === 'rumble_enhance')           return rumbleEnhance_(body);
+    if (action === 'rumble_lock')              return rumbleToggleLock_(body);
     if (action === 'rumble_my_rank_context')   return rumbleMyRankContext_(body);
     if (action === 'rumble_shard_status')      return rumbleShardStatus_(body);
     if (action === 'rumble_set_display_name')  return rumbleSetDisplayName_(body);
@@ -10655,6 +10656,25 @@ function rumbleDismantle_(params) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// action: rumble_lock（装備ロックのON/OFF切替）
+// - locked=true の装備は分解不可（rumbleDismantle_）・ガチャ上限超過時の自動変換対象外（rumbleGacha_）
+// - getEquipmentItem_ が user_id 一致で検索するため本人所有チェックを兼ねる
+function rumbleToggleLock_(params) {
+  var userId = String(params.userId || "");
+  var itemId = String(params.itemId || "");
+  var locked = params.locked === true || String(params.locked) === "true";
+  if (!userId || !itemId) return json_({ ok: false, error: "params_required" });
+
+  // equipmentシートの新カラム（locked含む）を保証
+  ensureEquipmentNewCols_(getEquipmentSheet_());
+
+  var found = getEquipmentItem_(userId, itemId);
+  if (!found) return json_({ ok: false, error: "item_not_found" });
+
+  found.sheet.getRange(found.rowNum, found.idx["locked"] + 1).setValue(locked ? "true" : "false");
+  return json_({ ok: true, item_id: itemId, locked: locked });
 }
 
 // action: rumble_enhance（装備強化）

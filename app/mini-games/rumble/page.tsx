@@ -681,6 +681,28 @@ export default function RumblePage() {
     }
   };
 
+  // 装備ロックのON/OFF切替（ロック中は分解・ガチャ上限超過時の自動変換から保護される）
+  const handleToggleLock = async (item: Equipment) => {
+    if (!userId || busy) return;
+    const next = !item.locked;
+    try {
+      const res = await fetch("/api/minigames/rumble/lock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, itemId: item.id, locked: next }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setEquipment(prev => prev.map(e => e.id === item.id ? { ...e, locked: !!data.locked } : e));
+        setMsg(next ? "🔒 ロックしました（分解・自動変換から保護されます）" : "🔓 ロックを解除しました");
+      } else {
+        setMsg("ロックの切替に失敗しました");
+      }
+    } catch {
+      setMsg("通信エラー");
+    }
+  };
+
   // 強化ボタン押下 → サーバーからかけら残高を再取得してからモーダルを開く
   const handleEnhance = async (itemId: string) => {
     const item = equipment.find(e => e.id === itemId);
@@ -1283,6 +1305,11 @@ export default function RumblePage() {
             <p className={`text-xs ${th.faint}`}>装備してスコアを強化しよう</p>
             <button onClick={() => setShowEquipHelp(true)} className={`${th.faint} text-xs`}>？ 装備とは</button>
           </div>
+          {msg && (
+            <div className={`rounded-xl p-3 text-sm text-center ${(msg.includes("🔒") || msg.includes("🔓") || msg.includes("🔨")) ? "bg-amber-500/10 text-amber-300" : "bg-red-500/10 text-red-400"}`}>
+              {msg}
+            </div>
+          )}
           {["head","body","hand","leg"].map(slot => {
             const slotItems = equipment.filter(e => e.slot === slot);
             return (
@@ -1297,9 +1324,14 @@ export default function RumblePage() {
                         <span className={`text-xs font-bold ${RARITY_COLOR[item.rarity]}`}>
                           {item.name}{(item.enhance_level ?? 0) > 0 ? ` [+${item.enhance_level}]` : ""} (+{item.bonus})
                         </span>
-                        {item.equipped && (
-                          <span className="text-[9px] font-black text-green-400 bg-green-500/20 px-1.5 py-0.5 rounded-full">✓ 装備中</span>
-                        )}
+                        <span className="flex items-center gap-1">
+                          {item.locked && (
+                            <span className="text-[9px] font-black text-amber-400 bg-amber-500/20 px-1.5 py-0.5 rounded-full">🔒 ロック中</span>
+                          )}
+                          {item.equipped && (
+                            <span className="text-[9px] font-black text-green-400 bg-green-500/20 px-1.5 py-0.5 rounded-full">✓ 装備中</span>
+                          )}
+                        </span>
                       </div>
                       {((item.luck ?? 0) > 0 || (item.stability ?? 0) > 0) && (
                         <div className={`flex gap-3 text-xs ${th.faint} mb-2`}>
@@ -1316,8 +1348,13 @@ export default function RumblePage() {
                           className="text-xs px-2 py-1 rounded bg-orange-600/80 text-white disabled:opacity-40">
                           強化
                         </button>
-                        <button onClick={() => handleDismantle(item.id)} disabled={item.equipped || busy}
-                          className={`text-xs px-2 py-1 rounded ${th.closeBtn}`}>
+                        <button onClick={() => handleToggleLock(item)} disabled={busy}
+                          title={item.locked ? "ロック解除" : "ロック（分解・自動変換から保護）"}
+                          className={`text-xs px-2 py-1 rounded ${item.locked ? "bg-amber-500/30 text-amber-300" : th.closeBtn}`}>
+                          {item.locked ? "🔒" : "🔓"}
+                        </button>
+                        <button onClick={() => handleDismantle(item.id)} disabled={item.equipped || item.locked || busy}
+                          className={`text-xs px-2 py-1 rounded ${th.closeBtn} disabled:opacity-40`}>
                           分解
                         </button>
                       </div>
