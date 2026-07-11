@@ -86,9 +86,10 @@ function DaoMemberPage() {
   const [payBusy, setPayBusy] = useState(false);
 
   /* カウントアップ */
-  const c1 = useCountUp(128);
+  // 参加者数: 120 + approved実数（手動更新。2026-07-11時点 approved=18名 → 138）
+  const c1 = useCountUp(138);
   const c2 = useCountUp(3);
-  const c3 = useCountUp(12);
+  const c3 = useCountUp(11);
 
   useEffect(() => {
     const d = loadDraft();
@@ -851,7 +852,7 @@ function DaoMemberPage() {
                   { label: "ワークフロー", status: "dev" },
                   { label: "Marketplace",          status: "soon" },
                   { label: "無料VPSサーバー設置",    status: "dev"  },
-                  { label: "画像生成AI",            status: "dev"  },
+                  { label: "画像生成AI",            status: "done" },
                   { label: "動画生成AI",            status: "dev"  },
                   { label: "EPステーキングシステム", status: "dev"  },
                   { label: "SNS自動運用プロトコル",  status: "dev"  },
