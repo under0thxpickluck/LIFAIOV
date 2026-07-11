@@ -89,7 +89,7 @@ function DaoMemberPage() {
   // 参加者数: 120 + approved実数（手動更新。2026-07-11時点 approved=18名 → 138）
   const c1 = useCountUp(138);
   const c2 = useCountUp(3);
-  const c3 = useCountUp(11);
+  const c3 = useCountUp(10);
 
   useEffect(() => {
     const d = loadDraft();
@@ -848,7 +848,7 @@ function DaoMemberPage() {
                   { label: "マーケット", status: "done" },
                   { label: "ステーキング", status: "done" },
                   { label: "ノート生成", status: "done"  },
-                  { label: "Bot",        status: "dev"  },
+                  { label: "Bot",        status: "done" },
                   { label: "ワークフロー", status: "dev" },
                   { label: "Marketplace",          status: "soon" },
                   { label: "無料VPSサーバー設置",    status: "dev"  },
