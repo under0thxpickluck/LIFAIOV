@@ -2377,7 +2377,10 @@ function handle_(key, body) {
     const bp = Number(bpRaw || 0);
     const ep = Number(epRaw || 0);
 
-    const BP_CAP_MAP_BAL      = { "34":300, "57":600, "114":1200, "567":6000, "1134":12000 };
+    // /5000系プラン（500/2000/3000/5000）はメインappliesシートに group="" で入っているため、
+    // デフォルトマップにも /5000系のcapを含める（フロント membership/page.tsx の PLAN_BP_CAP と一致）
+    const BP_CAP_MAP_BAL      = { "34":300, "57":600, "114":1200, "567":6000, "1134":12000,
+                                  "500":1000, "2000":4000, "3000":8000, "5000":10000 };
     const BP_CAP_MAP_BAL_5000 = { "500":1000, "2000":4000, "3000":8000, "5000":10000 };
     const capMap_bal = group_bal === "5000" ? BP_CAP_MAP_BAL_5000 : BP_CAP_MAP_BAL;
     const bpCap_bal  = capMap_bal[str_(planRaw)] ?? 0;
@@ -3394,7 +3397,10 @@ function handle_(key, body) {
 
     // plan → bp_cap
     const plan_rec            = str_(targetSheet_rec.getRange(hitRowIndex_rec, idx_rec["plan"] + 1).getValue());
-    const BP_CAP_MAP_REC      = { "34":300, "57":600, "114":1200, "567":6000, "1134":12000 };
+    // /5000系プラン（500/2000/3000/5000）はメインappliesシートに group="" で入っているため、
+    // デフォルトマップにも /5000系のcapを含める（unknown_plan サイレント失敗の修正）
+    const BP_CAP_MAP_REC      = { "34":300, "57":600, "114":1200, "567":6000, "1134":12000,
+                                  "500":1000, "2000":4000, "3000":8000, "5000":10000 };
     const BP_CAP_MAP_REC_5000 = { "500":1000, "2000":4000, "3000":8000, "5000":10000 };
     const capMap_rec = group_rec === "5000" ? BP_CAP_MAP_REC_5000 : BP_CAP_MAP_REC;
     const bpCap_rec  = capMap_rec[plan_rec] ?? 0;
@@ -13771,4 +13777,76 @@ function consumeLfwDeposits_(key, body) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// =========================================================
+// ✅ bulkBpRecovery（一括BP回復・GASエディタから手動実行する運用関数）
+// - LIFAIOV版: 会員は全員メイン applies シート（plan 500/2000/3000/5000）にいる前提
+// - doPost からは呼べない（外部から叩けない）
+// - approved の全員に「cap の半分・cap を超えない」回復を適用し、
+//   bp_last_reset_at を当日に設定して以後の30日サイクルを開始する
+// - 回復ロジックは monthly_bp_recover アクションと同一
+//   recover = min( floor(cap * 0.5), max(0, cap - 現在BP) )
+//   → 残高が cap（初期付与額）以上なら回復0（サイクル開始のみ）
+// =========================================================
+function bulkBpRecovery() {
+  var sheet = getOrCreateSheet_();
+  if (!sheet) { Logger.log("applies シートが見つかりません"); return; }
+
+  // LIFAIOV の /5000系プランのみ（フロント membership/page.tsx の PLAN_BP_CAP と一致）
+  var BP_CAP_MAP = { "500": 1000, "2000": 4000, "3000": 8000, "5000": 10000 };
+
+  var values = sheet.getDataRange().getValues();
+  if (values.length < 2) { Logger.log("データ行がありません"); return; }
+
+  var header = values[0];
+  ensureCols_(sheet, header, ["bp_last_reset_at", "bp_balance"]);
+  values = sheet.getDataRange().getValues();
+  header = values[0];
+  var idx = indexMap_(header);
+
+  var now       = new Date();
+  var recovered = 0;
+  var skipped   = 0;
+  var noplan    = 0;
+
+  for (var i = 1; i < values.length; i++) {
+    var r         = values[i];
+    var loginId   = str_(r[idx["login_id"]]);
+    var status    = str_(r[idx["status"]]);
+    var plan      = str_(r[idx["plan"]]);
+    var email     = str_(r[idx["email"]] || "");
+    var currentBp = Number(r[idx["bp_balance"]] || 0);
+
+    if (!loginId || status !== "approved") { skipped++; continue; }
+
+    var bpCap = BP_CAP_MAP[plan] || 0;
+    if (!bpCap) { Logger.log("unknown_plan: loginId=" + loginId + " plan=" + plan); noplan++; continue; }
+
+    var rowNum  = i + 1;
+    var recover = Math.min(Math.floor(bpCap * 0.5), Math.max(0, bpCap - currentBp));
+
+    // bp_last_reset_at は回復量0でも今日に更新（30日サイクル開始）
+    sheet.getRange(rowNum, idx["bp_last_reset_at"] + 1).setValue(now);
+
+    if (recover > 0) {
+      var newBp = currentBp + recover;
+      sheet.getRange(rowNum, idx["bp_balance"] + 1).setValue(newBp);
+      appendWalletLedger_({
+        kind:     "monthly_recover",
+        login_id: loginId,
+        email:    email,
+        amount:   recover,
+        memo:     "一括BP回復（cap=" + bpCap + " / 起算日設定）",
+      });
+      Logger.log("recovered: " + loginId + " +" + recover + "BP (cap=" + bpCap + " before=" + currentBp + ")");
+    }
+
+    recovered++;
+  }
+
+  SpreadsheetApp.flush();
+
+  Logger.log("=== bulkBpRecovery 完了 ===");
+  Logger.log("回復処理: " + recovered + " 件 / スキップ: " + skipped + " 件 / plan不明: " + noplan + " 件");
 }
