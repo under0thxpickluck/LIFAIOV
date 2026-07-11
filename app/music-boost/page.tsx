@@ -427,32 +427,12 @@ export default function MusicBoostPage() {
               </div>
               {selected === plan.id && !isCurrent && (
                 <div className="mt-3 space-y-2" onClick={e => e.stopPropagation()}>
-                  {/* EP決済ボタン */}
-                  {(() => {
-                    const epCost      = plan.price * 100;
-                    const hasEnoughEp = epBalance !== null && epBalance >= epCost;
-                    const epDisabled  = busy || !canAfford || !hasEnoughEp;
-                    return (
-                      <button
-                        onClick={() => setConfirmPlan(plan)}
-                        disabled={epDisabled}
-                        className={`w-full py-2 rounded-lg text-sm font-bold transition ${
-                          !canAfford
-                            ? `${th.disabledBtn} cursor-not-allowed`
-                            : !hasEnoughEp
-                            ? `${th.disabledBtn} text-red-400/70 cursor-not-allowed`
-                            : "bg-gradient-to-r from-purple-600 to-blue-600 hover:scale-105"
-                        }`}>
-                        {busy
-                          ? "処理中..."
-                          : !canAfford
-                          ? "枠不足"
-                          : !hasEnoughEp
-                          ? `EP不足（残り ${epBalance?.toLocaleString() ?? "?"} EP）`
-                          : `EPで支払う（${epCost.toLocaleString()} EP）`}
-                      </button>
-                    );
-                  })()}
+                  {/* EP決済ボタン（2026-07 運営判断: EP決済は休止中・クレジットカードのみ。再開時はこのdisabledボタンを元のEP決済ボタンに戻す） */}
+                  <button
+                    disabled
+                    className={`w-full py-2 rounded-lg text-sm font-bold transition ${th.disabledBtn} cursor-not-allowed`}>
+                    EP決済は現在休止中
+                  </button>
                   {/* クレジットカード（Square） */}
                   <button
                     onClick={() => handleMusicBoostCheckout(plan)}
@@ -472,6 +452,7 @@ export default function MusicBoostPage() {
 
       {/* 注意書き */}
       <div className={`mt-8 text-xs ${th.ghost} space-y-1`}>
+        <p>• EP決済は現在休止中です（クレジットカードのみ）</p>
         <p>• EPは換金不可です</p>
         <p>• ブースト率・枠数は予告なく変更される場合があります</p>
         <p>• 不正利用が確認された場合はアカウントを停止します</p>

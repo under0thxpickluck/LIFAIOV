@@ -11444,6 +11444,13 @@ function musicBoostSubscribe_(params) {
     return json_({ ok: false, error: "no_slots_available", available: availSlots, needed: deltaSlots });
   }
 
+  // ── EP決済 停止ガード（2026-07 運営判断: EP決済は休止・クレジットカードのみ）──
+  // UIだけではAPI直叩きでEP購入できてしまうためサーバー側でも塞ぐ。
+  // 将来EP決済を再開する場合はこのガードのみ削除する（下のEP決済処理本体は温存）。
+  if (paymentMethod === "ep") {
+    return json_({ ok: false, error: "ep_payment_suspended" });
+  }
+
   // ── EP決済処理 ────────────────────────────────────────────
   if (paymentMethod === "ep") {
     var epCost = plan.price * 100;
