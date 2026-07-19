@@ -38,6 +38,32 @@ type LedgerItem = {
   memo: string;
 };
 
+type BoostRow = {
+  id: string;
+  user_id: string;
+  plan_id: string;
+  percent: number;
+  price_usd: number;
+  slots_used: number;
+  status: string;
+  started_at: string;
+  expires_at: string;
+};
+
+// GAS側 MUSIC_BOOST_PLANS と一致させること
+const BOOST_PLANS = [
+  { id: "starter",  label: "Starter",  percent: 2,  price: 9    },
+  { id: "light",    label: "Light",    percent: 5,  price: 29   },
+  { id: "basic",    label: "Basic",    percent: 10, price: 59   },
+  { id: "growth",   label: "Growth",   percent: 15, price: 99   },
+  { id: "pro",      label: "Pro",      percent: 20, price: 149  },
+  { id: "advanced", label: "Advanced", percent: 25, price: 199  },
+  { id: "premium",  label: "Premium",  percent: 30, price: 299  },
+  { id: "elite",    label: "Elite",    percent: 35, price: 499  },
+  { id: "master",   label: "Master",   percent: 40, price: 699  },
+  { id: "legend",   label: "Legend",   percent: 45, price: 1000 },
+];
+
 const EP_KINDS = new Set([
   "music_sell", "radio_ep", "rumble_weekly_ep", "deduct_ep",
 ]);
@@ -115,6 +141,25 @@ export default function UsersTab() {
   const [gachaPresetSending, setGachaPresetSending] = useState(false);
   const [gachaPresetMsg, setGachaPresetMsg] = useState<string | null>(null);
   const [templateIdx,    setTemplateIdx]    = useState(0);
+  const [boosts, setBoosts] = useState<BoostRow[]>([]);
+  const [boostPlan, setBoostPlan] = useState("starter");
+  const [boostSending, setBoostSending] = useState(false);
+  const [boostMsg, setBoostMsg] = useState<string | null>(null);
+
+  const activeBoostByUser = useMemo(() => {
+    const map = new Map<string, BoostRow>();
+    for (const b of boosts) {
+      if (b.status === "active") map.set(b.user_id, b);
+    }
+    return map;
+  }, [boosts]);
+
+  const refetchBoosts = async () => {
+    try {
+      const j = await fetch("/api/music-boost/admin", { cache: "no-store" }).then(r => r.json());
+      if (j?.ok && Array.isArray(j.boosts)) setBoosts(j.boosts);
+    } catch {}
+  };
 
   useEffect(() => {
     setResetMsg(null);
@@ -124,6 +169,10 @@ export default function UsersTab() {
     setGachaPreset(selected?.gacha_rate_preset ?? "normal");
     setGachaPresetMsg(null);
     setTemplateIdx(0);
+    setBoostMsg(null);
+    const cur = selected ? activeBoostByUser.get(selected.login_id) : null;
+    setBoostPlan(cur?.plan_id ?? "starter");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected]);
 
   const onSendResetMail = async () => {
@@ -223,17 +272,55 @@ export default function UsersTab() {
     Promise.all([
       fetch("/api/admin/list",          { cache: "no-store" }).then(r => r.json()),
       fetch("/api/admin/wallet-ledger", { cache: "no-store" }).then(r => r.json()),
+      fetch("/api/music-boost/admin",   { cache: "no-store" }).then(r => r.json()).catch(() => null),
     ])
-      .then(([listJson, ledgerJson]) => {
+      .then(([listJson, ledgerJson, boostJson]) => {
         if (!listJson?.ok) throw new Error(listJson?.error ?? "list_failed");
         const arr = Array.isArray(listJson.items) ? listJson.items
           : Array.isArray(listJson.rows) ? listJson.rows : [];
         setUsers(arr);
         setLedger(Array.isArray(ledgerJson?.items) ? ledgerJson.items : []);
+        if (boostJson?.ok && Array.isArray(boostJson.boosts)) setBoosts(boostJson.boosts);
       })
       .catch(e => setErr(String(e?.message ?? e)))
       .finally(() => setLoading(false));
   }, []);
+
+  const onSetBoost = async (mode: "activate" | "cancel") => {
+    if (!selected) return;
+    const planLabel = BOOST_PLANS.find(p => p.id === boostPlan)?.label ?? boostPlan;
+    const confirmText =
+      mode === "activate"
+        ? `${selected.login_id} の Music Boost を「${planLabel}」プランで有効化します（30日間）。よろしいですか？`
+        : `${selected.login_id} の Music Boost を解約します。よろしいですか？`;
+    if (!window.confirm(confirmText)) return;
+    setBoostSending(true);
+    setBoostMsg(null);
+    try {
+      const r = await fetch("/api/admin/music-boost-set", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ loginId: selected.login_id, planId: boostPlan, mode }),
+      });
+      const j = await r.json().catch(() => null);
+      if (j?.ok) {
+        setBoostMsg(mode === "activate" ? `✅ ${planLabel} を有効化しました` : "✅ 解約しました");
+        await refetchBoosts();
+      } else {
+        const reason =
+          j?.error === "admin_unauthorized" ? "GAS_ADMIN_KEY と GAS側 ADMIN_SECRET が一致していません"
+          : j?.error === "no_slots_available" ? `枠が不足しています（残り${j?.available ?? "?"}枠、必要${j?.needed ?? "?"}枠）`
+          : j?.error === "no_active_boost" ? "有効なブーストがありません"
+          : j?.error === "invalid_plan" ? "無効なプランIDです"
+          : String(j?.error ?? "unknown_error");
+        setBoostMsg(`❌ 失敗: ${reason}`);
+      }
+    } catch (e: any) {
+      setBoostMsg(`❌ 通信エラー: ${String(e?.message ?? e)}`);
+    } finally {
+      setBoostSending(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     if (!query.trim()) return users;
@@ -287,6 +374,7 @@ export default function UsersTab() {
                   <th className="px-3 py-2 text-xs font-bold text-zinc-400">ステータス</th>
                   <th className="px-3 py-2 text-xs font-bold text-zinc-400 text-right">EP</th>
                   <th className="px-3 py-2 text-xs font-bold text-zinc-400 text-right">BP</th>
+                  <th className="px-3 py-2 text-xs font-bold text-zinc-400">Boost</th>
                   <th className="px-3 py-2 text-xs font-bold text-zinc-400">紹介報酬</th>
                 </tr>
               </thead>
@@ -315,6 +403,15 @@ export default function UsersTab() {
                     </td>
                     <td className="px-3 py-2 text-xs text-right text-zinc-200">{(u.ep_balance ?? 0).toLocaleString()}</td>
                     <td className="px-3 py-2 text-xs text-right text-zinc-200">{(u.bp_balance ?? 0).toLocaleString()}</td>
+                    <td className="px-3 py-2 text-xs">
+                      {activeBoostByUser.has(u.login_id) ? (
+                        <span className="rounded-full bg-purple-900/60 px-2 py-0.5 text-[10px] font-semibold text-purple-300">
+                          {BOOST_PLANS.find(p => p.id === activeBoostByUser.get(u.login_id)!.plan_id)?.label ?? activeBoostByUser.get(u.login_id)!.plan_id}
+                        </span>
+                      ) : (
+                        <span className="text-zinc-600">—</span>
+                      )}
+                    </td>
                     <td className="px-3 py-2 text-xs text-zinc-400">{u.affiliate_granted_at ? "✅" : "—"}</td>
                   </tr>
                 ))}
@@ -442,6 +539,62 @@ export default function UsersTab() {
                 </p>
               )}
             </div>
+          </section>
+
+          <section className="mb-4">
+            <p className="mb-2 text-xs font-bold text-zinc-400 uppercase tracking-wide">Music Boost</p>
+            {(() => {
+              const cur = activeBoostByUser.get(selected.login_id);
+              return cur ? (
+                <>
+                  <Row label="現在のプラン" value={`${BOOST_PLANS.find(p => p.id === cur.plan_id)?.label ?? cur.plan_id}（${cur.percent}% / ${cur.slots_used}枠）`} />
+                  <Row label="開始日"       value={fmt(cur.started_at)} />
+                  <Row label="有効期限"     value={fmt(cur.expires_at)} />
+                </>
+              ) : (
+                <Row label="現在のプラン" value="なし" />
+              );
+            })()}
+            <div className="mt-3 flex gap-2">
+              <select
+                value={boostPlan}
+                onChange={e => setBoostPlan(e.target.value)}
+                className="flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-white focus:border-amber-500 focus:outline-none"
+              >
+                {BOOST_PLANS.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}（{p.percent}% / ${p.price}）
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => onSetBoost("activate")}
+                disabled={boostSending}
+                className="rounded-lg bg-purple-700 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-purple-600 disabled:opacity-50"
+              >
+                {boostSending ? "処理中..." : "有効化"}
+              </button>
+              {activeBoostByUser.has(selected.login_id) && (
+                <button
+                  onClick={() => onSetBoost("cancel")}
+                  disabled={boostSending}
+                  className="rounded-lg bg-red-800 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-red-700 disabled:opacity-50"
+                >
+                  解約
+                </button>
+              )}
+            </div>
+            <p className="mt-1 text-[10px] text-zinc-600">
+              Square決済の自動有効化が失敗した場合の手動救済用。有効化は30日間・wallet_ledgerに記録されます。
+            </p>
+            {boostMsg && (
+              <p className={clsx(
+                "mt-2 text-xs",
+                boostMsg.startsWith("✅") ? "text-emerald-400" : "text-red-400"
+              )}>
+                {boostMsg}
+              </p>
+            )}
           </section>
 
           <section className="mb-4">
