@@ -47,6 +47,14 @@ GAS actions (全一覧):
 | `affiliate_monthly_summary` | `/api/admin/affiliate-summary` (POST) | 月次アフィリエイト集計（理論値・読み取り専用） |
 | `affiliate_grant_run` | `/api/admin/affiliate-grant` (POST) | 月次アフィリエイトEP付与。`dry_run:true`でプレビュー、`false`で本実行（行単位＋台帳単位の冪等ガード付き） |
 | `affiliate_cutoff_mark` | `/api/admin/affiliate-cutoff` (POST) | 指定月より前の承認済み・未付与行を一括「対象外」マーク（EP付与なし・運用開始時の初期化用） |
+| `auction_list` | `/api/market/auction/list` | live/scheduled オークションセッション一覧 |
+| `auction_detail` | `/api/market/auction/[session_id]` | セッション詳細＋ランキング（上位20位まで＋自分の順位・スコア・還元EP） |
+| `auction_bid` | `/api/market/auction/[session_id]/bid` (POST) | BP投入→BP消費＋EP即時還元（原子的）→`auction_bids`追記→ソフトクローズ判定→新スコア返却 |
+| `auction_ranking` | 観戦用 | 公開ランキング（上位20位＋各ティアボーダー） |
+| `auction_close` | 管理・トリガー | 終了判定→ティア割り当て→`status=closed`→当選者通知（メール/LINE） |
+| `admin_auction_create` | `/api/admin/auction/create` | オークションセッション作成 |
+| `admin_auction_cancel` | `/api/admin/auction/cancel` | 中止＋全投入返還＋EP取り消し |
+| `admin_auction_fulfill` | `/api/admin/auction/fulfill` | 特典付与済みマーク（体験会/意見交換会招待送付記録） |
 
 ### GAS Sheets
 
@@ -56,6 +64,8 @@ GAS actions (全一覧):
 | `ref_tree` | 紹介ツリー表示用（`ref_tree_build` で全消し→再生成） |
 | `ref_events` | 紹介紐づけの監査ログ |
 | `wallet_ledger` | 紹介配当などの金融取引履歴 |
+| `auction_sessions` | オークションセッション管理（session_id, title, tiers_json, start_at, end_at, status等） |
+| `auction_bids` | オークション投入記録（append-only: bid_id, session_id, login_id, amount, ep_returned, ts） |
 
 ### GAS 認証の仕組み
 
@@ -145,6 +155,41 @@ NEXT_PUBLIC_SITE_URL=
 ### お知らせ運用ルール
 
 ユーザーに見える更新（新機能・修正・仕様変更）をリリースする際は、必ず `data/notices.ts` にお知らせを1件追加する。日付（YYYY-MM-DD）、タイトル（【○○機能追加】等）、本文は専門用語を使わず一般ユーザーでもわかる説明にする（何が変わったか／ユーザーへの影響／必要なアクション。なければ「お手続きは不要です」と書く）。`/top` の NoticeBoard は最新3件を表示し、4件以上は「過去のお知らせを見る」で展開される。
+
+### BP Auction（貢献度オークション）— 2026-08期間限定テスト
+
+**目的**: BPシンク機能。ユーザーがBPを投入して排出し、確定でEPに交換。投入額1位の上位者が体験会・意見交換会の招待を獲得。
+
+**開催期間**: 2026-08-01 00:00 〜 2026-08-14 23:59（2週間、ソフトクローズで延長される可能性あり）
+
+**参加対象**: `approved` ステータスの全会員
+
+**ルール**:
+- 投入額: 1,000BP 単位、1人あたり上限 **1,000,000BP**
+- EP還元: 確定 1000BP → 1EP（誰も"損"をしない）
+- 乱数なし: 純粋に投入額で順位が確定
+- 特典:
+  - **Tier 1** (上位5名) — LIFAI新システム体験会優先参加権＋ベータテスター意見交換会参加券
+  - **Tier 2** (6〜15位) — ベータテスター意見交換会参加券
+- 体験会/意見交換会実施日時: 2026-08-25 〜 2026-09-07（別途日程調整）
+- 当選通知: 2026-08-15 以降、メール＋公式LINE で送付
+
+**フロント実装**:
+- ログイン直後にポップアップ表示（期間限定・全approved会員対象）
+  - 「オークション開催中」というメッセージ + 「詳細ページ」ボタン
+  - ブラウザ sessionStorage に "auction_popup_shown_at" を記録し、セッション中は1回だけ表示
+- `/market/auction` — オークション一覧・詳細ページ
+  - 透明性ガード: ルール・特典・ボーダー・カウントダウンを常時明示
+  - 投入前に規約同意チェック（既存 narasu terms チェックUI と同様）
+  - 投入フォーム＋リアルタイムランキング（上位20位）
+
+**GAS実装**:
+- `LockService` でセッション単位ロック（投入の原子性）
+- `auction_bids` に全投入を append-only で記録
+- `wallet_ledger` に `kind="auction_bid"` / `kind="auction_ep_return"` で二重記帳
+- `auction_close` トリガーで終了判定→ティア割り当て→当選者メール送付
+
+**法務・透明性**: 設計書 `docs/superpowers/specs/2026-07-24-bp-auction-market-design.md` に詳細記載。賭博の構成要件（偶然性・喪失・経済価値）を構造的に外している。
 
 ## 絶対に守るルール
 - 既存のコード・API・文章・構造を勝手に削除・変更・省略しない
