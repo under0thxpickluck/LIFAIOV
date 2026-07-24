@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getAuth } from "@/app/lib/auth";
+import { NARASU_BP_PAYMENT_SUSPENDED } from "@/lib/narasu-agency/constants";
 
 const NARASU_REQUEST_ID_KEY = "lifai_narasu_request_id_v1";
 
@@ -101,6 +102,18 @@ export default function NarasuCompletePage() {
             続けて代行費用のお支払いをお選びください。
           </p>
 
+          {/* 処理スケジュールのご案内 */}
+          <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-left">
+            <p className="text-xs font-extrabold text-amber-800">📅 処理スケジュールについて</p>
+            <ul className="mt-2 space-y-1 text-xs leading-relaxed text-amber-700">
+              <li>・毎月1日〜10日のお申し込み：<b>当月内</b>の処理</li>
+              <li>・毎月11日以降のお申し込み：<b>翌月中</b>の処理</li>
+            </ul>
+            <p className="mt-2 text-[11px] leading-relaxed text-amber-600">
+              品質を維持しながらできる限り迅速に対応いたしますが、ご依頼状況によっては上記の目安に間に合わない場合があります。あらかじめご了承ください。
+            </p>
+          </div>
+
           {/* BP支払い完了 */}
           {payState === "bp_done" && (
             <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
@@ -123,13 +136,30 @@ export default function NarasuCompletePage() {
               <p className="text-xs font-bold text-slate-500">お支払い方法を選択してください</p>
 
               {/* BP */}
-              <button
-                onClick={handleBpPay}
-                className="block w-full rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-4 text-left transition hover:bg-indigo-100"
-              >
-                <p className="text-sm font-extrabold text-indigo-800">🔷 BP払い</p>
-                <p className="mt-0.5 text-xs text-indigo-600">4500BP消費 — 即時完了</p>
-              </button>
+              {NARASU_BP_PAYMENT_SUSPENDED ? (
+                <div
+                  aria-disabled="true"
+                  className="block w-full cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-100 px-4 py-4 text-left opacity-70"
+                >
+                  <p className="flex items-center gap-2 text-sm font-extrabold text-slate-400">
+                    🔷 BP払い
+                    <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-500">
+                      一時停止中
+                    </span>
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-400">
+                    現在ご利用いただけません。EP払いをご利用ください。
+                  </p>
+                </div>
+              ) : (
+                <button
+                  onClick={handleBpPay}
+                  className="block w-full rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-4 text-left transition hover:bg-indigo-100"
+                >
+                  <p className="text-sm font-extrabold text-indigo-800">🔷 BP払い</p>
+                  <p className="mt-0.5 text-xs text-indigo-600">4500BP消費 — 即時完了</p>
+                </button>
+              )}
 
               {bpError && (
                 <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3">
