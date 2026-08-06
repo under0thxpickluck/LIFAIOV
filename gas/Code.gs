@@ -2815,8 +2815,10 @@ function handle_(key, body) {
       var ledIdx_sq    = indexMap_(ledHeader_sq);
       for (var li = 1; li < ledVals_sq.length; li++) {
         var ledRow_sq = ledVals_sq[li];
-        if (str_(ledRow_sq[ledIdx_sq["kind"]]) === "square_bp_purchase" &&
-            str_(ledRow_sq[ledIdx_sq["memo"]]).indexOf(paymentId_sq) !== -1) {
+        // wallet_ledger のヘッダ名ドリフト（実列が kind/memo でない場合がある）に依存せず、
+        // payment_id が行内のいずれかのセルに存在するかで重複判定する。
+        // （appendWalletLedger_ は memo 列に "... payment_id:XXX" を書き込む）
+        if (ledRow_sq.join("").indexOf(paymentId_sq) !== -1) {
           Logger.log("[square_grant_bp] duplicate paymentId: " + paymentId_sq);
           return json_({ ok: true, duplicate: true, message: "already_processed" });
         }
@@ -8291,6 +8293,43 @@ function doPost(e) {
     const key = pickKey_(e);
     const body = JSON.parse(e?.postData?.contents || "{}");
     const action = str_(body.action);
+    // 診断用: keyなしで、この稼働中の/execがバインドしているシートを返す
+    if (action === "which_sheet") {
+      const ss_wc = SpreadsheetApp.getActiveSpreadsheet();
+      return json_({ ok: true, name: ss_wc.getName(), id: ss_wc.getId(), url: ss_wc.getUrl() });
+    }
+    // 診断用: 指定タブ（既定 music_boost）の内容を最大200行返す
+    if (action === "diag_dump") {
+      const name_dd = str_(body.sheet) || "music_boost";
+      const lim_dd = Number(body.limit) || 200;
+      const ss_dd = SpreadsheetApp.getActiveSpreadsheet();
+      const sh_dd = ss_dd.getSheetByName(name_dd);
+      if (!sh_dd) return json_({ ok: false, error: "sheet_not_found", sheet: name_dd });
+      const vals_dd = sh_dd.getDataRange().getValues();
+      return json_({ ok: true, spreadsheet: ss_dd.getName(), sheet: name_dd, total_rows: vals_dd.length, rows: vals_dd.slice(0, lim_dd + 1) });
+    }
+    // 診断用: applies タブの music_boost 申請列（login_id/artist/album/tracks）だけを抽出
+    if (action === "diag_mbtracks") {
+      const ss_mt = SpreadsheetApp.getActiveSpreadsheet();
+      const sh_mt = ss_mt.getSheetByName("applies");
+      if (!sh_mt) return json_({ ok: false, error: "applies_not_found" });
+      const vals_mt = sh_mt.getDataRange().getValues();
+      const head_mt = vals_mt[0];
+      const iLogin_mt = head_mt.indexOf("login_id");
+      const iArtist_mt = head_mt.indexOf("music_boost_artist");
+      const iAlbum_mt = head_mt.indexOf("music_boost_album");
+      const iTracks_mt = head_mt.indexOf("music_boost_tracks_json");
+      const res_mt = [];
+      for (let i_mt = 1; i_mt < vals_mt.length; i_mt++) {
+        const ar_mt = iArtist_mt >= 0 ? String(vals_mt[i_mt][iArtist_mt] || "") : "";
+        const al_mt = iAlbum_mt >= 0 ? String(vals_mt[i_mt][iAlbum_mt] || "") : "";
+        const tr_mt = iTracks_mt >= 0 ? String(vals_mt[i_mt][iTracks_mt] || "") : "";
+        if (ar_mt.trim() || al_mt.trim() || tr_mt.trim()) {
+          res_mt.push({ login_id: iLogin_mt >= 0 ? vals_mt[i_mt][iLogin_mt] : "", artist: ar_mt, album: al_mt, tracks: tr_mt.slice(0, 500) });
+        }
+      }
+      return json_({ ok: true, spreadsheet: ss_mt.getName(), count: res_mt.length, rows: res_mt });
+    }
     if (action && action.startsWith("market_")) {
       return handleMarket_(key, body);
     }
@@ -11547,8 +11586,8 @@ function musicBoostSubscribe_(params) {
         if (ledVals_mb.length >= 2) {
           var ledIdx_mb = indexMap_(ledVals_mb[0]);
           for (var lm = 1; lm < ledVals_mb.length; lm++) {
-            if (String(ledVals_mb[lm][ledIdx_mb["kind"]]) === "music_boost_card" &&
-                String(ledVals_mb[lm][ledIdx_mb["memo"]]).indexOf(paymentId_mb) !== -1) {
+            // ヘッダ名ドリフトに依存せず payment_id の存在で重複判定（memo列に "... payment_id:XXX"）
+            if (String(ledVals_mb[lm].join("")).indexOf(paymentId_mb) !== -1) {
               Logger.log("[musicBoostSubscribe_] duplicate paymentId: " + paymentId_mb);
               return json_({ ok: true, duplicate: true, message: "already_processed" });
             }
@@ -14053,4 +14092,11 @@ function bulkBpRecovery() {
 
   Logger.log("=== bulkBpRecovery 完了 ===");
   Logger.log("回復処理: " + recovered + " 件 / スキップ: " + skipped + " 件 / plan不明: " + noplan + " 件");
+}
+
+// 診断用: このGASがバインドしているスプレッドシートの識別情報をログ出力する
+// （aisalon / lifaiov 双方で実行し、getId() が一致しないか確認するため）
+function whichSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  Logger.log(ss.getName() + " | " + ss.getId() + " | " + ss.getUrl());
 }

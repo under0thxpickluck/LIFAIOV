@@ -129,6 +129,17 @@ export async function POST(req: Request) {
 
   console.log("[Square Webhook] parsed", { userId, packId, bpAmount });
 
+  // ── サイト所属ガード（混入防止）───────────────────────────────
+  // reference_id 末尾の site タグが自サイトと異なる決済は、同一 Square アカウントを
+  // 共有する相手サイトの決済がこの webhook にも配信されたもの。処理せず 200 で無視する。
+  // タグ無し（旧 create-checkout 由来の古い決済リンク）は後方互換で従来通り処理する。
+  const SELF_SITE = "ov";
+  const site = parts[3] || "";
+  if (site && site !== SELF_SITE) {
+    console.log("[Square Webhook] foreign-site payment skipped", { site, self: SELF_SITE, userId });
+    return NextResponse.json({ ok: true, skipped: true, reason: "foreign_site" });
+  }
+
   // bp_amount === 0 は music-boost 注文（BP付与なし・ブーストを自動有効化）
   if (bpAmount === 0) {
     console.log("[Square Webhook] music-boost order received, pack_id:", packId);

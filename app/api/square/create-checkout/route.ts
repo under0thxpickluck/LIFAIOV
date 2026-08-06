@@ -33,8 +33,11 @@ export async function POST(req: Request) {
   }
 
   // reference_id にユーザー情報を埋め込む（Webhook 受信時に使用）
-  // format: "{user_id}:{pack_id}:{bp_amount}"
-  const referenceId = `${user_id}:${pack_id}:${bp_amount}`;
+  // format: "{user_id}:{pack_id}:{bp_amount}:{site}"
+  // site タグは、同一 Square アカウントを共有する相手サイトの webhook が
+  // この決済を処理してしまう混入を防ぐための識別子（aisalon="lifai" / lifaiov="ov"）。
+  const SITE = "ov";
+  const referenceId = `${user_id}:${pack_id}:${bp_amount}:${SITE}`;
   const idempotencyKey = `${user_id}-${pack_id}-${Date.now()}`;
 
   // redirect_path を呼び出し元から受け取る（省略時は /membership）
