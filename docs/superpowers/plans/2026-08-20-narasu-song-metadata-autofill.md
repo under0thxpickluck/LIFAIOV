@@ -36,17 +36,21 @@
 
 ---
 
-### Task 1: GAS サンドボックスと songId 逆引きマップ
+### Task 1: GAS側 — songId逆引きと narasu_agency_list への組み込み
 
 **Files:**
 - Create: `__tests__/helpers/gasSandbox.ts`
 - Create: `__tests__/narasuResolveTracks.test.ts`
-- Modify: `gas/Code.gs`（`narasu_agency_list` ブロックの直前、8525行目付近に追記）
+- Modify: `gas/Code.gs`（ファイル末尾にヘルパー3つを追加＋`narasu_agency_list` ブロックへの組み込み）
 
 **Interfaces:**
-- Produces: `createGasSandbox(options)` → `{ doPost, sheets }`。Task 2・3 のテストが使う。
+- Produces: `createGasSandbox(options)` → `{ doPost, sheets, insertedSheets }`
 - Produces: GAS 側 `extractSongId_(url) -> string`（見つからなければ `""`）
 - Produces: GAS 側 `buildSongMetaMap_() -> { [songId]: { title: string, lyrics: string, createdAt: string } }`
+- Produces: GAS 側 `resolveNarasuTracks_(rowObj, songMap) -> Array<{ url, songId, title, titleSource, lyrics, lyricsSource }>`
+- Produces: `narasu_agency_list` の各要素に `_resolved_tracks` が付く。Task 2 のフロントが消費する。
+
+**このタスクは全テストが通った状態で終わる。** 途中の Step 3・5 は TDD の赤を確認するためのもので、コミットは Step 10 の1回だけ。
 
 - [ ] **Step 1: テスト用サンドボックスヘルパーを作る**
 
@@ -394,33 +398,11 @@ Run: `npx jest __tests__/narasuResolveTracks.test.ts`
 
 Expected: **8 failed, 1 passed**（Step 3 と同じ）。ヘルパーを足しただけで `narasu_agency_list` からはまだ呼んでいないため。**ここで結果が変わったら何かがおかしい。**
 
-- [ ] **Step 6: コミット**
+まだコミットしない。このタスクは全テストが通った状態で終わる。
 
-```bash
-git add __tests__/helpers/gasSandbox.ts __tests__/narasuResolveTracks.test.ts gas/Code.gs
-git commit -m "test(gas): narasu曲名・歌詞解決のテストとGASサンドボックスを追加
+- [ ] **Step 6: トラック解決関数を追加する**
 
-songId抽出とmusic_history逆引きマップのヘルパーも追加。
-narasu_agency_list への組み込みは次のコミットで行うため、
-この時点ではテストは失敗する。"
-```
-
----
-
-### Task 2: narasu_agency_list への組み込み
-
-**Files:**
-- Modify: `gas/Code.gs`（ファイル末尾のヘルパー群と、`narasu_agency_list` ブロック）
-- Test: `__tests__/narasuResolveTracks.test.ts`（Task 1 で作成済み。変更しない）
-
-**Interfaces:**
-- Consumes: `extractSongId_()`, `buildSongMetaMap_()`（Task 1）
-- Produces: GAS 側 `resolveNarasuTracks_(rowObj, songMap) -> Array<{ url, songId, title, titleSource, lyrics, lyricsSource }>`
-- Produces: `narasu_agency_list` の各要素に `_resolved_tracks` が付く。Task 3 のフロントが消費する。
-
-- [ ] **Step 1: トラック解決関数を追加する**
-
-`gas/Code.gs` の末尾、Task 1 で追加した `buildSongMetaMap_()` の**直後**に追加:
+`gas/Code.gs` の末尾、Step 4 で追加した `buildSongMetaMap_()` の**直後**に追加:
 
 ```javascript
 
@@ -479,7 +461,7 @@ function resolveNarasuTracks_(rowObj, songMap) {
 }
 ```
 
-- [ ] **Step 2: narasu_agency_list から呼び出す**
+- [ ] **Step 7: narasu_agency_list から呼び出す**
 
 `gas/Code.gs` の `narasu_agency_list` ブロック内、`return json_({ ok: true, requests: naList });` の**直前**に挿入する。
 
@@ -516,7 +498,7 @@ function resolveNarasuTracks_(rowObj, songMap) {
     } catch (e) {
 ```
 
-- [ ] **Step 3: テストが全て通ることを確認する**
+- [ ] **Step 8: テストが全て通ることを確認する**
 
 Run: `npx jest __tests__/narasuResolveTracks.test.ts`
 
@@ -524,16 +506,16 @@ Expected: PASS（9件すべて）
 
 失敗した場合は実装を直す。テストの期待値を書き換えて通すのは禁止。
 
-- [ ] **Step 4: 既存のテストを壊していないことを確認する**
+- [ ] **Step 9: 既存のテストを壊していないことを確認する**
 
 Run: `npx jest __tests__/bgmGenerateRoute.test.ts __tests__/noteGenerateRoute.test.ts`
 
 Expected: PASS（2 suites / 12 tests）
 
-- [ ] **Step 5: コミット**
+- [ ] **Step 10: コミット**
 
 ```bash
-git add gas/Code.gs
+git add __tests__/helpers/gasSandbox.ts __tests__/narasuResolveTracks.test.ts gas/Code.gs
 git commit -m "feat(gas): narasu_agency_list が音源URLから曲名・歌詞を自動補完する
 
 music_history を songId で逆引きし、空欄のときだけ補って
@@ -543,7 +525,7 @@ _resolved_tracks として返す。expires_at は無視し期限切れも拾う�
 
 ---
 
-### Task 3: 管理画面の表示対応
+### Task 2: 管理画面の表示対応
 
 **Files:**
 - Modify: `app/admin/narasu/page.tsx:47-52`（`Track` 型）
@@ -551,7 +533,7 @@ _resolved_tracks として返す。expires_at は無視し期限切れも拾う�
 - Modify: `app/admin/narasu/page.tsx:340-392`（楽曲リストの描画）
 
 **Interfaces:**
-- Consumes: `_resolved_tracks`（Task 2 が返す。要素は `{ url, songId, title, titleSource, lyrics, lyricsSource }`）
+- Consumes: `_resolved_tracks`（Task 1 が返す。要素は `{ url, songId, title, titleSource, lyrics, lyricsSource }`）
 
 - [ ] **Step 1: Track 型に source を足す**
 
