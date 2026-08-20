@@ -8549,6 +8549,21 @@ function doPost(e) {
         }
         naList.push(naObj);
       }
+
+      // 音源URLから曲名・歌詞を逆引きして補完する（読み取り専用）。
+      // ここが失敗しても一覧そのものは必ず返す。
+      try {
+        var songMap = buildSongMetaMap_();
+        for (var nk = 0; nk < naList.length; nk++) {
+          naList[nk]._resolved_tracks = resolveNarasuTracks_(naList[nk], songMap);
+        }
+      } catch (eResolve) {
+        Logger.log("[narasu_agency_list] resolve error: " + String(eResolve));
+        for (var nz = 0; nz < naList.length; nz++) {
+          if (!naList[nz]._resolved_tracks) naList[nz]._resolved_tracks = [];
+        }
+      }
+
       return json_({ ok: true, requests: naList });
     } catch (e) {
       Logger.log("[narasu_agency_list] error: " + String(e));
@@ -14205,4 +14220,109 @@ function bulkBpRecovery() {
 function whichSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   Logger.log(ss.getName() + " | " + ss.getId() + " | " + ss.getUrl());
+}
+
+// ============================================================
+// narasu代理申請 管理: 音源URLから曲名・歌詞を逆引きする
+// music_history は読み取り専用（シートが無くても作らない）
+// 追加日: 2026-08 / 既存関数への変更なし・追記のみ
+// ============================================================
+
+/** 音源URLから songId（song_XXXX）を抽出する。取れなければ "" */
+function extractSongId_(url) {
+  var m = String(url || "").match(/song_[A-Z0-9_]+/i);
+  return m ? m[0] : "";
+}
+
+/**
+ * music_history 全行から songId -> { title, lyrics, createdAt } の対応表を作る。
+ * expires_at は無視する（管理画面用の参照なので期限切れも拾う）。
+ * 同一 songId が複数あれば created_at が新しい行を採用。
+ * シートが無ければ空オブジェクトを返す（getMusicHistorySheet_ は使わない。
+ * あれは存在しないシートを insertSheet で作ってしまうため）。
+ */
+function buildSongMetaMap_() {
+  var map = {};
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("music_history");
+  if (!sheet) return map;
+
+  var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return map;
+
+  var idx = {};
+  for (var h = 0; h < data[0].length; h++) idx[String(data[0][h])] = h;
+  if (idx["audio_url"] === undefined) return map;
+
+  for (var i = 1; i < data.length; i++) {
+    var rawCreated = data[i][idx["created_at"]];
+    var createdAt = (rawCreated instanceof Date) ? rawCreated.toISOString() : str_(rawCreated);
+    var title = str_(data[i][idx["title"]]);
+    var lyrics = str_(data[i][idx["lyrics"]]);
+
+    var urls = [str_(data[i][idx["audio_url"]])];
+    if (idx["download_url"] !== undefined) urls.push(str_(data[i][idx["download_url"]]));
+
+    for (var u = 0; u < urls.length; u++) {
+      var songId = extractSongId_(urls[u]);
+      if (!songId) continue;
+      var prev = map[songId];
+      if (prev && prev.createdAt > createdAt) continue;
+      map[songId] = { title: title, lyrics: lyrics, createdAt: createdAt };
+    }
+  }
+  return map;
+}
+
+/**
+ * narasu_agency の1行から _resolved_tracks を組み立てる。
+ * 件数は常に audio_urls の件数に合わせる（audio_titles / audio_lyrics が
+ * 足りなければ空欄扱い、多ければ余りを捨てる）。
+ * 共通歌詞 lyrics_text はここでは使わない（曲別歌詞と混ぜない）。
+ */
+function resolveNarasuTracks_(rowObj, songMap) {
+  var urlsRaw = str_(rowObj["audio_urls"]);
+  var urls = [];
+  var urlParts = urlsRaw.split(/\r?\n/);
+  for (var p = 0; p < urlParts.length; p++) {
+    var trimmed = urlParts[p].replace(/^\s+|\s+$/g, "");
+    if (trimmed) urls.push(trimmed);
+  }
+  if (!urls.length) return [];
+
+  var titlesRaw = str_(rowObj["audio_titles"]) || str_(rowObj["song_titles"]);
+  var titles = titlesRaw.split(/\r?\n/);
+  var lyricsList = str_(rowObj["audio_lyrics"]).split(/\r?\n---\r?\n/);
+
+  var out = [];
+  for (var i = 0; i < urls.length; i++) {
+    var url = urls[i];
+    var songId = extractSongId_(url);
+    var meta = songId ? songMap[songId] : null;
+
+    var formTitle = str_(titles[i]).replace(/^\s+|\s+$/g, "");
+    var title = formTitle;
+    var titleSource = formTitle ? "form" : "none";
+    if (!title && meta && meta.title) {
+      title = meta.title;
+      titleSource = "history";
+    }
+
+    var formLyrics = str_(lyricsList[i]).replace(/^\s+|\s+$/g, "");
+    var lyrics = formLyrics;
+    var lyricsSource = formLyrics ? "form" : "none";
+    if (!lyrics && meta && meta.lyrics) {
+      lyrics = meta.lyrics;
+      lyricsSource = "history";
+    }
+
+    out.push({
+      url: url,
+      songId: songId,
+      title: title,
+      titleSource: titleSource,
+      lyrics: lyrics,
+      lyricsSource: lyricsSource
+    });
+  }
+  return out;
 }
