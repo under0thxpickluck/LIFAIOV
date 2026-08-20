@@ -8462,6 +8462,22 @@ function doPost(e) {
         str_(body.song_titles),
         str_(body.artist_photo_url)
       ]);
+      // 追加保存: 曲名リスト・曲別歌詞（列名ベースで書き込む。上の appendRow の列順は変更しない）
+      try {
+        var naExtraHeaders = narasuSheet.getRange(1, 1, 1, narasuSheet.getLastColumn()).getValues()[0].map(function(h) { return String(h); });
+        ["audio_titles", "audio_lyrics"].forEach(function(col) {
+          if (naExtraHeaders.indexOf(col) === -1) {
+            narasuSheet.getRange(1, naExtraHeaders.length + 1).setValue(col);
+            naExtraHeaders.push(col);
+          }
+        });
+        var naExtraRow = narasuSheet.getLastRow();
+        var naTitles = str_(body.audio_titles) || str_(body.song_titles);
+        narasuSheet.getRange(naExtraRow, naExtraHeaders.indexOf("audio_titles") + 1).setValue(naTitles);
+        narasuSheet.getRange(naExtraRow, naExtraHeaders.indexOf("audio_lyrics") + 1).setValue(str_(body.audio_lyrics));
+      } catch (eExtra) {
+        Logger.log("[narasu_agency_submit] extra columns error: " + String(eExtra));
+      }
       Logger.log("[narasu_agency_submit] saved: " + requestId);
       return json_({ ok: true, requestId: requestId });
     } catch (e) {
@@ -8502,6 +8518,92 @@ function doPost(e) {
       return json_({ ok: false, error: "request_not_found" });
     } catch (e) {
       Logger.log("[narasu_agency_update_payment] error: " + String(e));
+      return json_({ ok: false, error: String(e) });
+    }
+  }
+  // =========================================================
+  // narasu代理申請 管理（一覧・ステータス更新）
+  // =========================================================
+  if (action === "narasu_agency_list") {
+    if (str_(body.adminKey) !== ADMIN_SECRET) return json_({ ok: false, error: "admin_unauthorized" });
+    try {
+      var naSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("narasu_agency");
+      if (!naSheet) return json_({ ok: true, requests: [] });
+      var naValues = naSheet.getDataRange().getValues();
+      if (naValues.length < 2) return json_({ ok: true, requests: [] });
+      var naHead = naValues[0].map(function(h) { return String(h); });
+      var naList = [];
+      for (var nr = 1; nr < naValues.length; nr++) {
+        var naObj = { _row: nr + 1 };
+        for (var nc = 0; nc < naHead.length; nc++) {
+          var hName = naHead[nc];
+          if (!hName) continue;
+          var cell = naValues[nr][nc];
+          if (cell instanceof Date) {
+            naObj[hName] = cell.toISOString();
+          } else {
+            naObj[hName] = (cell === null || cell === undefined) ? "" : String(cell);
+          }
+        }
+        naList.push(naObj);
+      }
+      return json_({ ok: true, requests: naList });
+    } catch (e) {
+      Logger.log("[narasu_agency_list] error: " + String(e));
+      return json_({ ok: false, error: String(e) });
+    }
+  }
+
+  if (action === "narasu_agency_update") {
+    if (str_(body.adminKey) !== ADMIN_SECRET) return json_({ ok: false, error: "admin_unauthorized" });
+    try {
+      var nuSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("narasu_agency");
+      if (!nuSheet) return json_({ ok: false, error: "sheet_not_found" });
+      var nuReqId = str_(body.request_id);
+      if (!nuReqId) return json_({ ok: false, error: "missing_request_id" });
+
+      var nuStatus = str_(body.status);
+      var NA_ALLOWED_STATUS = ["submitted", "under_review", "completed", "rejected"];
+      if (nuStatus && NA_ALLOWED_STATUS.indexOf(nuStatus) === -1) {
+        return json_({ ok: false, error: "invalid_status" });
+      }
+      var nuHasMemo = (body.admin_memo !== undefined && body.admin_memo !== null);
+      if (!nuStatus && !nuHasMemo) return json_({ ok: false, error: "nothing_to_update" });
+
+      var nuHead = nuSheet.getRange(1, 1, 1, nuSheet.getLastColumn()).getValues()[0].map(function(h) { return String(h); });
+      ["status", "admin_memo", "admin_updated_at", "applied_at"].forEach(function(col) {
+        if (nuHead.indexOf(col) === -1) {
+          nuSheet.getRange(1, nuHead.length + 1).setValue(col);
+          nuHead.push(col);
+        }
+      });
+      var nuIdx = {};
+      nuHead.forEach(function(h, i) { nuIdx[h] = i; });
+      if (nuIdx["request_id"] === undefined) return json_({ ok: false, error: "request_id_column_missing" });
+
+      var nuData = nuSheet.getDataRange().getValues();
+      for (var ni = 1; ni < nuData.length; ni++) {
+        if (String(nuData[ni][nuIdx["request_id"]]) !== nuReqId) continue;
+        var nuRowNum = ni + 1;
+        var nuNow = new Date().toISOString();
+        if (nuStatus) {
+          nuSheet.getRange(nuRowNum, nuIdx["status"] + 1).setValue(nuStatus);
+          var prevApplied = nuData[ni][nuIdx["applied_at"]];
+          if (nuStatus === "completed" && !String(prevApplied === null || prevApplied === undefined ? "" : prevApplied)) {
+            nuSheet.getRange(nuRowNum, nuIdx["applied_at"] + 1).setValue(nuNow);
+          }
+        }
+        if (nuHasMemo) {
+          nuSheet.getRange(nuRowNum, nuIdx["admin_memo"] + 1).setValue(str_(body.admin_memo));
+        }
+        nuSheet.getRange(nuRowNum, nuIdx["admin_updated_at"] + 1).setValue(nuNow);
+        Logger.log("[narasu_agency_update] updated: " + nuReqId + " status=" + nuStatus);
+        return json_({ ok: true, requestId: nuReqId });
+      }
+      Logger.log("[narasu_agency_update] not found: " + nuReqId);
+      return json_({ ok: false, error: "request_not_found" });
+    } catch (e) {
+      Logger.log("[narasu_agency_update] error: " + String(e));
       return json_({ ok: false, error: String(e) });
     }
   }
