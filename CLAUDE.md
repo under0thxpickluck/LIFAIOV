@@ -141,7 +141,8 @@ NEXT_PUBLIC_SITE_URL=
 音楽生成（MusicGen / Replicate）は2〜3分かかるため、以下でタイムアウトを延長している。
 
 - `app/api/music/generate/route.ts` と `app/api/music/status/route.ts` に `export const maxDuration = 300;` を設定（Next.js / Vercel 両方に有効）
-- `vercel.json` で `app/api/music/**` の `maxDuration: 300` を設定（Vercel デプロイ時に必要）
+- **タイムアウトは各ルートの `export const maxDuration` だけで制御している。** `vercel.json` は `{"framework":"nextjs"}` のみで `functions` ブロックを持たないため、そちらに書いても効かない（本家 aisalon は `vercel.json` 併用なので、追随する際は混同しないこと）。新しく長時間かかるルートを追加したら、そのルートファイルに `maxDuration` を書く。
+- 長時間ルートの現状: `music/generate`・`music/status`・`music/download`・`song/start`・`song/approve-structure` が 300秒、`bgm/*` が 120秒
 - フロント側ポーリングは `MAX_TICKS = 150`（2秒×150 = 5分）に設定
 
 ### Testing / Debugging
