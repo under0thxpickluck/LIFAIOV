@@ -85,13 +85,36 @@ test("songId が取れないURLは none になり他トラックに影響しな�
 });
 
 test("music_history シートが無くても一覧は正常に返り、シートを作らない", () => {
+  const narasuFixture = narasuAgency([["req1", "submitted", "user1", URL_A, "", "", ""]]);
+  const before = JSON.parse(JSON.stringify(narasuFixture));
   const { gas, res } = list({
-    narasu_agency: narasuAgency([["req1", "submitted", "user1", URL_A, "", "", ""]]),
+    narasu_agency: narasuFixture,
   });
 
   expect(res.ok).toBe(true);
   expect(res.requests[0]._resolved_tracks[0].titleSource).toBe("none");
   expect(gas.insertedSheets).not.toContain("music_history");
+  // narasu_agency_list は読み取り専用でなければならない：呼び出し後もシート内容が変化しないこと
+  expect(gas.sheets.narasu_agency).toEqual(before);
+});
+
+test("music_history がある場合も narasu_agency_list 実行後にシート内容が変化しない", () => {
+  const musicHistoryFixture = musicHistory([
+    ["id1", "user1", "job1", "夏の終わり", URL_A, "", "歌詞ほんぶん", "2026-08-14T00:00:00.000Z", "2026-09-14T00:00:00.000Z"],
+  ]);
+  const narasuFixture = narasuAgency([["req1", "submitted", "user1", URL_A, "", "", ""]]);
+  const musicHistoryBefore = JSON.parse(JSON.stringify(musicHistoryFixture));
+  const narasuBefore = JSON.parse(JSON.stringify(narasuFixture));
+
+  const { gas, res } = list({
+    music_history: musicHistoryFixture,
+    narasu_agency: narasuFixture,
+  });
+
+  expect(res.ok).toBe(true);
+  expect(res.requests[0]._resolved_tracks[0].titleSource).toBe("history");
+  expect(gas.sheets.music_history).toEqual(musicHistoryBefore);
+  expect(gas.sheets.narasu_agency).toEqual(narasuBefore);
 });
 
 test("同一 songId が複数行あれば created_at が最新の行を採用する", () => {

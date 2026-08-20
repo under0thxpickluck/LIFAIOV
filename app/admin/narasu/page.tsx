@@ -127,9 +127,9 @@ function buildTracks(row: NarasuRow): Track[] {
 }
 
 /** music_history から自動補完した値であることを示すバッジ */
-function AutoBadge() {
+function AutoBadge({ className }: { className?: string }) {
   return (
-    <span className="mt-0.5 shrink-0 rounded border border-sky-500/30 bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-bold text-sky-300">
+    <span className={clsx("shrink-0 rounded border border-sky-500/30 bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-bold text-sky-300", className)}>
       自動取得
     </span>
   );
@@ -169,9 +169,9 @@ function buildFullText(row: NarasuRow, tracks: Track[]): string {
   lines.push(`■ 楽曲（${tracks.length}曲）`);
   tracks.forEach((t) => {
     lines.push(`--- ${t.index}曲目 ---`);
-    lines.push(`曲名: ${t.title || "（未入力）"}`);
+    lines.push(`曲名: ${t.title || "（未入力）"}${t.titleSource === "history" ? "（自動取得）" : ""}`);
     lines.push(`音源URL: ${t.url}`);
-    lines.push(`歌詞: ${t.lyrics ? "\n" + t.lyrics : "（なし）"}`);
+    lines.push(`歌詞: ${t.lyrics ? "\n" + t.lyrics + (t.lyricsSource === "history" ? "\n（自動取得）" : "") : "（なし）"}`);
   });
   if (row.lyrics_text) {
     lines.push("");
@@ -394,7 +394,7 @@ function RequestCard({
                             <p className={clsx("min-w-0 flex-1 break-all text-sm font-bold", t.title ? "text-zinc-100" : "text-zinc-600")}>
                               {t.title || "（曲名未入力）"}
                             </p>
-                            {t.titleSource === "history" && <AutoBadge />}
+                            {t.titleSource === "history" && <AutoBadge className="mt-0.5" />}
                             <CopyButton text={t.title} label="曲名" />
                           </div>
                           <div className="flex items-start gap-2">
@@ -606,6 +606,7 @@ export default function AdminNarasuPage() {
         r.request_id, r.artist_name, r.artist_name_kana, r.artist_name_alpha,
         r.album_name, r.album_name_kana, r.album_name_alpha,
         r.narasu_login_id, r.login_id, r.audio_titles, r.song_titles, r.note, r.admin_memo,
+        ...buildTracks(r).map((t) => t.title),
       ].map((v) => String(v ?? "").toLowerCase()).join(" ");
       return hay.includes(needle);
     });

@@ -29,8 +29,13 @@ function makeSheet(rows: SheetRows) {
     appendRow: (r: unknown[]) => {
       rows.push([...r]);
     },
-    getRange: (row: number, col: number, _numRows?: number, numCols?: number) => ({
-      getValues: () => [(rows[row - 1] ?? []).slice(col - 1, col - 1 + (numCols ?? 1))],
+    getRange: (row: number, col: number, numRows?: number, numCols?: number) => ({
+      getValues: () => {
+        if (numRows !== undefined && numRows > 1) {
+          throw new Error("gasSandbox: multi-row getRange is not stubbed");
+        }
+        return [(rows[row - 1] ?? []).slice(col - 1, col - 1 + (numCols ?? 1))];
+      },
       setValue: (v: unknown) => {
         while (rows.length < row) rows.push([]);
         rows[row - 1][col - 1] = v;
