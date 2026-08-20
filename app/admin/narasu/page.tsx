@@ -44,11 +44,24 @@ type NarasuRow = {
   [k: string]: any;
 };
 
+type TrackSource = "form" | "history" | "none";
+
+type ResolvedTrack = {
+  url?: string;
+  songId?: string;
+  title?: string;
+  titleSource?: TrackSource;
+  lyrics?: string;
+  lyricsSource?: TrackSource;
+};
+
 type Track = {
   index: number;
   url: string;
   title: string;
+  titleSource: TrackSource;
   lyrics: string;
+  lyricsSource: TrackSource;
 };
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
@@ -80,15 +93,46 @@ function splitLyrics(v?: string): string[] {
 }
 
 function buildTracks(row: NarasuRow): Track[] {
+  const resolved = Array.isArray(row._resolved_tracks)
+    ? (row._resolved_tracks as ResolvedTrack[])
+    : null;
+
+  if (resolved) {
+    return resolved.map((t, i) => ({
+      index: i + 1,
+      url: String(t.url ?? ""),
+      title: String(t.title ?? "").trim(),
+      titleSource: (t.titleSource ?? "none") as TrackSource,
+      lyrics: String(t.lyrics ?? "").trim(),
+      lyricsSource: (t.lyricsSource ?? "none") as TrackSource,
+    }));
+  }
+
+  // GAS が未デプロイの場合のフォールバック（従来の挙動）
   const urls = splitLines(row.audio_urls).filter((u) => u);
   const titles = splitLines(row.audio_titles ?? row.song_titles);
   const lyrics = splitLyrics(row.audio_lyrics);
-  return urls.map((url, i) => ({
-    index: i + 1,
-    url,
-    title: (titles[i] ?? "").trim(),
-    lyrics: (lyrics[i] ?? "").trim(),
-  }));
+  return urls.map((url, i) => {
+    const title = (titles[i] ?? "").trim();
+    const lyric = (lyrics[i] ?? "").trim();
+    return {
+      index: i + 1,
+      url,
+      title,
+      titleSource: (title ? "form" : "none") as TrackSource,
+      lyrics: lyric,
+      lyricsSource: (lyric ? "form" : "none") as TrackSource,
+    };
+  });
+}
+
+/** music_history から自動補完した値であることを示すバッジ */
+function AutoBadge() {
+  return (
+    <span className="mt-0.5 shrink-0 rounded border border-sky-500/30 bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-bold text-sky-300">
+      自動取得
+    </span>
+  );
 }
 
 function fmtDate(v?: string): string {
@@ -350,6 +394,7 @@ function RequestCard({
                             <p className={clsx("min-w-0 flex-1 break-all text-sm font-bold", t.title ? "text-zinc-100" : "text-zinc-600")}>
                               {t.title || "（曲名未入力）"}
                             </p>
+                            {t.titleSource === "history" && <AutoBadge />}
                             <CopyButton text={t.title} label="曲名" />
                           </div>
                           <div className="flex items-start gap-2">
@@ -372,6 +417,7 @@ function RequestCard({
                                 >
                                   {lyricsOpen ? "▲ 歌詞を閉じる" : `▼ この曲の歌詞（${t.lyrics.length}文字）`}
                                 </button>
+                                {t.lyricsSource === "history" && <AutoBadge />}
                                 <CopyButton text={t.lyrics} label="歌詞" />
                               </>
                             ) : (
