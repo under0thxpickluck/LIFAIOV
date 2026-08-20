@@ -569,6 +569,12 @@ export default function AdminPage() {
             >
               📖 マニュアル
             </a>
+            <a
+              href="/admin/narasu"
+              className="rounded-lg border border-zinc-700 px-3 py-2 text-sm font-semibold text-zinc-300 hover:bg-zinc-800"
+            >
+              🎵 narasu代理申請
+            </a>
             <button
               onClick={() => { load(); loadMusicSellRequests(); loadSellRequests(); loadDashboard(); loadMembers(membersPage); }}
               className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-bold text-black hover:bg-amber-600"
