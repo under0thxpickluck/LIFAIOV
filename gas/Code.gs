@@ -14254,7 +14254,8 @@ function buildSongMetaMap_() {
   if (idx["audio_url"] === undefined) return map;
 
   for (var i = 1; i < data.length; i++) {
-    var createdAt = str_(data[i][idx["created_at"]]);
+    var rawCreated = data[i][idx["created_at"]];
+    var createdAt = (rawCreated instanceof Date) ? rawCreated.toISOString() : str_(rawCreated);
     var title = str_(data[i][idx["title"]]);
     var lyrics = str_(data[i][idx["lyrics"]]);
 

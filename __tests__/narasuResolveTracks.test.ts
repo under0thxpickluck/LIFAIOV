@@ -108,6 +108,26 @@ test("同一 songId が複数行あれば created_at が最新の行を採用す
   expect(t.lyrics).toBe("新しい歌詞");
 });
 
+test("created_at が Sheets により Date型に変換されていても新しい行が正しく採用される", () => {
+  // 2026-08-05(水) は 2026-08-17(月) より時系列で古いが、
+  // Date.toString() の曜日名は "Wed" > "Mon" となり、
+  // 素朴な文字列比較では逆に古い行が勝ってしまう（回帰確認）。
+  const OLDER_BUT_STRINGY_LATER = new Date("2026-08-05T12:00:00.000Z");
+  const NEWER_BUT_STRINGY_EARLIER = new Date("2026-08-17T12:00:00.000Z");
+
+  const { res } = list({
+    music_history: musicHistory([
+      ["id1", "user1", "job1", "古いほう(水)", URL_A, "", "古い歌詞", OLDER_BUT_STRINGY_LATER, ""],
+      ["id2", "user2", "job2", "新しいほう(月)", URL_A, "", "新しい歌詞", NEWER_BUT_STRINGY_EARLIER, ""],
+    ]),
+    narasu_agency: narasuAgency([["req1", "submitted", "user1", URL_A, "", "", ""]]),
+  });
+
+  const t = res.requests[0]._resolved_tracks[0];
+  expect(t.title).toBe("新しいほう(月)");
+  expect(t.lyrics).toBe("新しい歌詞");
+});
+
 test("既存の列キーは欠落しない", () => {
   const { res } = list({
     narasu_agency: narasuAgency([["req1", "submitted", "user1", URL_A, "", "", "共通歌詞"]]),

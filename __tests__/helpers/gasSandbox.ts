@@ -49,6 +49,13 @@ export function createGasSandbox(options: SandboxOptions = {}): GasSandbox {
 
   const sandbox: Record<string, unknown> = {
     console,
+    // Share the host's Date constructor with the sandbox realm. vm.createContext()
+    // otherwise gives the sandbox its own intrinsics, so a Date object created in a
+    // test file would fail `instanceof Date` checks inside gas/Code.gs even though
+    // it behaves like a Date in every other way (cross-realm identity mismatch).
+    // Sheets can return real Date objects for date-like cells, so tests need to be
+    // able to simulate that faithfully.
+    Date,
     PropertiesService: {
       getScriptProperties: () => ({
         getProperty: (k: string) => (k === "ADMIN_SECRET" ? adminSecret : "TEST_SECRET"),
