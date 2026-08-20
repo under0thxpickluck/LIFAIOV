@@ -8293,43 +8293,10 @@ function doPost(e) {
     const key = pickKey_(e);
     const body = JSON.parse(e?.postData?.contents || "{}");
     const action = str_(body.action);
-    // 診断用: keyなしで、この稼働中の/execがバインドしているシートを返す
-    if (action === "which_sheet") {
-      const ss_wc = SpreadsheetApp.getActiveSpreadsheet();
-      return json_({ ok: true, name: ss_wc.getName(), id: ss_wc.getId(), url: ss_wc.getUrl() });
-    }
-    // 診断用: 指定タブ（既定 music_boost）の内容を最大200行返す
-    if (action === "diag_dump") {
-      const name_dd = str_(body.sheet) || "music_boost";
-      const lim_dd = Number(body.limit) || 200;
-      const ss_dd = SpreadsheetApp.getActiveSpreadsheet();
-      const sh_dd = ss_dd.getSheetByName(name_dd);
-      if (!sh_dd) return json_({ ok: false, error: "sheet_not_found", sheet: name_dd });
-      const vals_dd = sh_dd.getDataRange().getValues();
-      return json_({ ok: true, spreadsheet: ss_dd.getName(), sheet: name_dd, total_rows: vals_dd.length, rows: vals_dd.slice(0, lim_dd + 1) });
-    }
-    // 診断用: applies タブの music_boost 申請列（login_id/artist/album/tracks）だけを抽出
-    if (action === "diag_mbtracks") {
-      const ss_mt = SpreadsheetApp.getActiveSpreadsheet();
-      const sh_mt = ss_mt.getSheetByName("applies");
-      if (!sh_mt) return json_({ ok: false, error: "applies_not_found" });
-      const vals_mt = sh_mt.getDataRange().getValues();
-      const head_mt = vals_mt[0];
-      const iLogin_mt = head_mt.indexOf("login_id");
-      const iArtist_mt = head_mt.indexOf("music_boost_artist");
-      const iAlbum_mt = head_mt.indexOf("music_boost_album");
-      const iTracks_mt = head_mt.indexOf("music_boost_tracks_json");
-      const res_mt = [];
-      for (let i_mt = 1; i_mt < vals_mt.length; i_mt++) {
-        const ar_mt = iArtist_mt >= 0 ? String(vals_mt[i_mt][iArtist_mt] || "") : "";
-        const al_mt = iAlbum_mt >= 0 ? String(vals_mt[i_mt][iAlbum_mt] || "") : "";
-        const tr_mt = iTracks_mt >= 0 ? String(vals_mt[i_mt][iTracks_mt] || "") : "";
-        if (ar_mt.trim() || al_mt.trim() || tr_mt.trim()) {
-          res_mt.push({ login_id: iLogin_mt >= 0 ? vals_mt[i_mt][iLogin_mt] : "", artist: ar_mt, album: al_mt, tracks: tr_mt.slice(0, 500) });
-        }
-      }
-      return json_({ ok: true, spreadsheet: ss_mt.getName(), count: res_mt.length, rows: res_mt });
-    }
+    // 調査用に key 検証より手前へ置かれていた診断アクション
+    // (which_sheet / diag_dump / diag_mbtracks) は削除済み。
+    // 認証なしで applies を含む任意のシート内容を返せる状態だったため。
+    // 同種の調査が必要になったら、handle_ 側に adminKey 必須で追加すること。
     if (action && action.startsWith("market_")) {
       return handleMarket_(key, body);
     }
