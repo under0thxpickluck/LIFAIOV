@@ -8525,7 +8525,9 @@ function doPost(e) {
   // narasu代理申請 管理（一覧・ステータス更新）
   // =========================================================
   if (action === "narasu_agency_list") {
-    if (str_(body.adminKey) !== ADMIN_SECRET) return json_({ ok: false, error: "admin_unauthorized" });
+    // この doPost のスコープには ADMIN_SECRET が無いため getSecrets_() から取得する
+    var naAdminSecret = getSecrets_().ADMIN_SECRET;
+    if (str_(body.adminKey) !== naAdminSecret) return json_({ ok: false, error: "admin_unauthorized" });
     try {
       var naSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("narasu_agency");
       if (!naSheet) return json_({ ok: true, requests: [] });
@@ -8555,7 +8557,9 @@ function doPost(e) {
   }
 
   if (action === "narasu_agency_update") {
-    if (str_(body.adminKey) !== ADMIN_SECRET) return json_({ ok: false, error: "admin_unauthorized" });
+    // この doPost のスコープには ADMIN_SECRET が無いため getSecrets_() から取得する
+    var nuAdminSecret = getSecrets_().ADMIN_SECRET;
+    if (str_(body.adminKey) !== nuAdminSecret) return json_({ ok: false, error: "admin_unauthorized" });
     try {
       var nuSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("narasu_agency");
       if (!nuSheet) return json_({ ok: false, error: "sheet_not_found" });
