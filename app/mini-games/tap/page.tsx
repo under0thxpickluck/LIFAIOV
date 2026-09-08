@@ -152,7 +152,9 @@ export default function TapMiningPage() {
 
   // ── 初期化 ──
   useEffect(() => {
-    const seen = localStorage.getItem("tap_help_seen");
+    /* ルールが変わったので、既に閉じた人にももう一度出す。キーを据え置くと、
+       いちばん説明が要る既存の利用者にだけ届かない。 */
+    const seen = localStorage.getItem("tap_help_seen_v2");
     if (!seen) setShowHelp(true);
   }, []);
 
@@ -443,27 +445,41 @@ export default function TapMiningPage() {
             <div className={`text-sm ${th.muted} space-y-3`}>
               <div>
                 <p className="font-bold mb-1">■ 基本ルール</p>
-                <p>・1タップ = 5BP消費</p>
-                <p>・1日最大2,000回まで</p>
-                <p>・時間帯ごとに500回まで（0-6 / 6-12 / 12-18 / 18-24時）</p>
-                <p>・毎日リセット</p>
+                <p>・1タップ = <b>5BP</b> 消費</p>
+                <p>・1日 <b>2,000回</b> まで</p>
+                <p>・時間帯ごとに <b>500回</b> まで</p>
+                <p className="pl-3 text-xs">0-6時 / 6-12時 / 12-18時 / 18-24時</p>
+                <p>・回数は毎日リセットされます</p>
               </div>
               <div>
                 <p className="font-bold mb-1">■ 報酬</p>
-                <p>・BPまたはEPがランダムで獲得できます</p>
+                <p>・BPまたはEPがランダムで当たります</p>
                 <p>・最低でも0.1BPは必ずもらえます</p>
-                <p>・最高報酬は100EPです</p>
-                <p>・EPは時間帯ごとに配布量の上限があります</p>
-                <p>・上限に達すると、その時間帯はEPが出ません（BPは消費しません）</p>
+                <p>・EPの最高額は <b>100EP</b> です</p>
+              </div>
+              <div>
+                <p className="font-bold mb-1">■ EPの配布には上限があります</p>
+                <p>・EPは <b>時間帯ごとに配る量が決まっています</b></p>
+                <p>・その時間帯の分を配り切ると、<b>次の時間帯まで EP は出ません</b></p>
+                <p>・配り切ったあとは <b>BPも消費されません</b>（叩いても減りません）</p>
+                <p>・残り時間は画面の「この時間帯のEP残り」で確認できます</p>
+                <p className="text-xs">早い者勝ちではありますが、時間帯を分けているので、
+                  一日のうち別の時間に来ればまた枠があります。</p>
+              </div>
+              <div>
+                <p className="font-bold mb-1">■ 表示が遅れることがあります</p>
+                <p>・残高と記録は <b>まとめて送信するタイミング</b> で更新されます</p>
+                <p>・連打中はすぐに反映されません（50回ごと、または手を止めて数秒後）</p>
+                <p>・反映が遅れているだけで、<b>タップは記録されています</b></p>
               </div>
               <div>
                 <p className="font-bold mb-1">■ ポイント</p>
                 <p>・EPはアプリ内ポイントです（換金不可）</p>
-                <p>・運が良いと大当たりも…？</p>
+                <p>・ブラウザを閉じたあとは、ログインし直すと再開できます</p>
               </div>
             </div>
             <button
-              onClick={() => { localStorage.setItem("tap_help_seen", "1"); setShowHelp(false); }}
+              onClick={() => { localStorage.setItem("tap_help_seen_v2", "1"); setShowHelp(false); }}
               className="w-full mt-5 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 font-bold text-sm"
             >
               OK、はじめる！
@@ -543,12 +559,6 @@ export default function TapMiningPage() {
               {status.slot_ep_remaining ?? "—"} / {status.slot_ep_cap ?? 225} EP
             </p>
           </div>
-          <div className="flex items-center justify-between mb-1">
-            <p className={th.statLabel}>本日のEP残り</p>
-            <p className="text-xs font-bold text-yellow-400">
-              {status.daily_ep_remaining ?? "—"} / {status.daily_ep_cap ?? 900} EP
-            </p>
-          </div>
           <div className="flex items-center justify-between">
             <p className={th.statLabel}>この時間帯の残り回数</p>
             <p className="text-xs font-bold">
@@ -562,6 +572,13 @@ export default function TapMiningPage() {
           )}
         </div>
       )}
+
+      {/* 送信をまとめているので、残高と記録は少し遅れて動く。
+          黙って遅れると「減っていない」「反映されない」と見える。 */}
+      <p className={`text-[11px] ${th.muted} mb-6 leading-relaxed`}>
+        ※ 残高と記録は、まとめて送るタイミングで更新されます。<br />
+        連打中はすぐに反映されません（50回ごと、または手を止めて数秒後）。
+      </p>
 
       {/* code は sessionStorage にあるので、ブラウザを閉じると消える。
           ID だけ残った状態で叩かせると、毎回401で理由も分からない。 */}
