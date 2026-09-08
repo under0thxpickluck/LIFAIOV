@@ -8,6 +8,13 @@ import { motion, useReducedMotion } from "framer-motion";
 import { TapFloatText } from "@/components/animations/TapFloatText";
 import { LoadingCat } from "@/components/LoadingCat";
 
+/* 1回にまとめて送るタップ数。サーバー側の上限と同じ値にしてある。
+   ここを大きくすると、これを超えた分が 400 で弾かれる。 */
+const TAP_BATCH_SIZE = 50;
+/* 打ち終えてから送るまでの待ち。長くするほど通信は減るが、
+   結果が画面に出るのも遅くなる。 */
+const TAP_FLUSH_DELAY_MS = 5000;
+
 type TapStatus = {
   today_taps:      number;
   today_bp:        number;
@@ -185,11 +192,13 @@ export default function TapMiningPage() {
 
   // ── バッチ flush ──
   const flushTaps = useCallback(async () => {
-    const count = pendingTapsRef.current;
+    /* 送信中に叩かれた分は貯まり続ける。全部まとめて送ると 50 を超えて
+       400 で弾かれるので、上限までを送り、余りは次の便に回す。 */
+    const count = Math.min(pendingTapsRef.current, TAP_BATCH_SIZE);
     if (count === 0 || !userIdRef.current || !codeRef.current || isFlushingRef.current) return;
 
     isFlushingRef.current  = true;
-    pendingTapsRef.current = 0;
+    pendingTapsRef.current -= count;
     if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
 
     const startedAt = batchStartRef.current ?? Date.now();
@@ -295,7 +304,15 @@ export default function TapMiningPage() {
         setAuthCode("");
       }
     } catch {}
-    finally { isFlushingRef.current = false; }
+    finally {
+      isFlushingRef.current = false;
+      /* 持ち越した分があれば、続けて送る。放っておくと、
+         次に叩くまで送られないまま残る。 */
+      if (pendingTapsRef.current > 0) {
+        if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = setTimeout(() => flushTaps(), 300);
+      }
+    }
   }, []);
 
   // ── 離脱時 flush（pagehide 最優先 / visibilitychange / beforeunload 補助） ──
@@ -305,14 +322,14 @@ export default function TapMiningPage() {
       code:      codeRef.current,
       group:     groupRef.current,
       batchId:   newBatchId(),
-      tapCount:  pendingTapsRef.current,
+      tapCount:  Math.min(pendingTapsRef.current, TAP_BATCH_SIZE),
       maxCombo:  maxComboInBatchRef.current,
       startedAt: batchStartRef.current ?? Date.now(),
       endedAt:   Date.now(),
     });
 
     const sendBatch = () => {
-      const count = pendingTapsRef.current;
+      const count = Math.min(pendingTapsRef.current, TAP_BATCH_SIZE);
       if (count === 0 || !userIdRef.current || !codeRef.current) return;
       const payload = buildPayload();
       pendingTapsRef.current = 0;
@@ -392,11 +409,19 @@ export default function TapMiningPage() {
     if (!batchStartRef.current) batchStartRef.current = now;
     pendingTapsRef.current++;
 
-    if (pendingTapsRef.current >= 10) {
+    /* GAS は1回の送信ごとにロックを取ってシートを読み書きする。
+       以前は10タップごと・打ち終え2秒後だったので、連打すると2秒に1回
+       叩きに行っていた。まとめる数をサーバーの上限（50）まで引き上げ、
+       打ち終えてからの待ちも延ばす。
+
+       連打する人ほど間隔が空く（50回貯まるまで送らない）。ゆっくり叩く人は
+       手を止めてから送られるので、どちらも回数が減る。
+       途中で画面を離れても pagehide で送るので、取りこぼしはしない。 */
+    if (pendingTapsRef.current >= TAP_BATCH_SIZE) {
       flushTaps();
     } else {
       if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
-      flushTimerRef.current = setTimeout(() => flushTaps(), 2000);
+      flushTimerRef.current = setTimeout(() => flushTaps(), TAP_FLUSH_DELAY_MS);
     }
   };
 
