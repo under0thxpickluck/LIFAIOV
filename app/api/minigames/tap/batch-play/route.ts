@@ -13,16 +13,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "invalid_json" }, { status: 400 });
   }
 
-  const { userId, sessionId, tapCount, maxCombo, startedAt, endedAt } = body ?? {};
+  const { userId, code, group, batchId, tapCount, maxCombo, startedAt, endedAt } = body ?? {};
 
   if (!userId)          return NextResponse.json({ ok: false, error: "userId_required" }, { status: 400 });
-  if (!tapCount || tapCount <= 0) return NextResponse.json({ ok: false, error: "invalid_tap_count" }, { status: 400 });
+  if (!code)            return NextResponse.json({ ok: false, error: "authentication_required" }, { status: 401 });
+  if (!batchId)         return NextResponse.json({ ok: false, error: "batchId_required" }, { status: 400 });
+  if (!Number.isSafeInteger(tapCount) || tapCount <= 0 || tapCount > 50) {
+    return NextResponse.json({ ok: false, error: "invalid_tap_count" }, { status: 400 });
+  }
 
   const bodyStr = JSON.stringify({
     action:    "tap_batch_play",
     key:       GAS_API_KEY,
     userId,
-    sessionId: sessionId ?? "",
+    code,
+    group: group ?? "",
+    batchId,
     tapCount,
     maxCombo:  maxCombo  ?? 0,
     startedAt: startedAt ?? Date.now(),
