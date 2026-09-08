@@ -43,7 +43,24 @@
       "Read(//c/Users/unitu/aisalon/app/api/song//**)",
       "Read(//c/Users/unitu/aisalon/app/api/admin//**)",
       "Bash(mkdir -p /c/Users/unitu/aisalon/app/api/admin/notify-user)",
-      "Bash(mkdir -p /c/Users/unitu/aisalon/app/api/admin/set-gacha-preset)"
+      "Bash(mkdir -p /c/Users/unitu/aisalon/app/api/admin/set-gacha-preset)",
+      "WebFetch(domain:docs.google.com)",
+      "WebFetch(domain:doc-04-8c-sheets.googleusercontent.com)",
+      "WebFetch(domain:doc-0s-8c-sheets.googleusercontent.com)",
+      "Read(//c/Users/unite/RMTsite/**)",
+      "Bash(grep -iE 'SITE_URL|VERCEL|DOMAIN|BASE_URL|PUBLIC_URL' .env.local .env.local.example)",
+      "Bash(ls i18n *)",
+      "Bash(ls vercel.json)",
+      "Bash(cat vercel.json)",
+      "WebFetch(domain:www.loofity-game.com)",
+      "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1 | Select-Object -First 40)",
+      "PowerShell(git push *)",
+      "Bash(node --check gas/Code.gs)",
+      "Bash(cp gas/Code.gs __TRACKED_VAR__/codecheck.js)",
+      "Bash(cp gas/Code.gs /c/Users/unite/AppData/Local/Temp/claude/C--Users-unite-LIFAIOV/f6f8fd4c-4e29-4582-a114-aec3d8bb4633/scratchpad/codecheck.js)",
+      "Bash(node --check /c/Users/unite/AppData/Local/Temp/claude/C--Users-unite-LIFAIOV/f6f8fd4c-4e29-4582-a114-aec3d8bb4633/scratchpad/codecheck.js)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(echo \"tsc exit=$?\")"
     ]
   }
 }

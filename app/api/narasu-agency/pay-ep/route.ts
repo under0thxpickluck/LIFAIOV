@@ -1,7 +1,7 @@
 // app/api/narasu-agency/pay-ep/route.ts
 import { NextResponse } from "next/server";
 
-const NARASU_EP_COST = 1000;
+const NARASU_EP_COST = 2000;
 
 export async function POST(req: Request) {
   try {

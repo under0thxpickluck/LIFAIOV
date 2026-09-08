@@ -117,7 +117,7 @@ export default function NarasuCompletePage() {
           {/* BP支払い完了 */}
           {payState === "bp_done" && (
             <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
-              <p className="text-sm font-bold text-emerald-700">4500BP の支払いが完了しました！</p>
+              <p className="text-sm font-bold text-emerald-700">5000BP の支払いが完了しました！</p>
               <p className="mt-1 text-xs text-emerald-600">代理申請の手続きを進めます。完了次第ご連絡いたします。</p>
             </div>
           )}
@@ -125,7 +125,7 @@ export default function NarasuCompletePage() {
           {/* EP支払い完了 */}
           {payState === "ep_done" && (
             <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
-              <p className="text-sm font-bold text-emerald-700">1000EP の支払いが完了しました！</p>
+              <p className="text-sm font-bold text-emerald-700">2000EP の支払いが完了しました！</p>
               <p className="mt-1 text-xs text-emerald-600">代理申請の手続きを進めます。完了次第ご連絡いたします。</p>
             </div>
           )}
@@ -157,7 +157,7 @@ export default function NarasuCompletePage() {
                   className="block w-full rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-4 text-left transition hover:bg-indigo-100"
                 >
                   <p className="text-sm font-extrabold text-indigo-800">🔷 BP払い</p>
-                  <p className="mt-0.5 text-xs text-indigo-600">4500BP消費 — 即時完了</p>
+                  <p className="mt-0.5 text-xs text-indigo-600">5000BP消費 — 即時完了</p>
                 </button>
               )}
 
@@ -173,7 +173,7 @@ export default function NarasuCompletePage() {
                 className="block w-full rounded-2xl border border-violet-200 bg-violet-50 px-4 py-4 text-left transition hover:bg-violet-100"
               >
                 <p className="text-sm font-extrabold text-violet-800">💎 EP払い</p>
-                <p className="mt-0.5 text-xs text-violet-600">1000EP消費 — 即時完了</p>
+                <p className="mt-0.5 text-xs text-violet-600">2000EP消費 — 即時完了</p>
               </button>
 
               {epError && (
