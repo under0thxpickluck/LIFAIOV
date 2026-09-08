@@ -6,12 +6,17 @@ export const dynamic = "force-dynamic";
 const GAS_URL     = process.env.GAS_WEBAPP_URL!;
 const GAS_API_KEY = process.env.GAS_API_KEY!;
 
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId");
-  if (!userId) return NextResponse.json({ ok: false, error: "userId_required" }, { status: 400 });
+export async function POST(req: Request) {
+  let body: any;
+  try { body = await req.json(); } catch {
+    return NextResponse.json({ ok: false, error: "invalid_json" }, { status: 400 });
+  }
+  const userId = typeof body?.userId === "string" ? body.userId.trim() : "";
+  const code = typeof body?.code === "string" ? body.code : "";
+  const group = typeof body?.group === "string" ? body.group : "";
+  if (!userId || !code) return NextResponse.json({ ok: false, error: "authentication_required" }, { status: 401 });
 
-  const bodyStr = JSON.stringify({ action: "tap_status", key: GAS_API_KEY, userId });
+  const bodyStr = JSON.stringify({ action: "tap_status", key: GAS_API_KEY, userId, code, group });
   const url = `${GAS_URL}${GAS_URL.includes("?") ? "&" : "?"}key=${encodeURIComponent(GAS_API_KEY)}`;
 
   try {

@@ -9042,202 +9042,87 @@ function resetTapIfNeeded_(sheet, rowNum, idx, row) {
   return false;
 }
 
-// @deprecated: Use tapBatchPlay_ instead. Kept for debug/fallback/rollback only.
-// action: tap_play
-// params: userId
+// @deprecated 旧タップ。時間帯プール・本人確認・冪等性が無いため、
+// これが生きていると新仕様を迂回できる。動線は tap_batch_play に一本化した。
+// 復旧が要るときは履歴から戻し、新仕様に合わせてから使うこと。
 function tapPlay_(params) {
-  var userId = String(params.userId || "");
-  if (!userId) return json_({ ok: false, error: "userId_required" });
-
-  var GAS_URL    = ScriptApp.getService().getUrl();
-  var sheet      = getTapGameSheet_();
-  ensureTapGameCols_(sheet);
-
-  var nowJst   = new Date(Date.now() + 9 * 60 * 60 * 1000);
-  var nowStr   = nowJst.toISOString();
-  var todayStr = nowStr.slice(0, 10);
-
-  var MAX_TAPS_PER_DAY = 500;
-
-  // 報酬確率テーブル
-  var REWARD_TABLE = [
-    { type: "BP", amount: 0.1,   prob: 0.45     },
-    { type: "BP", amount: 0.2,   prob: 0.25     },
-    { type: "BP", amount: 0.5,   prob: 0.08     },
-    { type: "EP", amount: 1,     prob: 0.15     },
-    { type: "EP", amount: 3,     prob: 0.05     },
-    { type: "EP", amount: 10,    prob: 0.015    },
-    { type: "EP", amount: 100,   prob: 0.0009   },
-    { type: "EP", amount: 10000, prob: 0.000001 }
-  ];
-
-  // ユーザー行取得
-  var found = getTapGameRow_(sheet, userId);
-  var rowNum, idx, row;
-
-  if (!found) {
-    sheet.appendRow([userId, 0, 0, 0, 0, 0, 0, todayStr, nowStr, false]);
-    var data    = sheet.getDataRange().getValues();
-    var headers = data[0];
-    idx = {};
-    headers.forEach(function(h, i) { idx[h] = i; });
-    rowNum = sheet.getLastRow();
-    row    = data[rowNum - 1];
-  } else {
-    rowNum = found.rowNum;
-    idx    = found.idx;
-    row    = found.row;
-    resetTapIfNeeded_(sheet, rowNum, idx, row);
-    row = sheet.getRange(rowNum, 1, 1, Object.keys(idx).length).getValues()[0];
-  }
-
-  var todayTaps = Number(row[idx["today_taps"]] || 0);
-  var totalTaps = Number(row[idx["total_taps"]] || 0);
-
-  // 1日上限チェック
-  if (todayTaps >= MAX_TAPS_PER_DAY) {
-    return json_({ ok: false, error: "daily_limit_reached", taps_remaining: 0 });
-  }
-
-  // BP残高確認（1BP消費）
-  var appliesSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("applies");
-  var appliesData  = appliesSheet.getDataRange().getValues();
-  var aHeaders     = appliesData[0];
-  var aIdx         = {};
-  aHeaders.forEach(function(h, i) { aIdx[h] = i; });
-
-  var userRow    = null;
-  var userRowNum = -1;
-  for (var i = 1; i < appliesData.length; i++) {
-    if (String(appliesData[i][aIdx["login_id"]]) === userId) {
-      userRow    = appliesData[i];
-      userRowNum = i + 1;
-      break;
-    }
-  }
-
-  if (!userRow) return json_({ ok: false, error: "user_not_found" });
-
-  var currentBp = Number(userRow[aIdx["bp_balance"]] || 0);
-  if (currentBp < 1) return json_({ ok: false, error: "insufficient_bp", bp: currentBp });
-
-  // BP -1消費
-  var newBp = Math.round((currentBp - 1) * 100) / 100;
-  appliesSheet.getRange(userRowNum, aIdx["bp_balance"] + 1).setValue(newBp);
-
-  // 抽選
-  var rand        = Math.random();
-  var cumulative  = 0;
-  var rewardType  = "BP";
-  var rewardAmount = 0.1;
-  var isRare      = false;
-
-  for (var j = 0; j < REWARD_TABLE.length; j++) {
-    cumulative += REWARD_TABLE[j].prob;
-    if (rand < cumulative) {
-      rewardType   = REWARD_TABLE[j].type;
-      rewardAmount = REWARD_TABLE[j].amount;
-      break;
-    }
-  }
-
-  // is_rare判定（50EP以上）
-  if (rewardType === "EP" && rewardAmount >= 50) isRare = true;
-
-  // 報酬付与
-  var beforeBp = newBp;
-  var beforeEp = Number(userRow[aIdx["ep_balance"]] || 0);
-  var afterBp  = beforeBp;
-  var afterEp  = beforeEp;
-
-  if (rewardType === "BP") {
-    afterBp = Math.round((beforeBp + rewardAmount) * 100) / 100;
-    appliesSheet.getRange(userRowNum, aIdx["bp_balance"] + 1).setValue(afterBp);
-  } else {
-    afterEp = Math.round((beforeEp + rewardAmount) * 100) / 100;
-    appliesSheet.getRange(userRowNum, aIdx["ep_balance"] + 1).setValue(afterEp);
-  }
-
-  // tap_gameシート更新
-  var newTodayTaps  = todayTaps + 1;
-  var newTotalTaps  = totalTaps + 1;
-  var todayBp       = Number(row[idx["today_bp_earned"]] || 0);
-  var todayEp       = Number(row[idx["today_ep_earned"]] || 0);
-  var newTodayBp    = rewardType === "BP" ? Math.round((todayBp + rewardAmount) * 100) / 100 : todayBp;
-  var newTodayEp    = rewardType === "EP" ? Math.round((todayEp + rewardAmount) * 100) / 100 : todayEp;
-
-  sheet.getRange(rowNum, idx["total_taps"]      + 1).setValue(newTotalTaps);
-  sheet.getRange(rowNum, idx["today_taps"]      + 1).setValue(newTodayTaps);
-  sheet.getRange(rowNum, idx["today_bp_earned"] + 1).setValue(newTodayBp);
-  sheet.getRange(rowNum, idx["today_ep_earned"] + 1).setValue(newTodayEp);
-  sheet.getRange(rowNum, idx["last_tap_at"]     + 1).setValue(nowStr);
-
-  // tap_logsシート記録
-  var logsSheet = getTapLogsSheet_();
-  ensureTapLogsCols_(logsSheet);
-  logsSheet.appendRow([
-    Utilities.getUuid(), userId, nowStr,
-    rewardType === "BP" ? rewardAmount : 0,
-    rewardType === "EP" ? rewardAmount : 0,
-    0, false, rewardType.toLowerCase()
-  ]);
-
-  // Ticker登録（50EP以上）
-  if (isRare) {
-    var tickerSheet = getOrCreateTickerSheet_();
-    var maskedName  = userId.length > 2 ? userId.slice(0, 2) + "***" : userId + "***";
-    tickerSheet.appendRow([
-      Utilities.getUuid(), maskedName, rewardAmount, "EP", nowStr
-    ]);
-  }
-
-  return json_({
-    ok:             true,
-    reward_type:    rewardType,
-    reward_amount:  rewardAmount,
-    is_rare:        isRare,
-    bp:             afterBp,
-    ep:             afterEp,
-    taps_remaining: MAX_TAPS_PER_DAY - newTodayTaps,
-    today_bp:       newTodayBp,
-    today_ep:       newTodayEp,
-  });
+  return json_({ ok: false, error: "tap_play_disabled" });
 }
 
 // action: tap_status
-// params: userId
+// params: userId, code
 function tapStatus_(params) {
   var userId = String(params.userId || "");
+  var code   = String(params.code   || "");
   if (!userId) return json_({ ok: false, error: "userId_required" });
+  if (!code)   return json_({ ok: false, error: "authentication_required" });
+
+  /* 残高と当日の成績を返すので、本人以外に見せない。 */
+  var auth = mktAuth_(getSecrets_().SECRET, userId, code);
+  if (!auth.ok || auth.login_id !== userId) {
+    return json_({ ok: false, error: "authentication_failed" });
+  }
+
+  var jst      = tapJstParts_();
+  var todayStr = jst.dateStr;
+  var slot     = tapSlotIndex_(jst.hour);
+  var slotKey  = tapSlotKey_(todayStr, slot);
+
+  var poolSheet  = getTapPoolSheet_();
+  var pool       = tapPoolRow_(poolSheet, todayStr, slot);
+  var dayIssued  = tapDayIssued_(poolSheet, todayStr);
+  var slotEpLeft = Math.max(0, Math.round((TAP_SLOT_EP_CAP  - pool.issued) * 100) / 100);
+  var dayEpLeft  = Math.max(0, Math.round((TAP_DAILY_EP_CAP - dayIssued)   * 100) / 100);
 
   var sheet = getTapGameSheet_();
   ensureTapGameCols_(sheet);
+  ensureTapGameSlotCols_(sheet);
+
+  var base = {
+    ok: true,
+    slot:               tapSlotLabel_(slot),
+    slot_index:         slot,
+    next_slot_at:       tapNextSlotAtIso_(todayStr, slot),
+    bp_per_tap:         TAP_BP_PER_TAP,
+    max_taps_per_day:   TAP_MAX_PER_DAY,
+    max_taps_per_slot:  TAP_MAX_PER_SLOT,
+    slot_ep_cap:        TAP_SLOT_EP_CAP,
+    daily_ep_cap:       TAP_DAILY_EP_CAP,
+    slot_ep_remaining:  slotEpLeft,
+    daily_ep_remaining: dayEpLeft
+  };
 
   var found = getTapGameRow_(sheet, userId);
   if (!found) {
-    return json_({
-      ok: true,
-      today_taps: 0, today_bp: 0, today_ep: 0,
-      taps_remaining: 500, max_combo: 0, total_taps: 0
-    });
+    base.today_taps = 0; base.today_bp = 0; base.today_ep = 0;
+    base.taps_remaining = TAP_MAX_PER_DAY;
+    base.slot_taps = 0;
+    base.slot_taps_remaining = TAP_MAX_PER_SLOT;
+    base.max_combo = 0; base.today_max_combo = 0; base.total_taps = 0;
+    return json_(base);
   }
 
-  var rowNum = found.rowNum;
-  var idx    = found.idx;
-  var row    = found.row;
-  resetTapIfNeeded_(sheet, rowNum, idx, row);
-  row = sheet.getRange(rowNum, 1, 1, row.length).getValues()[0];
+  var rowNum = found.rowNum, idx = found.idx;
+  resetTapIfNeeded_(sheet, rowNum, idx, found.row);
+  var row = sheet.getRange(rowNum, 1, 1, sheet.getLastColumn()).getValues()[0];
 
-  return json_({
-    ok: true,
-    today_taps:      Number(row[idx["today_taps"]] || 0),
-    today_bp:        Number(row[idx["today_bp_earned"]] || 0),
-    today_ep:        Number(row[idx["today_ep_earned"]] || 0),
-    taps_remaining:  500 - Number(row[idx["today_taps"]] || 0),
-    max_combo:       Number(row[idx["max_combo"]] || 0),
-    today_max_combo: Number(row[idx["today_max_combo"]] || 0),
-    total_taps:      Number(row[idx["total_taps"]] || 0),
-  });
+  /* 枠が変わっていれば、その枠の回数は0として見せる。
+     ここで書き戻さないのは、status は読むだけの口だから。
+     実際の書き戻しは、次にタップしたときに行う。 */
+  var slotTaps = (String(row[idx["slot_key"]] || "") === slotKey)
+    ? Number(row[idx["slot_taps"]] || 0) : 0;
+  var todayTaps = Number(row[idx["today_taps"]] || 0);
+
+  base.today_taps          = todayTaps;
+  base.today_bp            = Number(row[idx["today_bp_earned"]] || 0);
+  base.today_ep            = Number(row[idx["today_ep_earned"]] || 0);
+  base.taps_remaining      = Math.max(0, TAP_MAX_PER_DAY  - todayTaps);
+  base.slot_taps           = slotTaps;
+  base.slot_taps_remaining = Math.max(0, TAP_MAX_PER_SLOT - slotTaps);
+  base.max_combo           = Number(row[idx["max_combo"]] || 0);
+  base.today_max_combo     = Number(row[idx["today_max_combo"]] || 0);
+  base.total_taps          = Number(row[idx["total_taps"]] || 0);
+  return json_(base);
 }
 
 // action: tap_ranking
@@ -9324,148 +9209,382 @@ function getTapRareLogsSheet_() {
   return sheet;
 }
 
+// ============================================================
+// タップ — 時間帯プールつき（JST）
+//
+// 発行できるEPを、時間帯ごとに区切って上限を掛ける。
+//   0-6 / 6-12 / 12-18 / 18-24  各225 EP、1日合計900 EP
+//
+// 上限を「1日だけ」にすると、朝に来た1人が使い切って、夜の人が
+// 何も取れない。時間帯で区切ると、遅い時間の人にも枠が残る。
+// 余った枠は繰り越さない（繰り越すと、翌枠が実質2倍になる）。
+//
+// 個人の回数も枠ごとに区切る。1日2,000回・1枠500回。
+// 1日だけの制限だと、1人が1枠で2,000回叩けてしまい、その枠の
+// 225 EP をほぼ一人で取り切れる。
+// ============================================================
+
+var TAP_BP_PER_TAP   = 5;
+var TAP_MAX_PER_DAY  = 2000;
+var TAP_MAX_PER_SLOT = 500;
+var TAP_MAX_BATCH    = 50;
+var TAP_SLOT_EP_CAP  = 225;
+var TAP_DAILY_EP_CAP = 900;
+
+/* 10,000 EP は廃止。100 EP は 0.07% から 0.0007% へ。
+   プールで総額は抑えられるが、単発の当たりが大きすぎると
+   1人が1枠を一撃で持っていくため、確率側も下げる。 */
+var TAP_REWARD_TABLE = [
+  { type: "BP", amount: 0.1, prob: 0.45     },
+  { type: "BP", amount: 0.2, prob: 0.25     },
+  { type: "BP", amount: 0.5, prob: 0.08     },
+  { type: "EP", amount: 1,   prob: 0.12     },
+  { type: "EP", amount: 3,   prob: 0.04     },
+  { type: "EP", amount: 10,  prob: 0.012    },
+  { type: "EP", amount: 100, prob: 0.000007 }
+];
+
+/* JST の日付・時刻。サーバのタイムゾーン設定に左右されないよう、
+   UTC に +9時間して UTC として読む。 */
+function tapJstParts_() {
+  var jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  return {
+    dateStr: jst.toISOString().slice(0, 10),
+    hour:    jst.getUTCHours(),
+    iso:     jst.toISOString()
+  };
+}
+
+function tapSlotIndex_(hour) { return Math.floor(hour / 6); }   // 0..3
+function tapSlotKey_(dateStr, slot) { return dateStr + "#" + slot; }
+function tapSlotLabel_(slot) {
+  return [ "0-6", "6-12", "12-18", "18-24" ][slot] || String(slot);
+}
+/* 次の枠が始まる JST 時刻（画面の「次の補充」表示に使う） */
+function tapNextSlotAtIso_(dateStr, slot) {
+  var h = (slot + 1) * 6;
+  if (h >= 24) {
+    var d = new Date(dateStr + "T00:00:00Z");
+    d = new Date(d.getTime() + 24 * 60 * 60 * 1000);
+    return d.toISOString().slice(0, 10) + "T00:00:00";
+  }
+  return dateStr + "T" + ("0" + h).slice(-2) + ":00:00";
+}
+
+// ---------- 発行済みEPの台帳 ----------
+function getTapPoolSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("tap_ep_pools");
+  if (!sheet) sheet = ss.insertSheet("tap_ep_pools");
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(["date", "slot", "cap_ep", "issued_ep", "updated_at"]);
+  }
+  return sheet;
+}
+
+/* その枠の行を返す。無ければ作る。行番号を返すのは、
+   あとで issued_ep だけを書き戻すため。 */
+function tapPoolRow_(sheet, dateStr, slot) {
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === dateStr && Number(data[i][1]) === slot) {
+      return { rowNum: i + 1, issued: Number(data[i][3] || 0) };
+    }
+  }
+  sheet.appendRow([dateStr, slot, TAP_SLOT_EP_CAP, 0, new Date().toISOString()]);
+  return { rowNum: sheet.getLastRow(), issued: 0 };
+}
+
+/* その日の全枠の発行済み合計。日次900 EP の判定に使う。 */
+function tapDayIssued_(sheet, dateStr) {
+  var data = sheet.getDataRange().getValues();
+  var sum = 0;
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === dateStr) sum += Number(data[i][3] || 0);
+  }
+  return Math.round(sum * 100) / 100;
+}
+
+// ---------- 二重処理の防止 ----------
+function getTapIdemSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("tap_idempotency");
+  if (!sheet) sheet = ss.insertSheet("tap_idempotency");
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(["batch_id", "user_id", "processed_taps", "bp_cost",
+                     "bp_reward", "ep_reward", "result_json", "created_at"]);
+  }
+  return sheet;
+}
+
+/* 同じ batchId が来たら、前回の結果をそのまま返す。
+   通信の再送や sendBeacon の重複で、BPを二重に取られないようにする。 */
+function tapIdemFind_(sheet, batchId) {
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === batchId) return String(data[i][6] || "");
+  }
+  return null;
+}
+
+/* tap_game に枠用の列を足す。既存シートには後から生える。 */
+function ensureTapGameSlotCols_(sheet) {
+  var lastCol = Math.max(1, sheet.getLastColumn());
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  ["slot_key", "slot_taps"].forEach(function (h) {
+    if (headers.indexOf(h) === -1) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(h);
+    }
+  });
+}
+
+// ============================================================
 // action: tap_batch_play
-// params: userId, sessionId, tapCount, maxCombo, startedAt, endedAt
+// params: userId, code, batchId, tapCount, maxCombo, startedAt, endedAt
+// ============================================================
 function tapBatchPlay_(params) {
-  var userId    = String(params.userId    || "");
-  var sessionId = String(params.sessionId || "");
-  var tapCount  = Math.floor(Number(params.tapCount  || 0));
-  var maxCombo  = Math.floor(Number(params.maxCombo  || 0));
+  var userId    = String(params.userId  || "");
+  var code      = String(params.code    || "");
+  var batchId   = String(params.batchId || "");
+  var tapCount  = Math.floor(Number(params.tapCount || 0));
+  var maxCombo  = Math.floor(Number(params.maxCombo || 0));
   var startedAt = String(params.startedAt || "");
   var endedAt   = String(params.endedAt   || "");
 
-  if (!userId)       return json_({ ok: false, error: "userId_required" });
-  if (tapCount <= 0) return json_({ ok: false, error: "invalid_tap_count" });
+  if (!userId)  return json_({ ok: false, error: "userId_required" });
+  if (!code)    return json_({ ok: false, error: "authentication_required" });
+  if (!batchId) return json_({ ok: false, error: "batchId_required" });
+  if (!isFinite(tapCount) || tapCount <= 0) {
+    return json_({ ok: false, error: "invalid_tap_count" });
+  }
 
-  var MAX_TAPS_PER_DAY = 500;
-  var MAX_BATCH        = 50;
+  /* **本人確認。** 以前は userId をそのまま信じていたので、他人のIDを
+     指定すれば、その人のBPを勝手に減らせた。 */
+  var auth = mktAuth_(getSecrets_().SECRET, userId, code);
+  if (!auth.ok || auth.login_id !== userId) {
+    return json_({ ok: false, error: "authentication_failed" });
+  }
 
-  var suspicious = tapCount > MAX_BATCH;
-  if (suspicious) tapCount = MAX_BATCH;
+  /* 残高とプールの読み書きを、丸ごと1つのロックに入れる。
+     読んでから書くまでに他のリクエストが割り込むと、
+     同じ残量を2人が見て、上限を超えて配る。 */
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(20000);
+  } catch (e) {
+    return json_({ ok: false, error: "busy" });
+  }
+  try {
+    return tapBatchPlayLocked_(userId, batchId, tapCount, maxCombo, startedAt, endedAt);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function tapBatchPlayLocked_(userId, batchId, tapCount, maxCombo, startedAt, endedAt) {
+  var idemSheet = getTapIdemSheet_();
+  var seen = tapIdemFind_(idemSheet, batchId);
+  if (seen) {
+    /* 同じバッチの再送。前回と同じ結果を返し、BPは減らさない。 */
+    try { return json_(JSON.parse(seen)); }
+    catch (e) { return json_({ ok: false, error: "duplicate_batch" }); }
+  }
+
+  var suspicious = tapCount > TAP_MAX_BATCH;
+  if (suspicious) tapCount = TAP_MAX_BATCH;
   var requestedTapCount = tapCount;
+
+  var jst      = tapJstParts_();
+  var todayStr = jst.dateStr;
+  var slot     = tapSlotIndex_(jst.hour);
+  var slotKey  = tapSlotKey_(todayStr, slot);
+  var nowStr   = jst.iso;
 
   var sheet = getTapGameSheet_();
   ensureTapGameCols_(sheet);
-
-  var nowJst   = new Date(Date.now() + 9 * 60 * 60 * 1000);
-  var nowStr   = nowJst.toISOString();
-  var todayStr = nowStr.slice(0, 10);
+  ensureTapGameSlotCols_(sheet);
 
   var found = getTapGameRow_(sheet, userId);
   var rowNum, idx, row;
   if (!found) {
-    sheet.appendRow([userId, 0, 0, 0, 0, 0, 0, todayStr, nowStr, false]);
-    var data    = sheet.getDataRange().getValues();
-    var headers = data[0];
+    var headers0 = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    var blank = headers0.map(function () { return ""; });
     idx = {};
-    headers.forEach(function(h, i) { idx[h] = i; });
+    headers0.forEach(function (h, i) { idx[h] = i; });
+    blank[idx["user_id"]] = userId;
+    ["total_taps","today_taps","today_bp_earned","today_ep_earned",
+     "max_combo","today_max_combo","slot_taps"].forEach(function (k) {
+      if (idx[k] !== undefined) blank[idx[k]] = 0;
+    });
+    blank[idx["daily_reset_at"]] = todayStr;
+    blank[idx["last_tap_at"]]    = nowStr;
+    blank[idx["suspicious_flag"]] = false;
+    blank[idx["slot_key"]] = slotKey;
+    sheet.appendRow(blank);
     rowNum = sheet.getLastRow();
-    row    = data[rowNum - 1];
+    row = sheet.getRange(rowNum, 1, 1, headers0.length).getValues()[0];
   } else {
     rowNum = found.rowNum;
     idx    = found.idx;
     row    = found.row;
     resetTapIfNeeded_(sheet, rowNum, idx, row);
-    row = sheet.getRange(rowNum, 1, 1, Object.keys(idx).length).getValues()[0];
+    row = sheet.getRange(rowNum, 1, 1, sheet.getLastColumn()).getValues()[0];
   }
 
-  if (suspicious) {
-    sheet.getRange(rowNum, idx["suspicious_flag"] + 1).setValue(true);
+  /* 枠が変わったら、その枠の回数を0に戻す。日付が変わった場合は
+     resetTapIfNeeded_ が today_taps を戻しているので、ここは枠だけ見る。 */
+  if (String(row[idx["slot_key"]] || "") !== slotKey) {
+    sheet.getRange(rowNum, idx["slot_key"]  + 1).setValue(slotKey);
+    sheet.getRange(rowNum, idx["slot_taps"] + 1).setValue(0);
+    row[idx["slot_key"]]  = slotKey;
+    row[idx["slot_taps"]] = 0;
   }
+
+  if (suspicious) sheet.getRange(rowNum, idx["suspicious_flag"] + 1).setValue(true);
 
   var todayTaps = Number(row[idx["today_taps"]] || 0);
+  var slotTaps  = Number(row[idx["slot_taps"]]  || 0);
   var totalTaps = Number(row[idx["total_taps"]] || 0);
 
-  var remaining    = MAX_TAPS_PER_DAY - todayTaps;
-  if (remaining <= 0) {
-    return json_({ ok: false, error: "daily_limit_reached", taps_remaining: 0 });
+  var dayRemain  = TAP_MAX_PER_DAY  - todayTaps;
+  var slotRemain = TAP_MAX_PER_SLOT - slotTaps;
+  if (dayRemain <= 0) {
+    return json_({ ok: false, error: "daily_limit_reached", taps_remaining: 0, slot_taps_remaining: 0 });
   }
-  var processCount = Math.min(tapCount, remaining);
+  if (slotRemain <= 0) {
+    return json_({
+      ok: false, error: "slot_limit_reached",
+      taps_remaining: dayRemain, slot_taps_remaining: 0,
+      slot: tapSlotLabel_(slot), next_slot_at: tapNextSlotAtIso_(todayStr, slot)
+    });
+  }
 
+  var processCount = Math.min(tapCount, dayRemain, slotRemain);
+
+  // ---- 残高 ----
   var appliesSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("applies");
   var appliesData  = appliesSheet.getDataRange().getValues();
-  var aHeaders     = appliesData[0];
-  var aIdx         = {};
-  aHeaders.forEach(function(h, i) { aIdx[h] = i; });
+  var aIdx = {};
+  appliesData[0].forEach(function (h, i) { aIdx[h] = i; });
   var userRow = null, userRowNum = -1;
   for (var i = 1; i < appliesData.length; i++) {
     if (String(appliesData[i][aIdx["login_id"]]) === userId) {
-      userRow    = appliesData[i];
-      userRowNum = i + 1;
-      break;
+      userRow = appliesData[i]; userRowNum = i + 1; break;
     }
   }
   if (!userRow) return json_({ ok: false, error: "user_not_found" });
 
-  var BP_PER_TAP = 2;
   var currentBp = Number(userRow[aIdx["bp_balance"]] || 0);
-  var affordable = Math.min(processCount, Math.floor(currentBp / BP_PER_TAP));
+  var affordable = Math.min(processCount, Math.floor(currentBp / TAP_BP_PER_TAP));
   if (affordable <= 0) return json_({ ok: false, error: "insufficient_bp", bp: currentBp });
   processCount = affordable;
 
-  var bpCost = processCount * BP_PER_TAP;
-  var afterBp = Math.round((currentBp - bpCost) * 100) / 100;
+  // ---- プール ----
+  var poolSheet = getTapPoolSheet_();
+  var pool      = tapPoolRow_(poolSheet, todayStr, slot);
+  var slotIssued = pool.issued;
+  var dayIssued  = tapDayIssued_(poolSheet, todayStr);
 
-  var REWARD_TABLE = [
-    { type: "BP", amount: 0.1,   prob: 0.45     },
-    { type: "BP", amount: 0.2,   prob: 0.25     },
-    { type: "BP", amount: 0.5,   prob: 0.08     },
-    { type: "EP", amount: 1,     prob: 0.12     },
-    { type: "EP", amount: 3,     prob: 0.04     },
-    { type: "EP", amount: 10,    prob: 0.012    },
-    { type: "EP", amount: 100,   prob: 0.0007   },
-    { type: "EP", amount: 10000, prob: 0.000001 }
-  ];
-
-  var totalBpReward = 0;
-  var totalEpReward = 0;
-  var rareRewards   = [];
-  var rareCount     = 0;
+  var totalBpReward = 0, totalEpReward = 0;
+  var rareRewards = [], rareCount = 0;
+  var processed = 0;
+  var poolExhausted = false;
 
   for (var t = 0; t < processCount; t++) {
+    var room = Math.min(TAP_SLOT_EP_CAP - slotIssued, TAP_DAILY_EP_CAP - dayIssued);
+    /* 枠が尽きていたら、そのタップは行わない。**BPも減らさない。**
+       払ったのに何も返らない、という状態を作らない。 */
+    if (room <= 0) { poolExhausted = true; break; }
+
     var rand = Math.random(), cumulative = 0;
     var rType = "BP", rAmount = 0.1;
-    for (var j = 0; j < REWARD_TABLE.length; j++) {
-      cumulative += REWARD_TABLE[j].prob;
-      if (rand < cumulative) { rType = REWARD_TABLE[j].type; rAmount = REWARD_TABLE[j].amount; break; }
+    for (var j = 0; j < TAP_REWARD_TABLE.length; j++) {
+      cumulative += TAP_REWARD_TABLE[j].prob;
+      if (rand < cumulative) { rType = TAP_REWARD_TABLE[j].type; rAmount = TAP_REWARD_TABLE[j].amount; break; }
     }
+
     if (rType === "BP") {
       totalBpReward = Math.round((totalBpReward + rAmount) * 100) / 100;
     } else {
-      totalEpReward = Math.round((totalEpReward + rAmount) * 100) / 100;
-      if (rAmount >= 50) { rareRewards.push({ type: "EP", amount: rAmount }); rareCount++; }
+      /* 残りより当選額が大きいときは、残りだけ渡す。
+         切り上げると上限を超え、切り捨てて0にすると当たりが消える。 */
+      var award = Math.min(rAmount, room);
+      award = Math.round(award * 100) / 100;
+      totalEpReward = Math.round((totalEpReward + award) * 100) / 100;
+      slotIssued = Math.round((slotIssued + award) * 100) / 100;
+      dayIssued  = Math.round((dayIssued  + award) * 100) / 100;
+      if (award >= 50) { rareRewards.push({ type: "EP", amount: award }); rareCount++; }
     }
+    processed++;
   }
 
-  afterBp = Math.round((afterBp + totalBpReward) * 100) / 100;
+  if (processed === 0) {
+    return json_({
+      ok: false, error: "pool_exhausted",
+      slot: tapSlotLabel_(slot),
+      slot_ep_remaining: 0,
+      daily_ep_remaining: Math.max(0, Math.round((TAP_DAILY_EP_CAP - dayIssued) * 100) / 100),
+      next_slot_at: tapNextSlotAtIso_(todayStr, slot),
+      bp: currentBp
+    });
+  }
+
+  var bpCost  = processed * TAP_BP_PER_TAP;
+  var afterBp = Math.round((currentBp - bpCost + totalBpReward) * 100) / 100;
   var currentEp = Number(userRow[aIdx["ep_balance"]] || 0);
   var afterEp   = Math.round((currentEp + totalEpReward) * 100) / 100;
+
   appliesSheet.getRange(userRowNum, aIdx["bp_balance"] + 1).setValue(afterBp);
   if (totalEpReward > 0) {
     appliesSheet.getRange(userRowNum, aIdx["ep_balance"] + 1).setValue(afterEp);
+    poolSheet.getRange(pool.rowNum, 4).setValue(slotIssued);
+    poolSheet.getRange(pool.rowNum, 5).setValue(nowStr);
   }
 
-  var newTodayTaps     = todayTaps + processCount;
-  var newTotalTaps     = totalTaps + processCount;
-  var todayBp          = Number(row[idx["today_bp_earned"]] || 0);
-  var todayEp          = Number(row[idx["today_ep_earned"]] || 0);
-  var newTodayBp       = Math.round((todayBp + totalBpReward) * 100) / 100;
-  var newTodayEp       = Math.round((todayEp + totalEpReward) * 100) / 100;
-  var newMaxCombo      = Math.max(Number(row[idx["max_combo"]]       || 0), maxCombo);
-  var newTodayMaxCombo = Math.max(Number(row[idx["today_max_combo"]] || 0), maxCombo);
+  var newTodayTaps = todayTaps + processed;
+  var newSlotTaps  = slotTaps  + processed;
+  var newTotalTaps = totalTaps + processed;
+  var newTodayBp   = Math.round((Number(row[idx["today_bp_earned"]] || 0) + totalBpReward) * 100) / 100;
+  var newTodayEp   = Math.round((Number(row[idx["today_ep_earned"]] || 0) + totalEpReward) * 100) / 100;
 
-  sheet.getRange(rowNum, idx["total_taps"]       + 1).setValue(newTotalTaps);
-  sheet.getRange(rowNum, idx["today_taps"]       + 1).setValue(newTodayTaps);
-  sheet.getRange(rowNum, idx["today_bp_earned"]  + 1).setValue(newTodayBp);
-  sheet.getRange(rowNum, idx["today_ep_earned"]  + 1).setValue(newTodayEp);
-  sheet.getRange(rowNum, idx["max_combo"]        + 1).setValue(newMaxCombo);
-  sheet.getRange(rowNum, idx["today_max_combo"]  + 1).setValue(newTodayMaxCombo);
-  sheet.getRange(rowNum, idx["last_tap_at"]      + 1).setValue(nowStr);
+  sheet.getRange(rowNum, idx["total_taps"]      + 1).setValue(newTotalTaps);
+  sheet.getRange(rowNum, idx["today_taps"]      + 1).setValue(newTodayTaps);
+  sheet.getRange(rowNum, idx["slot_taps"]       + 1).setValue(newSlotTaps);
+  sheet.getRange(rowNum, idx["today_bp_earned"] + 1).setValue(newTodayBp);
+  sheet.getRange(rowNum, idx["today_ep_earned"] + 1).setValue(newTodayEp);
+  sheet.getRange(rowNum, idx["max_combo"]       + 1).setValue(Math.max(Number(row[idx["max_combo"]] || 0), maxCombo));
+  sheet.getRange(rowNum, idx["today_max_combo"] + 1).setValue(Math.max(Number(row[idx["today_max_combo"]] || 0), maxCombo));
+  sheet.getRange(rowNum, idx["last_tap_at"]     + 1).setValue(nowStr);
+
+  var result = {
+    ok:                true,
+    processedTapCount: processed,
+    bpCost:            bpCost,
+    bpReward:          totalBpReward,
+    epReward:          totalEpReward,
+    rareRewards:       rareRewards,
+    todayTaps:         newTodayTaps,
+    tapsRemaining:     TAP_MAX_PER_DAY  - newTodayTaps,
+    slotTaps:          newSlotTaps,
+    slotTapsRemaining: TAP_MAX_PER_SLOT - newSlotTaps,
+    slot:              tapSlotLabel_(slot),
+    slotEpRemaining:   Math.max(0, Math.round((TAP_SLOT_EP_CAP - slotIssued) * 100) / 100),
+    dailyEpRemaining:  Math.max(0, Math.round((TAP_DAILY_EP_CAP - dayIssued) * 100) / 100),
+    nextSlotAt:        tapNextSlotAtIso_(todayStr, slot),
+    poolExhausted:     poolExhausted,
+    bpBalance:         afterBp,
+    epBalance:         afterEp,
+    today_bp:          newTodayBp,
+    today_ep:          newTodayEp
+  };
+
+  /* 結果を先に残す。ここで落ちても、再送は同じ結果を返せる。 */
+  idemSheet.appendRow([batchId, userId, processed, bpCost,
+                       totalBpReward, totalEpReward, JSON.stringify(result), nowStr]);
 
   var batchSheet = getTapBatchLogsSheet_();
   batchSheet.appendRow([
-    sessionId || Utilities.getUuid(), userId,
-    requestedTapCount, processCount,
+    batchId, userId, requestedTapCount, processed,
     bpCost, totalBpReward, totalEpReward,
     rareCount, maxCombo, suspicious,
     startedAt || nowStr, endedAt || nowStr, nowStr
@@ -9474,27 +9593,14 @@ function tapBatchPlay_(params) {
   if (rareRewards.length > 0) {
     var rareSheet   = getTapRareLogsSheet_();
     var tickerSheet = getOrCreateTickerSheet_();
-    var masked      = userId.length > 2 ? userId.slice(0, 2) + "***" : userId + "***";
-    rareRewards.forEach(function(r) {
-      rareSheet.appendRow([Utilities.getUuid(), userId, r.amount, "EP", sessionId || "", nowStr]);
+    var masked = userId.length > 2 ? userId.slice(0, 2) + "***" : userId + "***";
+    rareRewards.forEach(function (r) {
+      rareSheet.appendRow([Utilities.getUuid(), userId, r.amount, "EP", batchId, nowStr]);
       tickerSheet.appendRow([Utilities.getUuid(), masked, r.amount, "EP", nowStr]);
     });
   }
 
-  return json_({
-    ok:                true,
-    processedTapCount: processCount,
-    bpCost:            bpCost,
-    bpReward:          totalBpReward,
-    epReward:          totalEpReward,
-    rareRewards:       rareRewards,
-    todayTaps:         newTodayTaps,
-    tapsRemaining:     MAX_TAPS_PER_DAY - newTodayTaps,
-    bpBalance:         afterBp,
-    epBalance:         afterEp,
-    today_bp:          newTodayBp,
-    today_ep:          newTodayEp
-  });
+  return json_(result);
 }
 
 // ============================================================

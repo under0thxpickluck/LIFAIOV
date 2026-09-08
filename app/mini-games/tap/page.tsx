@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTheme } from "../../lib/useTheme";
+import { getAuthSecret } from "../../lib/auth";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { motion, useReducedMotion } from "framer-motion";
 import { TapFloatText } from "@/components/animations/TapFloatText";
@@ -15,6 +16,19 @@ type TapStatus = {
   max_combo:       number;
   today_max_combo: number;
   total_taps:      number;
+  /* 時間帯（JST 0-6 / 6-12 / 12-18 / 18-24）ごとの枠。
+     サーバーが持っている値をそのまま映す。画面では計算しない。 */
+  slot?:                string;
+  next_slot_at?:        string;
+  slot_taps?:           number;
+  slot_taps_remaining?: number;
+  slot_ep_remaining?:   number;
+  daily_ep_remaining?:  number;
+  bp_per_tap?:          number;
+  max_taps_per_day?:    number;
+  max_taps_per_slot?:   number;
+  slot_ep_cap?:         number;
+  daily_ep_cap?:        number;
 };
 
 type BatchResult = {
@@ -26,6 +40,13 @@ type BatchResult = {
   rareRewards?:      { type: string; amount: number }[];
   todayTaps?:        number;
   tapsRemaining?:    number;
+  slotTaps?:         number;
+  slotTapsRemaining?: number;
+  slot?:             string;
+  slotEpRemaining?:  number;
+  dailyEpRemaining?: number;
+  nextSlotAt?:       string;
+  poolExhausted?:    boolean;
   bpBalance?:        number;
   epBalance?:        number;
   today_bp?:         number;
@@ -73,6 +94,8 @@ export default function TapMiningPage() {
 
   // ── コア State ──
   const [userId,              setUserId]              = useState("");
+  const [authCode,            setAuthCode]            = useState("");
+  const [group,               setGroup]               = useState("");
   const [status,              setStatus]              = useState<TapStatus | null>(null);
   const [optimisticRemaining, setOptimisticRemaining] = useState<number | null>(null);
   const [combo,               setCombo]               = useState(0);
@@ -92,17 +115,31 @@ export default function TapMiningPage() {
   const pendingTapsRef      = useRef(0);
   const flushTimerRef       = useRef<NodeJS.Timeout | null>(null);
   const isFlushingRef       = useRef(false);
-  const sessionIdRef        = useRef(`tap_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+  /* バッチごとに作る。1ページ1個を使い回すと、サーバー側の二重処理防止が
+     2回目以降を「同じバッチの再送」と見なして、すべて弾いてしまう。 */
+  const newBatchId = () => `tap_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
   const batchStartRef       = useRef<number | null>(null);
   const maxComboInBatchRef  = useRef(0);
   const userIdRef           = useRef("");
+  const codeRef             = useRef("");
+  const groupRef            = useRef("");
   const floatIdRef          = useRef(0);
   const comboTimerRef       = useRef<NodeJS.Timeout | null>(null);
   const feverIntervalRef    = useRef<NodeJS.Timeout | null>(null);
 
   const reduced = useReducedMotion();
 
+  /* サーバーは JST の "YYYY-MM-DDTHH:MM:SS" を返す。タイムゾーン記号が
+     付いていないので Date に食わせると環境依存になる。文字列から切り出す。 */
+  const fmtSlotTime = (iso?: string) => {
+    if (!iso) return "次の時間帯";
+    const m = /T(\d{2}):(\d{2})/.exec(iso);
+    return m ? `${m[1]}:${m[2]}` : "次の時間帯";
+  };
+
   useEffect(() => { userIdRef.current = userId; }, [userId]);
+  useEffect(() => { codeRef.current = authCode; }, [authCode]);
+  useEffect(() => { groupRef.current = group; }, [group]);
 
   // ── 初期化 ──
   useEffect(() => {
@@ -116,17 +153,25 @@ export default function TapMiningPage() {
       if (raw) {
         const auth = JSON.parse(raw);
         setUserId(String(auth?.id ?? ""));
+        setGroup(String(auth?.group ?? ""));
       }
+      /* code は sessionStorage にあるので、ブラウザを閉じると消える。
+         その場合は ID だけ残るため、黙って落とさず再ログインを促す。 */
+      setAuthCode(getAuthSecret());
     } catch {}
   }, []);
 
   useEffect(() => {
-    if (!userId) return;
-    fetch(`/api/minigames/tap/status?userId=${encodeURIComponent(userId)}`)
+    if (!userId || !authCode) return;
+    fetch("/api/minigames/tap/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, code: authCode, group }),
+    })
       .then(r => r.json())
       .then(d => { if (d.ok) setStatus(d); })
       .catch(() => {});
-  }, [userId]);
+  }, [userId, authCode, group]);
 
   // status が来たら optimisticRemaining を初期化（一度だけ）
   useEffect(() => {
@@ -139,7 +184,7 @@ export default function TapMiningPage() {
   // ── バッチ flush ──
   const flushTaps = useCallback(async () => {
     const count = pendingTapsRef.current;
-    if (count === 0 || !userIdRef.current || isFlushingRef.current) return;
+    if (count === 0 || !userIdRef.current || !codeRef.current || isFlushingRef.current) return;
 
     isFlushingRef.current  = true;
     pendingTapsRef.current = 0;
@@ -157,7 +202,9 @@ export default function TapMiningPage() {
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({
           userId:    userIdRef.current,
-          sessionId: sessionIdRef.current,
+          code:      codeRef.current,
+          group:     groupRef.current,
+          batchId:   newBatchId(),
           tapCount:  count,
           maxCombo,
           startedAt,
@@ -175,6 +222,12 @@ export default function TapMiningPage() {
           today_ep:        data.today_ep        ?? prev.today_ep,
           taps_remaining:  data.tapsRemaining   ?? prev.taps_remaining,
           today_max_combo: Math.max(prev.today_max_combo, maxCombo),
+          slot:                data.slot              ?? prev.slot,
+          slot_taps:           data.slotTaps          ?? prev.slot_taps,
+          slot_taps_remaining: data.slotTapsRemaining ?? prev.slot_taps_remaining,
+          slot_ep_remaining:   data.slotEpRemaining   ?? prev.slot_ep_remaining,
+          daily_ep_remaining:  data.dailyEpRemaining  ?? prev.daily_ep_remaining,
+          next_slot_at:        data.nextSlotAt        ?? prev.next_slot_at,
         } : prev);
         // optimisticRemaining を実残数で補正（必須）
         if (data.tapsRemaining !== undefined) setOptimisticRemaining(data.tapsRemaining);
@@ -193,11 +246,9 @@ export default function TapMiningPage() {
 
         // 自分のレア獲得をティッカーに追加
         data.rareRewards?.forEach(r => {
-          const label = r.amount >= 10000
-            ? `💥 +${r.amount}EP 大当たり!!!`
-            : r.amount >= 500
-              ? `🌟 +${r.amount}EP EPIC!!!`
-              : `✨ +${r.amount}EP RARE!`;
+          const label = r.amount >= 100
+            ? `🌟 +${r.amount}EP EPIC!!!`
+            : `✨ +${r.amount}EP RARE!`;
           setOwnRareEvents(prev => [{ id: ownRareIdRef.current++, amount: r.amount, label }, ...prev].slice(0, 20));
         });
 
@@ -206,10 +257,7 @@ export default function TapMiningPage() {
           const id = floatIdRef.current++;
           const x  = 40 + Math.random() * 20;
           let text: string, color: string;
-          if (r.amount >= 10000) {
-            text = `💥 +${r.amount}EP 大当たり!!!`; color = "text-red-400";
-            setRareEffect(true); setTimeout(() => setRareEffect(false), 3000);
-          } else if (r.amount >= 500) {
+          if (r.amount >= 100) {
             text = `🌟 +${r.amount}EP EPIC!!!`; color = "text-orange-400";
             setRareEffect(true); setTimeout(() => setRareEffect(false), 2000);
           } else {
@@ -222,6 +270,25 @@ export default function TapMiningPage() {
       } else if (data.error === "daily_limit_reached") {
         setOptimisticRemaining(0);
         setStatus(prev => prev ? { ...prev, taps_remaining: 0 } : prev);
+      } else if (data.error === "slot_limit_reached") {
+        /* 日次はまだ残っていても、この時間帯はもう叩けない。
+           残り回数を0にしてしまうと「今日はもう終わり」に見えるので、
+           枠側だけ0にして、次の枠の時刻を出す。 */
+        setOptimisticRemaining(0);
+        setStatus(prev => prev ? {
+          ...prev, slot_taps_remaining: 0,
+          next_slot_at: data.nextSlotAt ?? prev.next_slot_at,
+        } : prev);
+      } else if (data.error === "pool_exhausted") {
+        setOptimisticRemaining(0);
+        setStatus(prev => prev ? {
+          ...prev,
+          slot_ep_remaining:  0,
+          daily_ep_remaining: data.dailyEpRemaining ?? prev.daily_ep_remaining,
+          next_slot_at:       data.nextSlotAt ?? prev.next_slot_at,
+        } : prev);
+      } else if (data.error === "authentication_required" || data.error === "authentication_failed") {
+        setAuthCode("");
       }
     } catch {}
     finally { isFlushingRef.current = false; }
@@ -231,7 +298,9 @@ export default function TapMiningPage() {
   useEffect(() => {
     const buildPayload = () => ({
       userId:    userIdRef.current,
-      sessionId: sessionIdRef.current,
+      code:      codeRef.current,
+      group:     groupRef.current,
+      batchId:   newBatchId(),
       tapCount:  pendingTapsRef.current,
       maxCombo:  maxComboInBatchRef.current,
       startedAt: batchStartRef.current ?? Date.now(),
@@ -240,7 +309,7 @@ export default function TapMiningPage() {
 
     const sendBatch = () => {
       const count = pendingTapsRef.current;
-      if (count === 0 || !userIdRef.current) return;
+      if (count === 0 || !userIdRef.current || !codeRef.current) return;
       const payload = buildPayload();
       pendingTapsRef.current = 0;
       const blob    = new Blob([JSON.stringify(payload)], { type: "application/json" });
@@ -293,7 +362,7 @@ export default function TapMiningPage() {
   // ── メインタップ処理（バッチ版） ──
   const handleTap = () => {
     const effectiveRemaining = optimisticRemaining ?? (status?.taps_remaining ?? 0);
-    if (!userId || !status || effectiveRemaining <= 0) return;
+    if (!userId || !authCode || !status || effectiveRemaining <= 0) return;
 
     const now      = Date.now();
     const newCombo = (now - lastTapTime) < 1200 ? combo + 1 : 1;
@@ -345,15 +414,18 @@ export default function TapMiningPage() {
             <div className={`text-sm ${th.muted} space-y-3`}>
               <div>
                 <p className="font-bold mb-1">■ 基本ルール</p>
-                <p>・1タップ = 2BP消費</p>
-                <p>・1日最大500回まで</p>
+                <p>・1タップ = 5BP消費</p>
+                <p>・1日最大2,000回まで</p>
+                <p>・時間帯ごとに500回まで（0-6 / 6-12 / 12-18 / 18-24時）</p>
                 <p>・毎日リセット</p>
               </div>
               <div>
                 <p className="font-bold mb-1">■ 報酬</p>
                 <p>・BPまたはEPがランダムで獲得できます</p>
                 <p>・最低でも0.1BPは必ずもらえます</p>
-                <p>・ごく稀に大量EPが当たることもあります</p>
+                <p>・最高報酬は100EPです</p>
+                <p>・EPは時間帯ごとに配布量の上限があります</p>
+                <p>・上限に達すると、その時間帯はEPが出ません（BPは消費しません）</p>
               </div>
               <div>
                 <p className="font-bold mb-1">■ ポイント</p>
@@ -414,6 +486,49 @@ export default function TapMiningPage() {
         </div>
       </div>
 
+      {/* いまの時間帯と、配布できるEPの残り。
+          サーバーが返した値をそのまま出す。画面で計算すると、
+          リロードのたびに表示だけが変わって、実際とずれる。 */}
+      {status && (
+        <div className={`${th.statCard} mb-6`}>
+          <div className="flex items-center justify-between mb-1">
+            <p className={th.statLabel}>いまの時間帯</p>
+            <p className="text-xs font-bold">{status.slot ? `${status.slot}時` : "—"}</p>
+          </div>
+          <div className="flex items-center justify-between mb-1">
+            <p className={th.statLabel}>この時間帯のEP残り</p>
+            <p className="text-xs font-bold text-yellow-400">
+              {status.slot_ep_remaining ?? "—"} / {status.slot_ep_cap ?? 225} EP
+            </p>
+          </div>
+          <div className="flex items-center justify-between mb-1">
+            <p className={th.statLabel}>本日のEP残り</p>
+            <p className="text-xs font-bold text-yellow-400">
+              {status.daily_ep_remaining ?? "—"} / {status.daily_ep_cap ?? 900} EP
+            </p>
+          </div>
+          <div className="flex items-center justify-between">
+            <p className={th.statLabel}>この時間帯の残り回数</p>
+            <p className="text-xs font-bold">
+              {status.slot_taps_remaining ?? "—"} / {status.max_taps_per_slot ?? 500} 回
+            </p>
+          </div>
+          {(status.slot_ep_remaining === 0) && (
+            <p className="text-[11px] mt-2 text-orange-400">
+              この時間帯のEPは配り切りました。{fmtSlotTime(status.next_slot_at)}に次の枠が始まります。
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* code は sessionStorage にあるので、ブラウザを閉じると消える。
+          ID だけ残った状態で叩かせると、毎回401で理由も分からない。 */}
+      {userId && !authCode && (
+        <div className="mb-6 rounded-xl border border-orange-400/50 bg-orange-400/10 px-4 py-3 text-xs text-orange-300">
+          ログイン情報の確認が切れています。お手数ですが、ログインし直してください。
+        </div>
+      )}
+
       {/* コンボ表示 */}
       <div className="text-center mb-4">
         {combo >= 20 && (
@@ -433,9 +548,9 @@ export default function TapMiningPage() {
         <TapFloatText items={floats} />
         <motion.button
           onClick={handleTap}
-          disabled={!userId || !status || effectiveRemaining <= 0}
+          disabled={!userId || !authCode || !status || effectiveRemaining <= 0}
           animate={reduced ? {} : { scale: isTapping ? 0.88 : 1 }}
-          whileHover={(!userId || !status || effectiveRemaining <= 0) || reduced ? {} : { scale: 1.05 }}
+          whileHover={(!userId || !authCode || !status || effectiveRemaining <= 0) || reduced ? {} : { scale: 1.05 }}
           transition={{ type: "spring", damping: 14, stiffness: 420 }}
           className={`
             w-48 h-48 rounded-full font-black text-2xl select-none
@@ -443,7 +558,7 @@ export default function TapMiningPage() {
               ? "bg-gradient-to-br from-red-500 to-orange-500 shadow-[0_0_40px_rgba(239,68,68,0.8)]"
               : "bg-gradient-to-br from-purple-600 to-blue-600 shadow-[0_0_30px_rgba(99,102,241,0.5)]"
             }
-            ${(!userId || !status || effectiveRemaining <= 0) ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}
+            ${(!userId || !authCode || !status || effectiveRemaining <= 0) ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}
           `}
         >
           {effectiveRemaining <= 0 ? "🔒" : "⛏️"}
