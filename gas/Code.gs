@@ -9080,6 +9080,10 @@ function tapStatus_(params) {
 
   var base = {
     ok: true,
+    /* 残高は applies が正。mktAuth_ が同じシートから読んでいるので、
+       ここで引き直さずその値を使う。二度読むとズレる余地ができる。 */
+    bp_balance: auth.bp_balance,
+    ep_balance: auth.ep_balance,
     slot:               tapSlotLabel_(slot),
     slot_index:         slot,
     next_slot_at:       tapNextSlotAtIso_(todayStr, slot),
@@ -9271,6 +9275,18 @@ function tapNextSlotAtIso_(dateStr, slot) {
   return dateStr + "T" + ("0" + h).slice(-2) + ":00:00";
 }
 
+/* シートは "2026-09-05" を書き込むと Date 型に変換して保存する。
+   読み戻して String() すると "Fri Sep 05 2026..." になり、日付文字列と
+   一致しない。既存の resetTapIfNeeded_ が instanceof Date を見ているのは
+   同じ理由。ここを踏まないと、毎回「今日の行が無い」と判断して行が増え、
+   枠の残りが毎回満タンに戻る。 */
+function tapDateStr_(v) {
+  if (v instanceof Date) {
+    return new Date(v.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  }
+  return String(v || "").slice(0, 10);
+}
+
 // ---------- 発行済みEPの台帳 ----------
 function getTapPoolSheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -9287,7 +9303,7 @@ function getTapPoolSheet_() {
 function tapPoolRow_(sheet, dateStr, slot) {
   var data = sheet.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === dateStr && Number(data[i][1]) === slot) {
+    if (tapDateStr_(data[i][0]) === dateStr && Number(data[i][1]) === slot) {
       return { rowNum: i + 1, issued: Number(data[i][3] || 0) };
     }
   }
@@ -9300,7 +9316,7 @@ function tapDayIssued_(sheet, dateStr) {
   var data = sheet.getDataRange().getValues();
   var sum = 0;
   for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === dateStr) sum += Number(data[i][3] || 0);
+    if (tapDateStr_(data[i][0]) === dateStr) sum += Number(data[i][3] || 0);
   }
   return Math.round(sum * 100) / 100;
 }

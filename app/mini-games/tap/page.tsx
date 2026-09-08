@@ -29,6 +29,8 @@ type TapStatus = {
   max_taps_per_slot?:   number;
   slot_ep_cap?:         number;
   daily_ep_cap?:        number;
+  bp_balance?:          number;
+  ep_balance?:          number;
 };
 
 type BatchResult = {
@@ -228,6 +230,8 @@ export default function TapMiningPage() {
           slot_ep_remaining:   data.slotEpRemaining   ?? prev.slot_ep_remaining,
           daily_ep_remaining:  data.dailyEpRemaining  ?? prev.daily_ep_remaining,
           next_slot_at:        data.nextSlotAt        ?? prev.next_slot_at,
+          bp_balance:          data.bpBalance         ?? prev.bp_balance,
+          ep_balance:          data.epBalance         ?? prev.ep_balance,
         } : prev);
         // optimisticRemaining を実残数で補正（必須）
         if (data.tapsRemaining !== undefined) setOptimisticRemaining(data.tapsRemaining);
@@ -475,14 +479,27 @@ export default function TapMiningPage() {
       </div>
 
       {/* ステータスバー */}
-      <div className="grid grid-cols-2 gap-2 mb-6">
+      {/* 残高と、今日の獲得を分けて出す。以前は「今日のBP」だけが並んでいて、
+          これは獲得量なのに残高と読まれる。タップは5BP払って0.1BP前後を得るので、
+          獲得だけ見ていると増え続けているように見えてしまう。 */}
+      <div className="grid grid-cols-2 gap-2 mb-2">
         <div className={th.statCard}>
-          <p className={th.statLabel}>今日のBP</p>
-          <p className="font-bold text-purple-400">{status?.today_bp ?? 0}</p>
+          <p className={th.statLabel}>BP残高</p>
+          <p className="font-bold text-purple-400">{status?.bp_balance ?? "—"}</p>
         </div>
         <div className={th.statCard}>
-          <p className={th.statLabel}>今日のEP</p>
-          <p className="font-bold text-yellow-400">{status?.today_ep ?? 0}</p>
+          <p className={th.statLabel}>EP残高</p>
+          <p className="font-bold text-yellow-400">{status?.ep_balance ?? "—"}</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 mb-6">
+        <div className={th.statCard}>
+          <p className={th.statLabel}>今日の獲得BP</p>
+          <p className="font-bold text-purple-400/80 text-sm">+{status?.today_bp ?? 0}</p>
+        </div>
+        <div className={th.statCard}>
+          <p className={th.statLabel}>今日の獲得EP</p>
+          <p className="font-bold text-yellow-400/80 text-sm">+{status?.today_ep ?? 0}</p>
         </div>
       </div>
 
